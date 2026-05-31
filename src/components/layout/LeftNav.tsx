@@ -1,6 +1,5 @@
 import { useAppStore } from "@/store";
 
-// All icons as inline SVG matching the mockup's Lucide-style icons
 const Icons = {
   folder: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -19,11 +18,19 @@ const Icons = {
       <circle cx="8" cy="8" r="5"/><line x1="12" y1="12" x2="16" y2="16"/>
     </svg>
   ),
-  // AI / Intel panel icon (chat bubble with sparkle)
+  // AI / Intel panel
   aiChat: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 4a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 15 4v7a1.5 1.5 0 0 1-1.5 1.5H6l-3 2V4z"/>
-      <path d="M7 7.5h0.01M9 7.5h0.01M11 7.5h0.01" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M7 7.5h0.01M9 7.5h0.01M11 7.5h0.01" strokeWidth="2.2" strokeLinecap="round"/>
+    </svg>
+  ),
+  // Terminal panel
+  terminal: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="14" height="12" rx="1.5"/>
+      <polyline points="5,7 8,9 5,11"/>
+      <line x1="9" y1="11" x2="13" y2="11"/>
     </svg>
   ),
   settings: (
@@ -54,15 +61,16 @@ function NavIcon({
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: 4,
-        cursor: 'pointer',
-        color: active ? '#6366F1' : '#4A4A65',
+        cursor: onClick ? 'pointer' : 'default',
+        // Active: indigo. Inactive: clearly visible grey (not near-invisible #4A4A65)
+        color: active ? '#6366F1' : '#8888A8',
         background: active ? '#1A1A3A' : 'transparent',
         borderLeft: active ? '2px solid #6366F1' : '2px solid transparent',
         position: 'relative',
         transition: 'all 0.12s',
         flexShrink: 0,
       }}
-      className={!active ? 'hover:!bg-[#18181F] hover:!text-[#8888A8]' : ''}
+      className={!active ? 'hover:!bg-[#18181F] hover:!text-[#E2E2EC]' : ''}
     >
       {icon}
       {badge && (
@@ -77,18 +85,27 @@ function NavIcon({
 }
 
 export function LeftNav() {
-  const { leftPanelOpen, toggleLeftPanel, intelPanelOpen, toggleIntelPanel } = useAppStore();
+  const {
+    leftPanelOpen,  toggleLeftPanel,
+    intelPanelOpen, toggleIntelPanel,
+    terminalOpen,   toggleTerminal,
+  } = useAppStore();
 
   return (
     <div
       className="app-left-nav flex flex-col items-center py-2 gap-0.5"
       style={{ width: 48, background: '#111118', borderRight: '1px solid #1A1A28', flexShrink: 0 }}
     >
-      <NavIcon icon={Icons.folder}    active={leftPanelOpen}   title="Explorer (toggle)"    onClick={toggleLeftPanel} />
-      <NavIcon icon={Icons.gitBranch} title="Source Control"   badge />
+      {/* Top group — content panels */}
+      <NavIcon icon={Icons.folder}    active={leftPanelOpen}   title="Explorer"   onClick={toggleLeftPanel} />
+      <NavIcon icon={Icons.gitBranch} title="Source Control" badge />
       <NavIcon icon={Icons.search}    title="Search" />
-      <NavIcon icon={Icons.aiChat}    active={intelPanelOpen}  title="AI Panel (toggle)"    onClick={toggleIntelPanel} />
+      <NavIcon icon={Icons.aiChat}    active={intelPanelOpen}  title="AI Panel"   onClick={toggleIntelPanel} />
+
       <div style={{ flex: 1 }} />
+
+      {/* Bottom group — utility */}
+      <NavIcon icon={Icons.terminal}  active={terminalOpen}    title="Terminal"   onClick={toggleTerminal} />
       <NavIcon icon={Icons.settings}  title="Settings" />
     </div>
   );
