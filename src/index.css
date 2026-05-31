@@ -1,0 +1,129 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── APEX Design Tokens ───────────────────────────────────────────────────── */
+@theme {
+  --color-base:            #0A0A0F;
+  --color-surface-1:       #111118;
+  --color-surface-2:       #18181F;
+  --color-surface-3:       #1E1E2E;
+  --color-accent:          #6366F1;
+  --color-accent-hover:    #7C7FFF;
+  --color-accent-subtle:   #1A1A3A;
+  --color-border:          #252535;
+  --color-border-soft:     #1A1A28;
+  --color-text-primary:    #E2E2EC;
+  --color-text-secondary:  #8888A8;
+  --color-text-muted:      #4A4A65;
+  --color-success:         #22C55E;
+  --color-warning:         #F59E0B;
+  --color-error:           #EF4444;
+  --color-node-people:     #93C5FD;
+  --color-node-projects:   #86EFAC;
+  --color-node-decisions:  #C084FC;
+  --color-node-meetings:   #F9A8D4;
+  --color-node-questions:  #F59E0B;
+}
+
+/* ── CSS Custom Properties ────────────────────────────────────────────────── */
+:root {
+  --left-panel-width:  220px;
+  --intel-panel-width: 300px;
+  --terminal-height:   188px;
+  color-scheme: dark;
+}
+
+/* ── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #0A0A0F;
+  color: #E2E2EC;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: 'JetBrains Mono', 'Cascadia Code', monospace; }
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #252535; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4A4A65; }
+::selection { background: rgba(99,102,241,0.28); color: #E2E2EC; }
+:focus-visible { outline: 1px solid #6366F1; outline-offset: 1px; }
+
+/* ── App Layout Grid ──────────────────────────────────────────────────────── */
+/*
+  Row 1: Titlebar        (38px)
+  Row 2: Mode bar        (36px)
+  Row 3: Main content    (1fr)
+  Row 4: Terminal        (var --terminal-height)
+  Row 5: Status bar      (26px)
+
+  Col 1: Left nav        (48px)
+  Col 2: Left panel      (var --left-panel-width)
+  Col 3: Center          (1fr)
+  Col 4: Intel panel     (var --intel-panel-width)
+*/
+.app-grid {
+  display: grid;
+  grid-template-rows: 38px 36px 1fr var(--terminal-height) 26px;
+  grid-template-columns: 48px var(--left-panel-width) 1fr var(--intel-panel-width);
+  width: 100%; height: 100%;
+  overflow: hidden;
+  transition: grid-template-columns 180ms ease, grid-template-rows 180ms ease;
+}
+
+/* Spanning helpers */
+.gc-full       { grid-column: 1 / -1; }
+.gc-content    { grid-column: 2 / -1; }
+.gc-main       { grid-column: 2 / 4; }
+
+.app-titlebar  { grid-column: 1/-1; grid-row: 1; }
+.app-modebar   { grid-column: 1/-1; grid-row: 2; }
+.app-left-nav  { grid-column: 1;    grid-row: 3; }
+.app-left-panel{ grid-column: 2;    grid-row: 3; overflow: hidden; }
+.app-center    { grid-column: 3;    grid-row: 3; }
+.app-intel     { grid-column: 4;    grid-row: 3; overflow: hidden; }
+.app-terminal  { grid-column: 1/-1; grid-row: 4; overflow: hidden; }
+.app-statusbar { grid-column: 1/-1; grid-row: 5; }
+
+/* Panel collapse states */
+.app-grid.lp-hidden  { grid-template-columns: 48px 0 1fr var(--intel-panel-width); }
+.app-grid.ip-hidden  { grid-template-columns: 48px var(--left-panel-width) 1fr 0; }
+.app-grid.trm-hidden { grid-template-rows: 38px 36px 1fr 0 26px; }
+
+/* ── Drag / no-drag regions ───────────────────────────────────────────────── */
+.drag    { -webkit-app-region: drag;    app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
+
+/* ── Resize handle ────────────────────────────────────────────────────────── */
+.rh {
+  width: 2px; background: #252535;
+  cursor: col-resize; flex-shrink: 0;
+  transition: background 80ms, width 80ms;
+  position: absolute; top: 0; right: 0; bottom: 0;
+}
+.rh:hover, .rh.active { width: 3px; background: #6366F1; }
+
+/* ── Animated gradient line (intel panel top) ─────────────────────────────── */
+@keyframes gs { 0%{background-position:0%} 100%{background-position:200%} }
+.grad-line {
+  height: 2px; flex-shrink: 0;
+  background: linear-gradient(90deg, #6366F1, #C084FC, #6366F1);
+  background-size: 200%;
+  animation: gs 1.5s linear infinite;
+}
+
+/* ── Cursor blink ─────────────────────────────────────────────────────────── */
+@keyframes bl { 0%,100%{opacity:1} 50%{opacity:0} }
+.blink {
+  display: inline-block; width: 8px; height: 14px;
+  background: #6366F1; animation: bl 600ms step-end infinite;
+  vertical-align: text-bottom; margin-left: 1px;
+}
