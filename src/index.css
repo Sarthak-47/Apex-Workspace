@@ -127,3 +127,6 @@ html, body, #root {
   background: #6366F1; animation: bl 600ms step-end infinite;
   vertical-align: text-bottom; margin-left: 1px;
 }
+
+/* ── Spinner ──────────────────────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
