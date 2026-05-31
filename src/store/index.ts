@@ -29,6 +29,11 @@ interface AppState {
   openFile: (path: string) => void;
   closeFile: (path: string) => void;
 
+  // Unsaved file tracking (not persisted)
+  unsavedFiles: string[];
+  markFileUnsaved: (path: string) => void;
+  markFileSaved: (path: string) => void;
+
   // Panel visibility & dimensions
   leftPanelOpen: boolean;
   leftPanelWidth: number;
@@ -81,12 +86,27 @@ export const useAppStore = create<AppState>()(
         set({ activeFile: path });
       },
       closeFile: (path) => {
-        const { openFiles, activeFile } = get();
+        const { openFiles, activeFile, unsavedFiles } = get();
         const next = openFiles.filter((f) => f !== path);
         const newActive =
           activeFile === path ? (next[next.length - 1] ?? null) : activeFile;
-        set({ openFiles: next, activeFile: newActive });
+        set({
+          openFiles: next,
+          activeFile: newActive,
+          unsavedFiles: unsavedFiles.filter((f) => f !== path),
+        });
       },
+
+      // Unsaved tracking
+      unsavedFiles: [],
+      markFileUnsaved: (path) =>
+        set((s) => ({
+          unsavedFiles: s.unsavedFiles.includes(path)
+            ? s.unsavedFiles
+            : [...s.unsavedFiles, path],
+        })),
+      markFileSaved: (path) =>
+        set((s) => ({ unsavedFiles: s.unsavedFiles.filter((f) => f !== path) })),
 
       // Panels
       leftPanelOpen: true,
