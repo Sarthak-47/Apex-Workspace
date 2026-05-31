@@ -1,9 +1,15 @@
+import { useState } from "react";
 import { useAppStore } from "@/store";
 import { MonacoEditor } from "@/components/editor/MonacoEditor";
 
 // ─── Tab bar ──────────────────────────────────────────────────────────────────
-function TabBar() {
-  const { openFiles, activeFile, unsavedFiles, setActiveFile, closeFile } = useAppStore();
+
+interface TabBarProps {
+  onRequestClose: (path: string) => void;
+}
+
+function TabBar({ onRequestClose }: TabBarProps) {
+  const { openFiles, activeFile, unsavedFiles, setActiveFile } = useAppStore();
   if (openFiles.length === 0) return null;
 
   return (
@@ -17,10 +23,10 @@ function TabBar() {
       overflow: 'hidden',
     }}>
       {openFiles.map((path) => {
-        const name = path.split('/').pop() ?? path;
-        const ext  = name.split('.').pop()?.toLowerCase() ?? '';
-        const active   = path === activeFile;
-        const unsaved  = unsavedFiles.includes(path);
+        const name      = path.split('/').pop() ?? path;
+        const ext       = name.split('.').pop()?.toLowerCase() ?? '';
+        const active    = path === activeFile;
+        const unsaved   = unsavedFiles.includes(path);
         const iconColor = getIconColor(ext);
 
         return (
@@ -66,7 +72,7 @@ function TabBar() {
               {name}
             </span>
 
-            {/* Unsaved dot — only when dirty */}
+            {/* Unsaved amber dot — only when dirty */}
             {unsaved && (
               <span style={{
                 width: 6, height: 6,
@@ -79,7 +85,10 @@ function TabBar() {
 
             {/* Close button */}
             <button
-              onClick={(e) => { e.stopPropagation(); closeFile(path); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequestClose(path);
+              }}
               title={unsaved ? 'Close (unsaved changes)' : 'Close'}
               style={{
                 fontSize: 14,
@@ -131,6 +140,120 @@ function getIconLabel(ext: string): string {
     sh: 'SH',
   };
   return map[ext] ?? (ext.slice(0, 2).toUpperCase() || '??');
+}
+
+// ─── Discard dialog ───────────────────────────────────────────────────────────
+
+interface DiscardDialogProps {
+  path: string;
+  onDiscard: () => void;
+  onCancel: () => void;
+}
+
+function DiscardDialog({ path, onDiscard, onCancel }: DiscardDialogProps) {
+  const name = path.split('/').pop() ?? path;
+
+  return (
+    // Backdrop
+    <div
+      onClick={onCancel}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 999,
+        background: 'rgba(0,0,0,0.55)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backdropFilter: 'blur(2px)',
+      }}
+    >
+      {/* Dialog card */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 360,
+          background: '#111118',
+          border: '1px solid #252535',
+          borderRadius: 8,
+          boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: '16px 20px 12px',
+          borderBottom: '1px solid #1A1A28',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Warning icon */}
+            <div style={{
+              width: 28, height: 28, borderRadius: 6,
+              background: '#291A0D', border: '1px solid #403010',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 1.5L12.5 11.5H1.5L7 1.5Z"/>
+                <line x1="7" y1="5.5" x2="7" y2="8.5"/>
+                <circle cx="7" cy="10" r="0.4" fill="#F59E0B"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#E2E2EC' }}>
+              Unsaved changes
+            </span>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '14px 20px 18px' }}>
+          <p style={{ fontSize: 12, color: '#8888A8', lineHeight: 1.6 }}>
+            Do you want to discard your changes to{' '}
+            <span style={{
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: 11, color: '#E2E2EC',
+              background: '#1A1A28', padding: '1px 5px', borderRadius: 3,
+            }}>
+              {name}
+            </span>
+            ? This action cannot be undone.
+          </p>
+
+          {/* Actions */}
+          <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button
+              onClick={onCancel}
+              style={{
+                height: 30, padding: '0 14px', borderRadius: 5,
+                fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                background: 'transparent',
+                border: '1px solid #252535',
+                color: '#8888A8',
+                transition: 'all 120ms',
+              }}
+              className="hover:!border-[#4A4A65] hover:!text-[#E2E2EC] transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onDiscard}
+              style={{
+                height: 30, padding: '0 14px', borderRadius: 5,
+                fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                background: '#291A0D',
+                border: '1px solid #F59E0B60',
+                color: '#F59E0B',
+                transition: 'all 120ms',
+              }}
+              className="hover:!bg-[#F59E0B20] transition-all"
+            >
+              Discard changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Breadcrumb ───────────────────────────────────────────────────────────────
@@ -253,52 +376,75 @@ function EmptyState() {
         }}
       />
       <p style={{ fontSize: 12, color: '#4A4A65' }}>Open a file to start editing</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-        <p style={{ fontSize: 11, color: '#4A4A65', opacity: 0.7 }}>
-          <span style={{
-            background: '#18181F', border: '1px solid #252535',
-            borderRadius: 3, padding: '1px 5px',
-            fontFamily: '"JetBrains Mono", monospace',
-            fontSize: 10, color: '#4A4A65',
-          }}>
-            Ctrl+P
-          </span>
-          {' '}Quick Open &nbsp;·&nbsp;{' '}
-          <span style={{
-            background: '#18181F', border: '1px solid #252535',
-            borderRadius: 3, padding: '1px 5px',
-            fontFamily: '"JetBrains Mono", monospace',
-            fontSize: 10, color: '#4A4A65',
-          }}>
-            Ctrl+S
-          </span>
-          {' '}Save
-        </p>
-      </div>
+      <p style={{ fontSize: 11, color: '#4A4A65', opacity: 0.7 }}>
+        <span style={{
+          background: '#18181F', border: '1px solid #252535',
+          borderRadius: 3, padding: '1px 5px',
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: 10, color: '#4A4A65',
+        }}>
+          Ctrl+P
+        </span>
+        {' '}Quick Open &nbsp;·&nbsp;{' '}
+        <span style={{
+          background: '#18181F', border: '1px solid #252535',
+          borderRadius: 3, padding: '1px 5px',
+          fontFamily: '"JetBrains Mono", monospace',
+          fontSize: 10, color: '#4A4A65',
+        }}>
+          Ctrl+S
+        </span>
+        {' '}Save
+      </p>
     </div>
   );
 }
 
 // ─── Center Area ──────────────────────────────────────────────────────────────
 export function CenterArea() {
-  const { activeFile } = useAppStore();
+  const { activeFile, unsavedFiles, closeFile } = useAppStore();
+  const [closeTarget, setCloseTarget] = useState<string | null>(null);
+
+  const handleRequestClose = (path: string) => {
+    if (unsavedFiles.includes(path)) {
+      setCloseTarget(path);     // show discard dialog
+    } else {
+      closeFile(path);          // close immediately if clean
+    }
+  };
+
+  const handleDiscard = () => {
+    if (closeTarget) {
+      closeFile(closeTarget);
+      setCloseTarget(null);
+    }
+  };
 
   return (
     <div
       className="app-center flex flex-col"
       style={{ background: '#0A0A0F', minWidth: 0, overflow: 'hidden' }}
     >
-      <TabBar />
+      <TabBar onRequestClose={handleRequestClose} />
 
       {activeFile ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
           <Breadcrumb path={activeFile} />
           <ContextRibbon />
-          {/* Real Monaco editor — remounts on path change via key */}
+          {/* Monaco remounts cleanly on path change via key={path} inside component */}
           <MonacoEditor path={activeFile} />
         </div>
       ) : (
         <EmptyState />
+      )}
+
+      {/* Discard confirmation dialog */}
+      {closeTarget && (
+        <DiscardDialog
+          path={closeTarget}
+          onDiscard={handleDiscard}
+          onCancel={() => setCloseTarget(null)}
+        />
       )}
     </div>
   );
