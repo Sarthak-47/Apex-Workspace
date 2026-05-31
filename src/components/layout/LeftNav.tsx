@@ -19,9 +19,11 @@ const Icons = {
       <circle cx="8" cy="8" r="5"/><line x1="12" y1="12" x2="16" y2="16"/>
     </svg>
   ),
-  activity: (
+  // AI / Intel panel icon (chat bubble with sparkle)
+  aiChat: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="2,9 5,9 7,4 10,14 12,9 16,9"/>
+      <path d="M3 4a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 15 4v7a1.5 1.5 0 0 1-1.5 1.5H6l-3 2V4z"/>
+      <path d="M7 7.5h0.01M9 7.5h0.01M11 7.5h0.01" strokeWidth="2" strokeLinecap="round"/>
     </svg>
   ),
   settings: (
@@ -75,19 +77,19 @@ function NavIcon({
 }
 
 export function LeftNav() {
-  const { leftPanelOpen, toggleLeftPanel } = useAppStore();
+  const { leftPanelOpen, toggleLeftPanel, intelPanelOpen, toggleIntelPanel } = useAppStore();
 
   return (
     <div
       className="app-left-nav flex flex-col items-center py-2 gap-0.5"
       style={{ width: 48, background: '#111118', borderRight: '1px solid #1A1A28', flexShrink: 0 }}
     >
-      <NavIcon icon={Icons.folder} active={leftPanelOpen} title="Explorer" onClick={toggleLeftPanel} />
-      <NavIcon icon={Icons.gitBranch} title="Source Control" badge />
-      <NavIcon icon={Icons.search} title="Search" />
-      <NavIcon icon={Icons.activity} title="Run & Debug" />
+      <NavIcon icon={Icons.folder}    active={leftPanelOpen}   title="Explorer (toggle)"    onClick={toggleLeftPanel} />
+      <NavIcon icon={Icons.gitBranch} title="Source Control"   badge />
+      <NavIcon icon={Icons.search}    title="Search" />
+      <NavIcon icon={Icons.aiChat}    active={intelPanelOpen}  title="AI Panel (toggle)"    onClick={toggleIntelPanel} />
       <div style={{ flex: 1 }} />
-      <NavIcon icon={Icons.settings} title="Settings" />
+      <NavIcon icon={Icons.settings}  title="Settings" />
     </div>
   );
 }

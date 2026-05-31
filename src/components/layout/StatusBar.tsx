@@ -23,7 +23,7 @@ function SbItem({ children, onClick }: { children: React.ReactNode; onClick?: ()
 }
 
 export function StatusBar() {
-  const { mode, activeFile } = useAppStore();
+  const { mode, activeFile, terminalOpen, toggleTerminal } = useAppStore();
   const fileName = activeFile?.split('/').pop() ?? null;
 
   return (
@@ -52,6 +52,22 @@ export function StatusBar() {
 
       <SbItem>
         <span style={{ opacity: 0.8 }}>{mode}</span>
+      </SbItem>
+
+      <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />
+
+      {/* Terminal toggle */}
+      <SbItem onClick={toggleTerminal}>
+        <svg
+          width="12" height="12" viewBox="0 0 12 12" fill="none"
+          stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ opacity: terminalOpen ? 1 : 0.6 }}
+        >
+          <rect x="1" y="1" width="10" height="10" rx="1.5"/>
+          <polyline points="3,4.5 5.5,6 3,7.5"/>
+          <line x1="6.5" y1="7.5" x2="9" y2="7.5"/>
+        </svg>
+        <span style={{ opacity: terminalOpen ? 1 : 0.65 }}>Terminal</span>
       </SbItem>
 
       {/* Spacer */}
