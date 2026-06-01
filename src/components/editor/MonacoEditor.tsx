@@ -358,9 +358,19 @@ export function MonacoEditor({ path }: Props) {
   const [minimap, setMinimap]   = useState(true);
   const [fontSize, setFontSize] = useState(13);
 
-  const { markFileUnsaved, markFileSaved } = useAppStore();
+  const { markFileUnsaved, markFileSaved, pendingFileEdit, setPendingFileEdit } = useAppStore();
   const editorRef  = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
   const dirtyRef   = useRef(false);
+
+  // ── Apply pending AI file edit ────────────────────────────────────────────
+  useEffect(() => {
+    if (pendingFileEdit?.path === path && editorRef.current) {
+      editorRef.current.setValue(pendingFileEdit.content);
+      dirtyRef.current = true;
+      markFileUnsaved(path);
+      setPendingFileEdit(null);
+    }
+  }, [pendingFileEdit, path, markFileUnsaved, setPendingFileEdit]);
 
   // ── Sync editor options when toggles change ───────────────────────────────
   useEffect(() => {

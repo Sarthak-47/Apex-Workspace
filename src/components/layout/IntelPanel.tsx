@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useAppStore } from "@/store";
+import { useAppStore, useToast } from "@/store";
 import { streamChat, type ChatMessage } from "@/lib/ollama";
 import { readFile } from "@/lib/tauri";
 import { getLang } from "@/components/editor/MonacoEditor";
@@ -37,22 +37,72 @@ function parseBlocks(content: string): ContentBlock[] {
   return result.length > 0 ? result : [{ type: 'text', text: content }];
 }
 
+// ─── Language normaliser (handles ts/typescript, sh/bash/shell etc.) ─────────
+
+const LANG_NORM: Record<string, string> = {
+  ts: 'typescript', tsx: 'typescript',
+  js: 'javascript', jsx: 'javascript',
+  py: 'python',
+  rs: 'rust',
+  sh: 'shell', bash: 'shell', zsh: 'shell', console: 'shell',
+};
+const normLang = (l: string) => LANG_NORM[l.toLowerCase()] ?? l.toLowerCase();
+const isShellLang = (l: string) => ['shell', 'bash', 'sh', 'zsh', 'console'].includes(normLang(l));
+
 // ─── Code block ───────────────────────────────────────────────────────────────
 
-function Code({ lang, code }: { lang: string; code: string }) {
+function Code({
+  lang, code,
+  onApply, onRun,
+}: {
+  lang: string;
+  code: string;
+  onApply?: () => void;
+  onRun?: () => void;
+}) {
   const [copied, setCopied] = useState(false);
+  const [applied, setApplied] = useState(false);
+
   const copy = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  const apply = () => {
+    onApply?.();
+    setApplied(true);
+    setTimeout(() => setApplied(false), 2000);
+  };
+
   return (
     <div style={{ background: '#090910', border: '1px solid #252535', borderRadius: 6, marginTop: 6, overflow: 'hidden' }}>
-      <div style={{ height: 26, background: '#111118', borderBottom: '1px solid #1A1A28', display: 'flex', alignItems: 'center', padding: '0 10px', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 10, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '.05em', fontFamily: 'JetBrains Mono,monospace' }}>{lang}</span>
-        <button onClick={copy} style={{ fontSize: 11, color: '#4A4A65', cursor: 'pointer', background: 'none', border: 'none' }}
+      {/* Header */}
+      <div style={{ minHeight: 28, background: '#111118', borderBottom: '1px solid #1A1A28', display: 'flex', alignItems: 'center', padding: '0 10px', gap: 6, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 10, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '.05em', fontFamily: 'JetBrains Mono,monospace', flex: 1 }}>{lang || 'text'}</span>
+
+        {/* Apply to file — shown for non-shell code when a file is active */}
+        {onApply && (
+          <button onClick={apply}
+            style={{ fontSize: 10, color: applied ? '#22C55E' : '#6366F1', cursor: 'pointer', background: applied ? '#0A1F0A' : '#1A1A3A', border: `1px solid ${applied ? '#22C55E30' : '#6366F130'}`, borderRadius: 3, padding: '2px 7px', fontFamily: 'inherit', transition: 'all 0.15s' }}
+            className="hover:!bg-[#252552] transition-colors">
+            {applied ? '✓ Applied' : 'Apply to file'}
+          </button>
+        )}
+
+        {/* Run in terminal — shown for shell code */}
+        {onRun && (
+          <button onClick={onRun}
+            style={{ fontSize: 10, color: '#22C55E', cursor: 'pointer', background: '#0A1F0A', border: '1px solid #22C55E30', borderRadius: 3, padding: '2px 7px', fontFamily: 'inherit' }}
+            className="hover:!bg-[#0D2A0D] transition-colors">
+            ▶ Run
+          </button>
+        )}
+
+        <button onClick={copy}
+          style={{ fontSize: 10, color: '#4A4A65', cursor: 'pointer', background: 'none', border: 'none', padding: '2px 4px' }}
           className="hover:!text-[#E2E2EC] transition-colors">
-          {copied ? '✓ Copied' : 'Copy'}
+          {copied ? '✓' : 'Copy'}
         </button>
       </div>
       <pre style={{ padding: '10px 12px', fontSize: 11.5, lineHeight: 1.65, overflowX: 'auto', fontFamily: '"JetBrains Mono",monospace', color: '#8888A8', margin: 0, whiteSpace: 'pre' }}>
@@ -64,7 +114,14 @@ function Code({ lang, code }: { lang: string; code: string }) {
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
-function MessageBubble({ msg }: { msg: Message }) {
+interface BubbleProps {
+  msg: Message;
+  activeFile: string | null;
+  onApplyCode: (code: string) => void;
+  onRunCommand: (cmd: string) => void;
+}
+
+function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubbleProps) {
   if (msg.role === 'user') {
     return (
       <div style={{
@@ -88,14 +145,32 @@ function MessageBubble({ msg }: { msg: Message }) {
     );
   }
 
+  const activeLang = activeFile ? normLang(getLang(activeFile)) : null;
   const blocks = parseBlocks(msg.content);
+
   return (
     <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
-      {blocks.map((block, i) =>
-        block.type === 'code'
-          ? <Code key={i} lang={block.lang} code={block.code} />
-          : <p key={i} style={{ margin: i === 0 ? 0 : '8px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{block.text}</p>
-      )}
+      {blocks.map((block, i) => {
+        if (block.type === 'code') {
+          const blockLang = normLang(block.lang);
+          const canApply = !!activeFile && !!activeLang && blockLang === activeLang && !isShellLang(block.lang);
+          const canRun   = isShellLang(block.lang);
+          return (
+            <Code
+              key={i}
+              lang={block.lang}
+              code={block.code}
+              onApply={canApply ? () => onApplyCode(block.code) : undefined}
+              onRun={canRun ? () => onRunCommand(block.code) : undefined}
+            />
+          );
+        }
+        return (
+          <p key={i} style={{ margin: i === 0 ? 0 : '8px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {block.text}
+          </p>
+        );
+      })}
     </div>
   );
 }
@@ -167,7 +242,10 @@ export function IntelPanel() {
     ollamaOnline, ollamaModels,
     ollamaSelectedModel, setOllamaSelectedModel,
     workspacePath, activeFile,
+    setPendingFileEdit,
+    terminalOpen, toggleTerminal,
   } = useAppStore();
+  const { success, info } = useToast();
 
   const [input, setInput]         = useState('');
   const [messages, setMessages]   = useState<Message[]>([]);
@@ -260,6 +338,21 @@ export function IntelPanel() {
     abortRef.current?.abort();
   };
 
+  // ── Apply AI code to active file in Monaco ────────────────────────────────
+  const handleApplyCode = useCallback((code: string) => {
+    if (!activeFile) return;
+    const name = activeFile.split(/[\\/]/).pop() ?? activeFile;
+    setPendingFileEdit({ path: activeFile, content: code });
+    success(`Applied to ${name} — review and Ctrl+S to save`);
+  }, [activeFile, setPendingFileEdit, success]);
+
+  // ── Run shell command: open terminal + copy to clipboard ──────────────────
+  const handleRunCommand = useCallback((cmd: string) => {
+    navigator.clipboard.writeText(cmd).catch(() => {});
+    if (!terminalOpen) toggleTerminal();
+    info('Command copied — paste in terminal (Ctrl+V)');
+  }, [terminalOpen, toggleTerminal, info]);
+
   // ── Drag resize (left edge) ────────────────────────────────────────────────
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -308,8 +401,20 @@ export function IntelPanel() {
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
+        {/* Clear conversation */}
+        {messages.length > 0 && (
+          <button onClick={() => setMessages([])}
+            style={{ marginLeft: 'auto', color: '#4A4A65', cursor: 'pointer', lineHeight: 1, background: 'none', border: 'none' }}
+            className="hover:!text-[#EF4444] transition-colors" title="Clear conversation">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3,4 4,14 12,14 13,4"/><line x1="2" y1="4" x2="14" y2="4"/>
+              <path d="M6 4V2h4v2"/><line x1="6" y1="7" x2="6" y2="11"/><line x1="10" y1="7" x2="10" y2="11"/>
+            </svg>
+          </button>
+        )}
+
         <button onClick={toggleIntelPanel}
-          style={{ marginLeft: 'auto', color: '#4A4A65', cursor: 'pointer', lineHeight: 1, background: 'none', border: 'none' }}
+          style={{ marginLeft: messages.length > 0 ? '4px' : 'auto', color: '#4A4A65', cursor: 'pointer', lineHeight: 1, background: 'none', border: 'none' }}
           className="hover:!text-[#8888A8] transition-colors" title="Collapse panel">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <rect x="1" y="1" width="14" height="14" rx="2"/>
@@ -347,7 +452,15 @@ export function IntelPanel() {
         <EmptyState ollamaOnline={ollamaOnline} />
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
-          {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
+          {messages.map(msg => (
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              activeFile={activeFile}
+              onApplyCode={handleApplyCode}
+              onRunCommand={handleRunCommand}
+            />
+          ))}
           <div ref={bottomRef} />
         </div>
       )}

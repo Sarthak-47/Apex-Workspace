@@ -78,6 +78,10 @@ interface AppState {
   // Command palette
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
+
+  // Pending AI file edit (not persisted)
+  pendingFileEdit: { path: string; content: string } | null;
+  setPendingFileEdit: (edit: { path: string; content: string } | null) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -185,6 +189,10 @@ export const useAppStore = create<AppState>()(
       // Command palette
       commandPaletteOpen: false,
       setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+
+      // Pending AI file edit
+      pendingFileEdit: null,
+      setPendingFileEdit: (edit) => set({ pendingFileEdit: edit }),
     }),
     {
       name: "apex-app-state",
