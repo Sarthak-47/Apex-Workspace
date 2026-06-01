@@ -1,4 +1,5 @@
 import { minimize, toggleMaximize, closeWindow } from "@/lib/tauri";
+import { useAppStore } from "@/store";
 
 // ─── Window Controls ──────────────────────────────────────────────────────────
 function WindowControls() {
@@ -20,6 +21,22 @@ function WindowControls() {
   );
 }
 
+// ─── Workspace name breadcrumb ────────────────────────────────────────────────
+function WorkspaceName() {
+  const { workspacePath } = useAppStore();
+  const name = workspacePath
+    ? workspacePath.split(/[\\/]/).filter(Boolean).pop() ?? workspacePath
+    : 'no folder';
+  return (
+    <div className="flex items-center gap-1" style={{ fontSize: 12, color: '#8888A8' }}>
+      <span style={{ color: workspacePath ? '#8888A8' : '#4A4A65' }}>{name}</span>
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#4A4A65" strokeWidth="1.4">
+        <polyline points="2,3.5 5,6.5 8,3.5"/>
+      </svg>
+    </div>
+  );
+}
+
 // ─── Titlebar ─────────────────────────────────────────────────────────────────
 export function Titlebar() {
   return (
@@ -32,12 +49,7 @@ export function Titlebar() {
         <img src="/apex-logo.svg" width={28} height={28} alt="APEX" style={{ objectFit:'contain', flexShrink:0 }} />
         <span style={{ fontSize:13, fontWeight:700, color:'#E2E2EC', letterSpacing:'0.04em' }}>APEX</span>
         <div style={{ width:1, height:14, background:'#252535', flexShrink:0, margin:'0 4px' }} />
-        <div className="flex items-center gap-1" style={{ fontSize:12, color:'#8888A8' }}>
-          <span>apex-workspace</span>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#4A4A65" strokeWidth="1.4">
-            <polyline points="2,3.5 5,6.5 8,3.5"/>
-          </svg>
-        </div>
+        <WorkspaceName />
       </div>
 
       {/* ── CENTER — Search bar (always truly centered) ── */}
