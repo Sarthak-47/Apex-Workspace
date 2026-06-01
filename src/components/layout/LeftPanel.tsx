@@ -1,27 +1,24 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppStore } from "@/store";
-import { listDir, openFolderDialog, deletePath, renamePath, type DirEntry } from "@/lib/tauri";
+import {
+  listDir, openFolderDialog, deletePath, renamePath,
+  createFile, createDir, revealInExplorer,
+  type DirEntry,
+} from "@/lib/tauri";
 
-// ─── File type icon helpers ────────────────────────────────────────────────────
+// ─── File type icon ────────────────────────────────────────────────────────────
 
 const EXT_COLOR: Record<string, string> = {
-  ts: '#3B82F6', tsx: '#06B6D4',
-  js: '#F59E0B', jsx: '#F59E0B',
-  py: '#22C55E', rs: '#F97316',
-  go: '#06B6D4', java: '#EF4444',
-  json: '#FACC15', md: '#94A3B8',
-  css: '#A78BFA', scss: '#EC4899',
-  html: '#F87171', toml: '#FB923C',
-  yaml: '#34D399', yml: '#34D399',
+  ts: '#3B82F6', tsx: '#06B6D4', js: '#F59E0B', jsx: '#F59E0B',
+  py: '#22C55E', rs: '#F97316', go: '#06B6D4', java: '#EF4444',
+  json: '#FACC15', md: '#94A3B8', css: '#A78BFA', scss: '#EC4899',
+  html: '#F87171', toml: '#FB923C', yaml: '#34D399', yml: '#34D399',
   svg: '#FCD34D', sh: '#6EE7B7',
 };
-
 const EXT_LABEL: Record<string, string> = {
-  ts: 'TS', tsx: 'TX', js: 'JS', jsx: 'JX',
-  py: 'PY', rs: 'RS', go: 'GO', java: 'JV',
-  json: '{}', md: 'MD', css: 'CS', scss: 'SC',
-  html: 'HT', toml: 'TM', yaml: 'YM', yml: 'YM',
-  svg: 'SV', sh: 'SH',
+  ts: 'TS', tsx: 'TX', js: 'JS', jsx: 'JX', py: 'PY', rs: 'RS',
+  go: 'GO', java: 'JV', json: '{}', md: 'MD', css: 'CS', scss: 'SC',
+  html: 'HT', toml: 'TM', yaml: 'YM', yml: 'YM', svg: 'SV', sh: 'SH',
 };
 
 function FileIcon({ ext }: { ext: string | null }) {
@@ -31,9 +28,7 @@ function FileIcon({ ext }: { ext: string | null }) {
   return (
     <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
       <rect width="13" height="13" rx="1.5" fill={color} opacity="0.15"/>
-      <text x="1.5" y="10" fontSize="7.5" fontWeight="700" fill={color} fontFamily="monospace">
-        {label}
-      </text>
+      <text x="1.5" y="10" fontSize="7.5" fontWeight="700" fill={color} fontFamily="monospace">{label}</text>
     </svg>
   );
 }
@@ -51,11 +46,8 @@ function FolderIcon({ open }: { open: boolean }) {
 
 function Chevron({ open }: { open: boolean }) {
   return (
-    <svg
-      width="10" height="10" viewBox="0 0 10 10" fill="none"
-      stroke="#4A4A65" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-      style={{ flexShrink: 0, transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 150ms' }}
-    >
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#4A4A65" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+      style={{ flexShrink: 0, transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 150ms' }}>
       <polyline points="3,2 7,5 3,8"/>
     </svg>
   );
@@ -65,93 +57,76 @@ function Chevron({ open }: { open: boolean }) {
 
 interface CtxMenu { x: number; y: number; entry: DirEntry }
 
-function ContextMenu({ menu, onCopyPath, onCopyRel, onRename, onDelete, onClose }: {
+function ContextMenu({ menu, onNewFile, onNewFolder, onCopyPath, onCopyRel, onReveal, onRename, onDelete, onClose }: {
   menu: CtxMenu;
+  onNewFile: () => void;
+  onNewFolder: () => void;
   onCopyPath: () => void;
   onCopyRel: () => void;
+  onReveal: () => void;
   onRename: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close on click-outside or Escape
   useEffect(() => {
-    const onKey  = (e: KeyboardEvent)  => { if (e.key === 'Escape') onClose(); };
-    const onClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
-    };
+    const onKey   = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onClick = (e: MouseEvent)   => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose(); };
     document.addEventListener('keydown', onKey);
     document.addEventListener('mousedown', onClick);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onClick);
-    };
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onClick); };
   }, [onClose]);
 
-  // Keep menu on screen
-  const menuW = 180, menuH = 120;
+  const menuW = 190, menuH = 230;
   const x = Math.min(menu.x, window.innerWidth  - menuW - 4);
   const y = Math.min(menu.y, window.innerHeight - menuH - 4);
 
-  const Item = ({ label, danger, onClick }: { label: string; danger?: boolean; onClick: () => void }) => (
-    <div
-      onClick={onClick}
-      style={{
-        height: 28, display: 'flex', alignItems: 'center',
-        padding: '0 12px', fontSize: 12, cursor: 'pointer',
-        color: danger ? '#EF4444' : '#C0C0D0',
-      }}
-      className={danger ? 'hover:bg-red-950/40' : 'hover:bg-[#252535]'}
-    >
+  const Item = ({ label, danger, dim, onClick }: { label: string; danger?: boolean; dim?: boolean; onClick: () => void }) => (
+    <div onClick={onClick}
+      style={{ height: 28, display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: 12, cursor: 'pointer',
+        color: danger ? '#EF4444' : dim ? '#6868A8' : '#C0C0D0' }}
+      className={danger ? 'hover:bg-red-950/40' : 'hover:bg-[#252535]'}>
       {label}
     </div>
   );
+  const Sep = () => <div style={{ height: 1, background: '#1A1A28', margin: '3px 0' }} />;
 
   return (
-    <div
-      ref={menuRef}
-      style={{
-        position: 'fixed', left: x, top: y,
-        background: '#18181F', border: '1px solid #252535',
-        borderRadius: 7, padding: '3px 0', zIndex: 9999,
-        minWidth: menuW,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div ref={menuRef}
+      style={{ position: 'fixed', left: x, top: y, background: '#18181F', border: '1px solid #252535',
+        borderRadius: 7, padding: '3px 0', zIndex: 9999, minWidth: menuW,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
+      onClick={e => e.stopPropagation()}>
+      <Item label="New File"   onClick={onNewFile} />
+      <Item label="New Folder" onClick={onNewFolder} />
+      <Sep />
       <Item label="Copy Path"          onClick={onCopyPath} />
       <Item label="Copy Relative Path" onClick={onCopyRel} />
-      <div style={{ height: 1, background: '#1A1A28', margin: '3px 0' }} />
-      <Item label="Rename"  onClick={onRename} />
-      <Item label="Delete"  danger onClick={onDelete} />
+      <Item label="Reveal in Explorer" onClick={onReveal} dim />
+      <Sep />
+      <Item label="Rename" onClick={onRename} />
+      <Item label="Delete" danger onClick={onDelete} />
     </div>
   );
 }
 
 // ─── Delete confirm dialog ────────────────────────────────────────────────────
 
-function DeleteDialog({ entry, onConfirm, onCancel }: {
-  entry: DirEntry;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
+function DeleteDialog({ entry, onConfirm, onCancel }: { entry: DirEntry; onConfirm: () => void; onCancel: () => void }) {
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)', background: 'rgba(0,0,0,0.4)' }}
-      onMouseDown={onCancel}
-    >
-      <div
-        style={{ background: '#18181F', border: '1px solid #252535', borderRadius: 10, padding: '20px 24px', maxWidth: 340, width: '90vw', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      backdropFilter: 'blur(2px)', background: 'rgba(0,0,0,0.4)' }} onMouseDown={onCancel}>
+      <div style={{ background: '#18181F', border: '1px solid #252535', borderRadius: 10, padding: '20px 24px',
+        maxWidth: 340, width: '90vw', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }} onMouseDown={e => e.stopPropagation()}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 14 }}>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
             <path d="M3 6h14M8 6V4h4v2M19 6l-1 12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2L1 6"/>
             <line x1="10" y1="11" x2="10" y2="15"/><line x1="8" y1="11" x2="8" y2="15"/><line x1="12" y1="11" x2="12" y2="15"/>
           </svg>
           <div>
-            <p style={{ fontSize: 13, color: '#E2E2EC', fontWeight: 600, marginBottom: 4 }}>Delete {entry.is_dir ? 'folder' : 'file'}?</p>
+            <p style={{ fontSize: 13, color: '#E2E2EC', fontWeight: 600, marginBottom: 4 }}>
+              Delete {entry.is_dir ? 'folder' : 'file'}?
+            </p>
             <p style={{ fontSize: 12, color: '#8888A8', lineHeight: 1.5 }}>
               <code style={{ background: '#111118', padding: '1px 5px', borderRadius: 3, fontFamily: 'JetBrains Mono,monospace', color: '#EF4444' }}>{entry.name}</code>
               {' '}will be permanently deleted.
@@ -159,9 +134,11 @@ function DeleteDialog({ entry, onConfirm, onCancel }: {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={{ height: 30, padding: '0 14px', borderRadius: 5, fontSize: 12, cursor: 'pointer', background: '#252535', border: '1px solid #252535', color: '#8888A8' }}
+          <button onClick={onCancel}
+            style={{ height: 30, padding: '0 14px', borderRadius: 5, fontSize: 12, cursor: 'pointer', background: '#252535', border: '1px solid #252535', color: '#8888A8' }}
             className="hover:!bg-[#2E2E40] transition-colors">Cancel</button>
-          <button onClick={onConfirm} style={{ height: 30, padding: '0 14px', borderRadius: 5, fontSize: 12, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}
+          <button onClick={onConfirm}
+            style={{ height: 30, padding: '0 14px', borderRadius: 5, fontSize: 12, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}
             className="hover:!bg-[#3D1515] transition-colors">Delete</button>
         </div>
       </div>
@@ -169,23 +146,51 @@ function DeleteDialog({ entry, onConfirm, onCancel }: {
   );
 }
 
-// ─── File tree node ────────────────────────────────────────────────────────────
-
 // ─── Flat visible list builder (for keyboard nav) ─────────────────────────────
 
-function buildVisibleList(
-  parentPath: string,
-  dirCache: Record<string, DirEntry[]>,
-  openDirs: Set<string>,
-): DirEntry[] {
+function buildVisibleList(parentPath: string, dirCache: Record<string, DirEntry[]>, openDirs: Set<string>): DirEntry[] {
   const result: DirEntry[] = [];
   for (const e of dirCache[parentPath] ?? []) {
     result.push(e);
-    if (e.is_dir && openDirs.has(e.path)) {
-      result.push(...buildVisibleList(e.path, dirCache, openDirs));
-    }
+    if (e.is_dir && openDirs.has(e.path)) result.push(...buildVisibleList(e.path, dirCache, openDirs));
   }
   return result;
+}
+
+// ─── Inline creation input ────────────────────────────────────────────────────
+
+function CreatingInput({ depth, type, value, onChange, onSubmit, onCancel }: {
+  depth: number; type: 'file' | 'dir'; value: string;
+  onChange: (v: string) => void; onSubmit: () => void; onCancel: () => void;
+}) {
+  return (
+    <div style={{
+      height: 26, display: 'flex', alignItems: 'center',
+      paddingLeft: depth * 12 + 24, paddingRight: 8, gap: 5, flexShrink: 0,
+      background: '#1A1A3A', borderLeft: '2px solid #6366F1',
+    }}>
+      {type === 'file'
+        ? <FileIcon ext={null} />
+        : <FolderIcon open={false} />
+      }
+      <input
+        autoFocus
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter')  { e.preventDefault(); onSubmit(); }
+          if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+        }}
+        onBlur={onCancel}
+        placeholder={type === 'file' ? 'filename.ext' : 'folder name'}
+        style={{
+          flex: 1, fontSize: 12, background: 'transparent',
+          border: 'none', color: '#E2E2EC', padding: '1px 0',
+          outline: 'none', fontFamily: 'inherit',
+        }}
+      />
+    </div>
+  );
 }
 
 // ─── File tree node ────────────────────────────────────────────────────────────
@@ -199,49 +204,48 @@ interface TreeNodeProps {
   renamingPath: string | null;
   renameValue: string;
   focusedPath: string | null;
+  activeFile: string | null;
+  creatingIn: { parentPath: string; type: 'file' | 'dir' } | null;
+  creatingName: string;
   onToggleDir: (path: string) => void;
   onOpenFile: (path: string) => void;
   onContextMenu: (e: React.MouseEvent, entry: DirEntry) => void;
   onRenameChange: (v: string) => void;
   onRenameSubmit: (entry: DirEntry) => void;
   onRenameCancel: () => void;
-  activeFile: string | null;
+  onCreatingChange: (v: string) => void;
+  onCreatingSubmit: () => void;
+  onCreatingCancel: () => void;
 }
 
 function TreeNode({
   entry, depth, dirCache, openDirs, loadingDirs,
-  renamingPath, renameValue, focusedPath,
+  renamingPath, renameValue, focusedPath, activeFile,
+  creatingIn, creatingName,
   onToggleDir, onOpenFile, onContextMenu,
   onRenameChange, onRenameSubmit, onRenameCancel,
-  activeFile,
+  onCreatingChange, onCreatingSubmit, onCreatingCancel,
 }: TreeNodeProps) {
-  const indent    = depth * 12 + 10;
-  const isOpen    = openDirs.has(entry.path);
-  const isLoading = loadingDirs.has(entry.path);
-  const isActive  = activeFile === entry.path;
-  const isFocused = focusedPath === entry.path;
+  const indent     = depth * 12 + 10;
+  const isOpen     = openDirs.has(entry.path);
+  const isLoading  = loadingDirs.has(entry.path);
+  const isActive   = activeFile === entry.path;
+  const isFocused  = focusedPath === entry.path;
   const isRenaming = renamingPath === entry.path;
 
   const nameCell = isRenaming ? (
-    <input
-      autoFocus
-      value={renameValue}
-      onChange={(e) => onRenameChange(e.target.value)}
-      onKeyDown={(e) => {
+    <input autoFocus value={renameValue} onChange={e => onRenameChange(e.target.value)}
+      onKeyDown={e => {
         if (e.key === 'Enter')  { e.preventDefault(); onRenameSubmit(entry); }
         if (e.key === 'Escape') { e.preventDefault(); onRenameCancel(); }
       }}
       onBlur={() => onRenameSubmit(entry)}
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        flex: 1, fontSize: 12, background: '#0A0A0F',
-        border: '1px solid #6366F1', borderRadius: 3,
-        color: '#E2E2EC', padding: '1px 4px', outline: 'none',
-        fontFamily: 'inherit',
-      }}
-    />
+      onClick={e => e.stopPropagation()}
+      style={{ flex: 1, fontSize: 12, background: '#0A0A0F', border: '1px solid #6366F1', borderRadius: 3,
+        color: '#E2E2EC', padding: '1px 4px', outline: 'none', fontFamily: 'inherit' }} />
   ) : (
-    <span style={{ fontSize: 12, color: isActive ? '#E2E2EC' : (entry.is_dir && isOpen ? '#E2E2EC' : '#C0C0D0'), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+    <span style={{ fontSize: 12, color: isActive ? '#E2E2EC' : (entry.is_dir && isOpen ? '#E2E2EC' : '#C0C0D0'),
+      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
       {entry.name}
     </span>
   );
@@ -253,46 +257,63 @@ function TreeNode({
         <div
           data-tree-path={entry.path}
           onClick={() => !isRenaming && onToggleDir(entry.path)}
-          onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, entry); }}
+          onContextMenu={e => { e.preventDefault(); onContextMenu(e, entry); }}
           style={{
             height: 26, display: 'flex', alignItems: 'center',
-            paddingLeft: indent, paddingRight: 8, gap: 4,
-            cursor: 'pointer',
+            paddingLeft: indent, paddingRight: 8, gap: 4, cursor: 'pointer',
             background: isFocused ? '#1E1E2E' : isOpen ? '#18181F' : 'transparent',
-            outline: isFocused ? '1px solid #6366F130' : 'none',
-            outlineOffset: -1,
+            outline: isFocused ? '1px solid #6366F130' : 'none', outlineOffset: -1,
             flexShrink: 0, userSelect: 'none',
           }}
-          className={!isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}
-        >
-          {isLoading ? (
-            <div style={{ width: 10, height: 10, flexShrink: 0, border: '1.5px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-          ) : (
-            <Chevron open={isOpen} />
-          )}
+          className={!isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}>
+          {isLoading
+            ? <div style={{ width: 10, height: 10, flexShrink: 0, border: '1.5px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            : <Chevron open={isOpen} />
+          }
           <FolderIcon open={isOpen} />
           {nameCell}
         </div>
-        {isOpen && children?.map((child) => (
-          <TreeNode
-            key={child.path}
-            entry={child}
-            depth={depth + 1}
-            dirCache={dirCache}
-            openDirs={openDirs}
-            loadingDirs={loadingDirs}
-            renamingPath={renamingPath}
-            renameValue={renameValue}
-            focusedPath={focusedPath}
-            onToggleDir={onToggleDir}
-            onOpenFile={onOpenFile}
-            onContextMenu={onContextMenu}
-            onRenameChange={onRenameChange}
-            onRenameSubmit={onRenameSubmit}
-            onRenameCancel={onRenameCancel}
-            activeFile={activeFile}
-          />
-        ))}
+
+        {isOpen && (
+          <>
+            {children?.map(child => (
+              <TreeNode
+                key={child.path}
+                entry={child}
+                depth={depth + 1}
+                dirCache={dirCache}
+                openDirs={openDirs}
+                loadingDirs={loadingDirs}
+                renamingPath={renamingPath}
+                renameValue={renameValue}
+                focusedPath={focusedPath}
+                activeFile={activeFile}
+                creatingIn={creatingIn}
+                creatingName={creatingName}
+                onToggleDir={onToggleDir}
+                onOpenFile={onOpenFile}
+                onContextMenu={onContextMenu}
+                onRenameChange={onRenameChange}
+                onRenameSubmit={onRenameSubmit}
+                onRenameCancel={onRenameCancel}
+                onCreatingChange={onCreatingChange}
+                onCreatingSubmit={onCreatingSubmit}
+                onCreatingCancel={onCreatingCancel}
+              />
+            ))}
+            {/* Inline creation input at end of this dir's children */}
+            {creatingIn?.parentPath === entry.path && (
+              <CreatingInput
+                depth={depth + 1}
+                type={creatingIn.type}
+                value={creatingName}
+                onChange={onCreatingChange}
+                onSubmit={onCreatingSubmit}
+                onCancel={onCreatingCancel}
+              />
+            )}
+          </>
+        )}
       </>
     );
   }
@@ -301,18 +322,15 @@ function TreeNode({
     <div
       data-tree-path={entry.path}
       onClick={() => !isRenaming && onOpenFile(entry.path)}
-      onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, entry); }}
+      onContextMenu={e => { e.preventDefault(); onContextMenu(e, entry); }}
       style={{
         height: 26, display: 'flex', alignItems: 'center',
-        paddingLeft: indent + 14, paddingRight: 8, gap: 5,
-        cursor: 'pointer',
+        paddingLeft: indent + 14, paddingRight: 8, gap: 5, cursor: 'pointer',
         background: isActive ? '#1A1A3A' : isFocused ? '#1E1E2E' : 'transparent',
         borderLeft: isActive ? '2px solid #6366F1' : isFocused ? '2px solid #6366F130' : '2px solid transparent',
-        outline: 'none',
-        flexShrink: 0,
+        outline: 'none', flexShrink: 0,
       }}
-      className={!isActive && !isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}
-    >
+      className={!isActive && !isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}>
       <FileIcon ext={entry.ext} />
       {nameCell}
     </div>
@@ -321,19 +339,33 @@ function TreeNode({
 
 // ─── File tree root ────────────────────────────────────────────────────────────
 
-function FileTree({ workspacePath, activeFile, onOpenFile }: {
+function FileTree({
+  workspacePath, activeFile, onOpenFile,
+  collapseAllSignal, expandAllSignal,
+}: {
   workspacePath: string;
   activeFile: string | null;
   onOpenFile: (path: string) => void;
+  collapseAllSignal: number;
+  expandAllSignal: number;
 }) {
   const { closeFile } = useAppStore();
   const [dirCache, setDirCache]       = useState<Record<string, DirEntry[]>>({});
   const [openDirs, setOpenDirs]       = useState<Set<string>>(new Set([workspacePath]));
   const [loadingDirs, setLoadingDirs] = useState<Set<string>>(new Set());
-
-  // Keyboard focus (separate from active file)
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Rename
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [renameValue, setRenameValue]   = useState('');
+  // Context menu
+  const [ctxMenu, setCtxMenu]         = useState<CtxMenu | null>(null);
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<DirEntry | null>(null);
+  // Inline creation
+  const [creatingIn, setCreatingIn]   = useState<{ parentPath: string; type: 'file' | 'dir' } | null>(null);
+  const [creatingName, setCreatingName] = useState('');
 
   // Scroll focused item into view
   useEffect(() => {
@@ -342,13 +374,16 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
     el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [focusedPath]);
 
-  // Context menu
-  const [ctxMenu, setCtxMenu]       = useState<CtxMenu | null>(null);
-  // Rename
-  const [renamingPath, setRenamingPath] = useState<string | null>(null);
-  const [renameValue, setRenameValue]   = useState('');
-  // Delete confirm
-  const [deleteTarget, setDeleteTarget] = useState<DirEntry | null>(null);
+  // ── Collapse / expand all signals ────────────────────────────────────────
+  useEffect(() => {
+    if (collapseAllSignal > 0) setOpenDirs(new Set([workspacePath]));
+  }, [collapseAllSignal, workspacePath]);
+
+  useEffect(() => {
+    if (expandAllSignal > 0) {
+      setOpenDirs(new Set([workspacePath, ...Object.keys(dirCache)]));
+    }
+  }, [expandAllSignal, workspacePath, dirCache]);
 
   const loadDir = useCallback(async (path: string) => {
     if (dirCache[path] || loadingDirs.has(path)) return;
@@ -378,25 +413,15 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
     });
   }, [loadDir]);
 
-  // ── Keyboard navigation ────────────────────────────────────────────────────
+  // ── Keyboard navigation ───────────────────────────────────────────────────
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     const visible = buildVisibleList(workspacePath, dirCache, openDirs);
     if (visible.length === 0) return;
     const idx = focusedPath ? visible.findIndex(v => v.path === focusedPath) : -1;
 
     switch (e.key) {
-      case 'ArrowDown': {
-        e.preventDefault();
-        const next = idx < visible.length - 1 ? idx + 1 : 0;
-        setFocusedPath(visible[next].path);
-        break;
-      }
-      case 'ArrowUp': {
-        e.preventDefault();
-        const prev = idx > 0 ? idx - 1 : visible.length - 1;
-        setFocusedPath(visible[prev].path);
-        break;
-      }
+      case 'ArrowDown': { e.preventDefault(); const n = idx < visible.length - 1 ? idx + 1 : 0; setFocusedPath(visible[n].path); break; }
+      case 'ArrowUp':   { e.preventDefault(); const p = idx > 0 ? idx - 1 : visible.length - 1; setFocusedPath(visible[p].path); break; }
       case 'ArrowRight': {
         e.preventDefault();
         const entry = visible[idx];
@@ -407,9 +432,8 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
         e.preventDefault();
         const entry = visible[idx];
         if (!entry) break;
-        if (entry.is_dir && openDirs.has(entry.path)) {
-          handleToggleDir(entry.path);
-        } else {
+        if (entry.is_dir && openDirs.has(entry.path)) { handleToggleDir(entry.path); }
+        else {
           const parent = entry.path.substring(0, entry.path.lastIndexOf('/'));
           if (parent && parent !== workspacePath) setFocusedPath(parent);
         }
@@ -423,20 +447,12 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
         else onOpenFile(entry.path);
         break;
       }
-      case 'Home': {
-        e.preventDefault();
-        setFocusedPath(visible[0].path);
-        break;
-      }
-      case 'End': {
-        e.preventDefault();
-        setFocusedPath(visible[visible.length - 1].path);
-        break;
-      }
+      case 'Home': { e.preventDefault(); setFocusedPath(visible[0].path); break; }
+      case 'End':  { e.preventDefault(); setFocusedPath(visible[visible.length - 1].path); break; }
     }
   }, [workspacePath, dirCache, openDirs, focusedPath, handleToggleDir, onOpenFile]);
 
-  // ── Context menu handlers ──────────────────────────────────────────────────
+  // ── Context menu handlers ─────────────────────────────────────────────────
   const handleContextMenu = useCallback((e: React.MouseEvent, entry: DirEntry) => {
     e.stopPropagation();
     setCtxMenu({ x: e.clientX, y: e.clientY, entry });
@@ -457,6 +473,42 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
     setCtxMenu(null);
   }, [ctxMenu, workspacePath]);
 
+  const handleReveal = useCallback(() => {
+    if (!ctxMenu) return;
+    revealInExplorer(ctxMenu.entry.path, ctxMenu.entry.is_dir);
+    setCtxMenu(null);
+  }, [ctxMenu]);
+
+  const handleNewFile = useCallback(() => {
+    if (!ctxMenu) return;
+    const normalized = ctxMenu.entry.path.replace(/\\/g, '/');
+    const parentPath = ctxMenu.entry.is_dir
+      ? ctxMenu.entry.path
+      : normalized.substring(0, normalized.lastIndexOf('/'));
+    if (!openDirs.has(parentPath)) {
+      setOpenDirs(prev => new Set(prev).add(parentPath));
+      loadDir(parentPath);
+    }
+    setCreatingIn({ parentPath, type: 'file' });
+    setCreatingName('');
+    setCtxMenu(null);
+  }, [ctxMenu, openDirs, loadDir]);
+
+  const handleNewFolder = useCallback(() => {
+    if (!ctxMenu) return;
+    const normalized = ctxMenu.entry.path.replace(/\\/g, '/');
+    const parentPath = ctxMenu.entry.is_dir
+      ? ctxMenu.entry.path
+      : normalized.substring(0, normalized.lastIndexOf('/'));
+    if (!openDirs.has(parentPath)) {
+      setOpenDirs(prev => new Set(prev).add(parentPath));
+      loadDir(parentPath);
+    }
+    setCreatingIn({ parentPath, type: 'dir' });
+    setCreatingName('');
+    setCtxMenu(null);
+  }, [ctxMenu, openDirs, loadDir]);
+
   const handleStartRename = useCallback(() => {
     if (!ctxMenu) return;
     setRenamingPath(ctxMenu.entry.path);
@@ -470,17 +522,39 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
     setCtxMenu(null);
   }, [ctxMenu]);
 
-  // ── Rename submit ──────────────────────────────────────────────────────────
+  // ── Inline creation submit ────────────────────────────────────────────────
+  const handleCreatingSubmit = useCallback(async () => {
+    if (!creatingIn || !creatingName.trim()) { setCreatingIn(null); return; }
+    const newPath = creatingIn.parentPath + '/' + creatingName.trim();
+    try {
+      if (creatingIn.type === 'file') {
+        await createFile(newPath);
+        // Add to dirCache
+        const newEntry: DirEntry = { name: creatingName.trim(), path: newPath, is_dir: false, size: 0, ext: creatingName.includes('.') ? creatingName.split('.').pop() ?? null : null };
+        setDirCache(prev => ({ ...prev, [creatingIn.parentPath]: [...(prev[creatingIn.parentPath] ?? []), newEntry] }));
+        onOpenFile(newPath);
+      } else {
+        await createDir(newPath);
+        const newEntry: DirEntry = { name: creatingName.trim(), path: newPath, is_dir: true, size: 0, ext: null };
+        setDirCache(prev => ({ ...prev, [creatingIn.parentPath]: [...(prev[creatingIn.parentPath] ?? []), newEntry] }));
+      }
+    } catch { /* silently fail in browser */ }
+    setCreatingIn(null);
+    setCreatingName('');
+  }, [creatingIn, creatingName, onOpenFile]);
+
+  const handleCreatingCancel = useCallback(() => {
+    setCreatingIn(null);
+    setCreatingName('');
+  }, []);
+
+  // ── Rename submit ─────────────────────────────────────────────────────────
   const handleRenameSubmit = useCallback(async (entry: DirEntry) => {
     const newName = renameValue.trim();
     if (!newName || newName === entry.name) { setRenamingPath(null); return; }
-
     const parentPath = entry.path.substring(0, entry.path.lastIndexOf('/'));
     const newPath    = parentPath + '/' + newName;
-
     await renamePath(entry.path, newPath);
-
-    // Update dirCache: replace the entry in its parent
     setDirCache(prev => {
       const updated = { ...prev };
       if (updated[parentPath]) {
@@ -490,14 +564,12 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
             : e
         );
       }
-      // If it was a directory and was in the cache, move its children
       if (entry.is_dir && updated[entry.path]) {
         updated[newPath] = updated[entry.path];
         delete updated[entry.path];
       }
       return updated;
     });
-    // Update openDirs if renamed dir was open
     if (entry.is_dir) {
       setOpenDirs(prev => {
         if (prev.has(entry.path)) {
@@ -512,26 +584,19 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
     setRenamingPath(null);
   }, [renameValue]);
 
-  // ── Delete confirm ─────────────────────────────────────────────────────────
+  // ── Delete confirm ────────────────────────────────────────────────────────
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget) return;
     await deletePath(deleteTarget.path);
-
     const parentPath = deleteTarget.path.substring(0, deleteTarget.path.lastIndexOf('/'));
     setDirCache(prev => {
       const updated = { ...prev };
-      if (updated[parentPath]) {
-        updated[parentPath] = updated[parentPath].filter(e => e.path !== deleteTarget.path);
-      }
-      // Remove children from cache too
+      if (updated[parentPath]) updated[parentPath] = updated[parentPath].filter(e => e.path !== deleteTarget.path);
       for (const key of Object.keys(updated)) {
-        if (key.startsWith(deleteTarget.path + '/') || key === deleteTarget.path) {
-          delete updated[key];
-        }
+        if (key.startsWith(deleteTarget.path + '/') || key === deleteTarget.path) delete updated[key];
       }
       return updated;
     });
-    // Close tab if file was open
     if (!deleteTarget.is_dir) closeFile(deleteTarget.path);
     setDeleteTarget(null);
   }, [deleteTarget, closeFile]);
@@ -541,21 +606,19 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
 
   return (
     <>
-      {/* Tree content — focusable for keyboard nav */}
       <div
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onClick={() => setCtxMenu(null)}
-        style={{ overflowY: 'auto', flex: 1, outline: 'none' }}
-      >
+        style={{ overflowY: 'auto', flex: 1, outline: 'none' }}>
         {rootLoading && (
           <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 12, height: 12, border: '1.5px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
             <span style={{ fontSize: 11, color: '#4A4A65' }}>Loading…</span>
           </div>
         )}
-        {!rootLoading && (!rootEntries || rootEntries.length === 0) && (
+        {!rootLoading && (!rootEntries || rootEntries.length === 0) && !creatingIn && (
           <div style={{ padding: '12px', fontSize: 11, color: '#4A4A65' }}>Empty folder</div>
         )}
         {!rootLoading && rootEntries?.map(entry => (
@@ -569,30 +632,47 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
             renamingPath={renamingPath}
             renameValue={renameValue}
             focusedPath={focusedPath}
+            activeFile={activeFile}
+            creatingIn={creatingIn}
+            creatingName={creatingName}
             onToggleDir={handleToggleDir}
             onOpenFile={onOpenFile}
             onContextMenu={handleContextMenu}
             onRenameChange={setRenameValue}
             onRenameSubmit={handleRenameSubmit}
             onRenameCancel={() => setRenamingPath(null)}
-            activeFile={activeFile}
+            onCreatingChange={setCreatingName}
+            onCreatingSubmit={handleCreatingSubmit}
+            onCreatingCancel={handleCreatingCancel}
           />
         ))}
+        {/* Creation at root level */}
+        {creatingIn?.parentPath === workspacePath && (
+          <CreatingInput
+            depth={0}
+            type={creatingIn.type}
+            value={creatingName}
+            onChange={setCreatingName}
+            onSubmit={handleCreatingSubmit}
+            onCancel={handleCreatingCancel}
+          />
+        )}
       </div>
 
-      {/* Context menu */}
       {ctxMenu && (
         <ContextMenu
           menu={ctxMenu}
+          onNewFile={handleNewFile}
+          onNewFolder={handleNewFolder}
           onCopyPath={handleCopyPath}
           onCopyRel={handleCopyRel}
+          onReveal={handleReveal}
           onRename={handleStartRename}
           onDelete={handleStartDelete}
           onClose={() => setCtxMenu(null)}
         />
       )}
 
-      {/* Delete dialog */}
       {deleteTarget && (
         <DeleteDialog
           entry={deleteTarget}
@@ -604,21 +684,51 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
   );
 }
 
-// ─── Empty workspace state ────────────────────────────────────────────────────
+// ─── Empty workspace / Recent workspaces state ────────────────────────────────
 
 function NoWorkspace({ onOpen }: { onOpen: () => void }) {
+  const { recentWorkspaces, setWorkspacePath } = useAppStore();
+  const folderName = (p: string) => p.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? p;
+
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '0 16px' }}>
-      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="#4A4A65" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 10a2 2 0 0 1 2-2h7.172a2 2 0 0 1 1.414.586L15 10.172A2 2 0 0 0 16.414 10.757H31a2 2 0 0 1 2 2V28a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V10z"/>
-      </svg>
-      <p style={{ fontSize: 11, color: '#4A4A65', textAlign: 'center', lineHeight: 1.6 }}>No folder open</p>
-      <button onClick={onOpen}
-        style={{ height: 28, padding: '0 14px', borderRadius: 5, fontSize: 11, fontWeight: 500, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F160', color: '#6366F1', transition: 'all 120ms' }}
-        className="hover:!bg-[#252552] hover:!border-[#6366F1] transition-all">
-        Open Folder
-      </button>
-      <p style={{ fontSize: 10, color: '#4A4A65', opacity: 0.6, textAlign: 'center' }}>Or drag a folder here</p>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Open button */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '24px 16px 16px' }}>
+        <svg width="32" height="32" viewBox="0 0 36 36" fill="none" stroke="#4A4A65" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 10a2 2 0 0 1 2-2h7.172a2 2 0 0 1 1.414.586L15 10.172A2 2 0 0 0 16.414 10.757H31a2 2 0 0 1 2 2V28a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V10z"/>
+        </svg>
+        <p style={{ fontSize: 11, color: '#4A4A65', textAlign: 'center', lineHeight: 1.6 }}>No folder open</p>
+        <button onClick={onOpen}
+          style={{ height: 28, padding: '0 14px', borderRadius: 5, fontSize: 11, fontWeight: 500, cursor: 'pointer',
+            background: '#1A1A3A', border: '1px solid #6366F160', color: '#6366F1', transition: 'all 120ms' }}
+          className="hover:!bg-[#252552] hover:!border-[#6366F1] transition-all">
+          Open Folder
+        </button>
+      </div>
+
+      {/* Recent workspaces */}
+      {recentWorkspaces.length > 0 && (
+        <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #1A1A28' }}>
+          <div style={{ padding: '8px 10px 4px', fontSize: 9, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Recent
+          </div>
+          {recentWorkspaces.map(path => (
+            <div key={path}
+              onClick={() => setWorkspacePath(path)}
+              title={path}
+              style={{ height: 30, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 7, cursor: 'pointer', flexShrink: 0 }}
+              className="hover:bg-[#18181F] transition-colors group">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#F59E0B" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M1 3.5a.8.8 0 0 1 .8-.8h2.07a.8.8 0 0 1 .565.234L5.33 3.83A.8.8 0 0 0 5.9 4.063H10.2a.8.8 0 0 1 .8.8v4.837a.8.8 0 0 1-.8.8H1.8a.8.8 0 0 1-.8-.8V3.5z"/>
+              </svg>
+              <span style={{ fontSize: 11, color: '#8888A8', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                className="group-hover:!text-[#E2E2EC] transition-colors">
+                {folderName(path)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -626,26 +736,11 @@ function NoWorkspace({ onOpen }: { onOpen: () => void }) {
 // ─── Knowledge node row ───────────────────────────────────────────────────────
 
 const NODE_ICONS: Record<string, { svg: React.ReactNode; color: string }> = {
-  people: {
-    color: '#93C5FD',
-    svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/></svg>,
-  },
-  decision: {
-    color: '#C084FC',
-    svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#C084FC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z"/><polyline points="9 2 9 6 13 6"/><polyline points="6 10 7.5 11.5 10 9"/></svg>,
-  },
-  meeting: {
-    color: '#F9A8D4',
-    svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#F9A8D4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><line x1="5" y1="1.5" x2="5" y2="4.5"/><line x1="11" y1="1.5" x2="11" y2="4.5"/><line x1="2" y1="7" x2="14" y2="7"/></svg>,
-  },
-  question: {
-    color: '#F59E0B',
-    svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6"/><path d="M6 6a2 2 0 0 1 4 0c0 1.5-2 2-2 3"/><circle cx="8" cy="12" r="0.5" fill="#F59E0B"/></svg>,
-  },
-  project: {
-    color: '#86EFAC',
-    svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#86EFAC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 5a1 1 0 0 1 1-1h3.586a1 1 0 0 1 .707.293L8.414 5.414A1 1 0 0 0 9.121 5.707H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z"/></svg>,
-  },
+  people: { color: '#93C5FD', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/></svg> },
+  decision: { color: '#C084FC', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#C084FC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z"/><polyline points="9 2 9 6 13 6"/><polyline points="6 10 7.5 11.5 10 9"/></svg> },
+  meeting: { color: '#F9A8D4', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#F9A8D4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><line x1="5" y1="1.5" x2="5" y2="4.5"/><line x1="11" y1="1.5" x2="11" y2="4.5"/><line x1="2" y1="7" x2="14" y2="7"/></svg> },
+  question: { color: '#F59E0B', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6"/><path d="M6 6a2 2 0 0 1 4 0c0 1.5-2 2-2 3"/><circle cx="8" cy="12" r="0.5" fill="#F59E0B"/></svg> },
+  project: { color: '#86EFAC', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#86EFAC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 5a1 1 0 0 1 1-1h3.586a1 1 0 0 1 .707.293L8.414 5.414A1 1 0 0 0 9.121 5.707H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z"/></svg> },
 };
 
 function NodeRow({ type, label }: { type: keyof typeof NODE_ICONS; label: string }) {
@@ -656,8 +751,7 @@ function NodeRow({ type, label }: { type: keyof typeof NODE_ICONS; label: string
       <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{meta.svg}</span>
       <span style={{ fontSize: 12, color: '#8888A8', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
         className="group-hover:!text-[#E2E2EC] transition-colors">{label}</span>
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#4A4A65" strokeWidth="1.5"
-        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#4A4A65" strokeWidth="1.5" className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <line x1="2" y1="6" x2="10" y2="6"/><polyline points="7,3 10,6 7,9"/>
       </svg>
     </div>
@@ -668,22 +762,23 @@ function NodeRow({ type, label }: { type: keyof typeof NODE_ICONS; label: string
 
 export function LeftPanel() {
   const { leftPanelOpen, leftPanelWidth, setLeftPanelWidth, activeFile, workspacePath, setWorkspacePath, openFile } = useAppStore();
+  const [collapseSignal, setCollapseSignal] = useState(0);
+  const [expandSignal, setExpandSignal]     = useState(0);
+
   if (!leftPanelOpen) return null;
 
-  const folderName = workspacePath ? workspacePath.split(/[\\/]/).filter(Boolean).pop() ?? workspacePath : null;
+  const folderName = workspacePath ? workspacePath.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? workspacePath : null;
 
   const handleOpenFolder = async () => {
     const path = await openFolderDialog();
     if (path) setWorkspacePath(path);
   };
 
-  // ── Drag resize (right edge) ───────────────────────────────────────────────
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
     const startW = leftPanelWidth;
     document.body.classList.add('resizing');
-
     const onMove = (ev: MouseEvent) => {
       const next = Math.max(160, Math.min(480, startW + ev.clientX - startX));
       setLeftPanelWidth(next);
@@ -698,38 +793,66 @@ export function LeftPanel() {
   };
 
   return (
-    <div
-      className="app-left-panel flex flex-col"
-      style={{ background: '#111118', borderRight: '1px solid #252535', overflow: 'hidden', flexShrink: 0, position: 'relative' }}
-    >
-      {/* Drag handle — right edge */}
+    <div className="app-left-panel flex flex-col"
+      style={{ background: '#111118', borderRight: '1px solid #252535', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
       <div className="rh" onMouseDown={handleResizeMouseDown} />
 
       {/* ── Explorer header ────────────────────────────────────────────── */}
-      <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 10px', justifyContent: 'space-between', flexShrink: 0, borderBottom: '1px solid #1A1A28' }}>
-        <span style={{ fontSize: 10, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.1em', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+      <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 6px 0 10px', justifyContent: 'space-between', flexShrink: 0, borderBottom: '1px solid #1A1A28' }}>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.1em', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
           {folderName ?? 'Explorer'}
         </span>
-        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+          {/* New file */}
+          <button title="New File" onClick={() => {/* TODO: trigger from root level */}}
+            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 1.5H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5z"/>
+              <polyline points="7 1.5 7 5 10 5"/>
+              <line x1="6.5" y1="7" x2="6.5" y2="10"/><line x1="5" y1="8.5" x2="8" y2="8.5"/>
+            </svg>
+          </button>
+          {/* Expand all */}
+          <button title="Expand all" onClick={() => setExpandSignal(s => s + 1)}
+            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3,1 1,3 3,5"/><polyline points="10,1 12,3 10,5"/>
+              <polyline points="3,8 1,10 3,12"/><polyline points="10,8 12,10 10,12"/>
+            </svg>
+          </button>
+          {/* Collapse all */}
+          <button title="Collapse all" onClick={() => setCollapseSignal(s => s + 1)}
+            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <line x1="2" y1="3" x2="11" y2="3"/>
+              <line x1="2" y1="6.5" x2="11" y2="6.5"/>
+              <line x1="2" y1="10" x2="11" y2="10"/>
+            </svg>
+          </button>
+          {/* Refresh */}
+          <button onClick={() => workspacePath && setWorkspacePath(workspacePath + '')} title="Refresh"
+            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M11 6.5A4.5 4.5 0 0 1 2 6.5"/><polyline points="2,4 2,6.5 4.5,6.5"/>
+            </svg>
+          </button>
+          {/* Open folder */}
           <button onClick={handleOpenFolder} title="Open Folder"
-            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 2, lineHeight: 1 }}
-            className="hover:!text-[#E2E2EC] transition-colors">
+            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M1 4a1 1 0 0 1 1-1h2.586a1 1 0 0 1 .707.293L6.414 4.414A1 1 0 0 0 7.121 4.707H11a1 1 0 0 1 1 1V10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4z"/>
               <line x1="6.5" y1="6" x2="6.5" y2="9"/><line x1="5" y1="7.5" x2="8" y2="7.5"/>
             </svg>
           </button>
-          <button onClick={() => workspacePath && setWorkspacePath(workspacePath + '')} title="Refresh"
-            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 2, lineHeight: 1 }}
-            className="hover:!text-[#E2E2EC] transition-colors">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M11 6.5A4.5 4.5 0 0 1 2 6.5"/><polyline points="2,4 2,6.5 4.5,6.5"/>
-            </svg>
-          </button>
         </div>
       </div>
 
-      {/* ── File tree or empty state ──────────────────────────────────── */}
+      {/* ── File tree or empty state ───────────────────────────────────── */}
       <div style={{ flex: '0 0 58%', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
         {workspacePath ? (
           <FileTree
@@ -737,6 +860,8 @@ export function LeftPanel() {
             workspacePath={workspacePath}
             activeFile={activeFile}
             onOpenFile={openFile}
+            collapseAllSignal={collapseSignal}
+            expandAllSignal={expandSignal}
           />
         ) : (
           <NoWorkspace onOpen={handleOpenFolder} />
@@ -746,7 +871,8 @@ export function LeftPanel() {
       {/* ── Connected divider ──────────────────────────────────────────── */}
       <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: '#252535' }} />
-        <span style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.12em', textTransform: 'uppercase', background: '#111118', padding: '0 8px', position: 'relative', zIndex: 1, margin: '0 auto' }}>
+        <span style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.12em', textTransform: 'uppercase',
+          background: '#111118', padding: '0 8px', position: 'relative', zIndex: 1, margin: '0 auto' }}>
           Connected
         </span>
       </div>

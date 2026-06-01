@@ -62,6 +62,29 @@ export async function renamePath(oldPath: string, newPath: string): Promise<void
   }
 }
 
+export async function createFile(path: string): Promise<void> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('write_file', { path, content: '' });
+  }
+}
+
+export async function createDir(path: string): Promise<void> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('create_dir', { path });
+  }
+}
+
+export async function revealInExplorer(path: string, _isDir: boolean): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+      await revealItemInDir(path);
+    } catch { /* no-op */ }
+  }
+}
+
 export interface DirEntry {
   name: string;
   path: string;
