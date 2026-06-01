@@ -108,7 +108,7 @@ function getDemo(path: string): string {
 
 // ─── APEX dark theme ──────────────────────────────────────────────────────────
 
-const defineApexTheme: BeforeMount = (monaco) => {
+export const defineApexTheme: BeforeMount = (monaco) => {
   monaco.editor.defineTheme('apex-dark', {
     base: 'vs-dark',
     inherit: true,

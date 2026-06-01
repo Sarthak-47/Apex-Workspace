@@ -82,6 +82,10 @@ interface AppState {
   // Pending AI file edit (not persisted)
   pendingFileEdit: { path: string; content: string } | null;
   setPendingFileEdit: (edit: { path: string; content: string } | null) => void;
+
+  // Diff review before applying (not persisted)
+  pendingDiffReview: { path: string; original: string; proposed: string } | null;
+  setPendingDiffReview: (r: { path: string; original: string; proposed: string } | null) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -193,6 +197,10 @@ export const useAppStore = create<AppState>()(
       // Pending AI file edit
       pendingFileEdit: null,
       setPendingFileEdit: (edit) => set({ pendingFileEdit: edit }),
+
+      // Diff review
+      pendingDiffReview: null,
+      setPendingDiffReview: (r) => set({ pendingDiffReview: r }),
     }),
     {
       name: "apex-app-state",

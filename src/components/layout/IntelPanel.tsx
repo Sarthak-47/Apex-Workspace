@@ -242,10 +242,10 @@ export function IntelPanel() {
     ollamaOnline, ollamaModels,
     ollamaSelectedModel, setOllamaSelectedModel,
     workspacePath, activeFile,
-    setPendingFileEdit,
+    setPendingDiffReview,
     terminalOpen, toggleTerminal,
   } = useAppStore();
-  const { success, info } = useToast();
+  const { info } = useToast();
 
   const [input, setInput]         = useState('');
   const [messages, setMessages]   = useState<Message[]>([]);
@@ -338,13 +338,13 @@ export function IntelPanel() {
     abortRef.current?.abort();
   };
 
-  // ── Apply AI code to active file in Monaco ────────────────────────────────
-  const handleApplyCode = useCallback((code: string) => {
+  // ── Open diff review for AI code suggestion ───────────────────────────────
+  const handleApplyCode = useCallback(async (code: string) => {
     if (!activeFile) return;
-    const name = activeFile.split(/[\\/]/).pop() ?? activeFile;
-    setPendingFileEdit({ path: activeFile, content: code });
-    success(`Applied to ${name} — review and Ctrl+S to save`);
-  }, [activeFile, setPendingFileEdit, success]);
+    let original = '';
+    try { original = await readFile(activeFile); } catch { /* browser mock */ }
+    setPendingDiffReview({ path: activeFile, original, proposed: code });
+  }, [activeFile, setPendingDiffReview]);
 
   // ── Run shell command: open terminal + copy to clipboard ──────────────────
   const handleRunCommand = useCallback((cmd: string) => {

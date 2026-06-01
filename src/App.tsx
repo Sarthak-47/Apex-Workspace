@@ -3,6 +3,7 @@ import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
 import { getGitBranch } from "@/lib/tauri";
 import { CommandPalette } from "@/components/ui/CommandPalette";
+import { DiffReview } from "@/components/ui/DiffReview";
 import { Titlebar } from "@/components/layout/Titlebar";
 import { ModeBar } from "@/components/layout/ModeBar";
 import { LeftNav } from "@/components/layout/LeftNav";
@@ -94,6 +95,7 @@ export default function App() {
       <StatusBar />
       <Toaster />
       {commandPaletteOpen && <CommandPalette onClose={() => setCommandPaletteOpen(false)} />}
+      <DiffReview />
     </div>
   );
 }
