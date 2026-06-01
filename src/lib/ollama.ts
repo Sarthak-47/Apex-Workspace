@@ -30,15 +30,65 @@ export async function checkOllama(): Promise<OllamaStatus> {
   }
 }
 
-/** Send a single chat message to Ollama (non-streaming). Day 5 will use streaming. */
-export async function ollamaChat(model: string, prompt: string): Promise<string> {
-  const res = await fetch(`${OLLAMA_BASE}/api/generate`, {
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+/**
+ * Stream a chat completion from Ollama token by token.
+ * Yields each content fragment as it arrives.
+ * Caller must handle AbortError when the signal fires.
+ */
+export async function* streamChat(
+  model: string,
+  messages: ChatMessage[],
+  signal?: AbortSignal,
+): AsyncGenerator<string, void, unknown> {
+  const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, prompt, stream: false }),
-    signal: AbortSignal.timeout(30_000),
+    body: JSON.stringify({ model, messages, stream: true }),
+    signal,
   });
-  if (!res.ok) throw new Error(`Ollama error ${res.status}`);
-  const data = await res.json() as { response: string };
-  return data.response ?? '';
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Ollama ${res.status}${text ? ': ' + text.slice(0, 120) : ''}`);
+  }
+  if (!res.body) throw new Error('Response body is null');
+
+  const reader  = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t) continue;
+        try {
+          const data = JSON.parse(t) as { message?: { content: string }; done?: boolean };
+          if (data.message?.content) yield data.message.content;
+          if (data.done) return;
+        } catch { /* ignore malformed NDJSON lines */ }
+      }
+    }
+    // Flush remaining buffer
+    if (buffer.trim()) {
+      try {
+        const data = JSON.parse(buffer) as { message?: { content: string } };
+        if (data.message?.content) yield data.message.content;
+      } catch {}
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }

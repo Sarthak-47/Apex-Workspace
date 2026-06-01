@@ -1,19 +1,43 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppStore } from "@/store";
+import { streamChat, type ChatMessage } from "@/lib/ollama";
+import { readFile } from "@/lib/tauri";
+import { getLang } from "@/components/editor/MonacoEditor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MessageRole = "assistant" | "user";
-
 interface Message {
   id: string;
-  role: MessageRole;
+  role: 'user' | 'assistant';
   content: string;
-  code?: string;
-  lang?: string;
+  streaming?: boolean;
 }
 
-// ─── Message bubble ───────────────────────────────────────────────────────────
+type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'code'; lang: string; code: string };
+
+// ─── Content parser ───────────────────────────────────────────────────────────
+
+function parseBlocks(content: string): ContentBlock[] {
+  const result: ContentBlock[] = [];
+  const re = /```(\w*)\n?([\s\S]*?)```/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+
+  while ((m = re.exec(content)) !== null) {
+    const before = content.slice(last, m.index).trim();
+    if (before) result.push({ type: 'text', text: before });
+    result.push({ type: 'code', lang: m[1] || 'text', code: m[2].trimEnd() });
+    last = m.index + m[0].length;
+  }
+
+  const tail = content.slice(last).trim();
+  if (tail) result.push({ type: 'text', text: tail });
+  return result.length > 0 ? result : [{ type: 'text', text: content }];
+}
+
+// ─── Code block ───────────────────────────────────────────────────────────────
 
 function Code({ lang, code }: { lang: string; code: string }) {
   const [copied, setCopied] = useState(false);
@@ -23,38 +47,55 @@ function Code({ lang, code }: { lang: string; code: string }) {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <div style={{ background: '#090910', border: '1px solid #252535', borderRadius: 6, marginTop: 8, overflow: 'hidden' }}>
-      <div style={{ height: 28, background: '#111118', borderBottom: '1px solid #1A1A28', display: 'flex', alignItems: 'center', padding: '0 10px', justifyContent: 'space-between' }}>
+    <div style={{ background: '#090910', border: '1px solid #252535', borderRadius: 6, marginTop: 6, overflow: 'hidden' }}>
+      <div style={{ height: 26, background: '#111118', borderBottom: '1px solid #1A1A28', display: 'flex', alignItems: 'center', padding: '0 10px', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 10, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '.05em', fontFamily: 'JetBrains Mono,monospace' }}>{lang}</span>
         <button onClick={copy} style={{ fontSize: 11, color: '#4A4A65', cursor: 'pointer', background: 'none', border: 'none' }}
           className="hover:!text-[#E2E2EC] transition-colors">
           {copied ? '✓ Copied' : 'Copy'}
         </button>
       </div>
-      <pre style={{ padding: '10px', fontSize: 11.5, lineHeight: 1.6, overflowX: 'auto', fontFamily: 'JetBrains Mono,monospace', color: '#8888A8', margin: 0 }}>
+      <pre style={{ padding: '10px 12px', fontSize: 11.5, lineHeight: 1.65, overflowX: 'auto', fontFamily: '"JetBrains Mono",monospace', color: '#8888A8', margin: 0, whiteSpace: 'pre' }}>
         {code}
       </pre>
     </div>
   );
 }
 
+// ─── Message bubble ───────────────────────────────────────────────────────────
+
 function MessageBubble({ msg }: { msg: Message }) {
-  if (msg.role === "user") {
+  if (msg.role === 'user') {
     return (
       <div style={{
         background: '#1A1A3A', border: '1px solid rgba(99,102,241,0.25)',
         borderRadius: '8px 8px 2px 8px', padding: '10px 12px',
         fontSize: 13, color: '#E2E2EC', alignSelf: 'flex-end',
-        maxWidth: '88%', lineHeight: 1.5,
+        maxWidth: '88%', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
       }}>
         {msg.content}
       </div>
     );
   }
+
+  // Assistant — render raw during streaming, parse blocks when done
+  if (msg.streaming) {
+    return (
+      <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+        <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</span>
+        <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom', marginLeft: 2 }} />
+      </div>
+    );
+  }
+
+  const blocks = parseBlocks(msg.content);
   return (
     <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
-      <p style={{ marginBottom: msg.code ? 8 : 0 }}>{msg.content}</p>
-      {msg.code && msg.lang && <Code lang={msg.lang} code={msg.code} />}
+      {blocks.map((block, i) =>
+        block.type === 'code'
+          ? <Code key={i} lang={block.lang} code={block.code} />
+          : <p key={i} style={{ margin: i === 0 ? 0 : '8px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{block.text}</p>
+      )}
     </div>
   );
 }
@@ -69,9 +110,9 @@ function EmptyState({ ollamaOnline }: { ollamaOnline: boolean }) {
         <path d="M11 12a5 5 0 0 1 10 0c0 3-3 4-5 6"/>
         <circle cx="16" cy="23" r="0.8" fill={ollamaOnline ? '#6366F1' : '#4A4A65'}/>
       </svg>
-      <p style={{ fontSize: 12, color: '#4A4A65', textAlign: 'center', lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12, color: '#4A4A65', textAlign: 'center', lineHeight: 1.6, margin: 0 }}>
         {ollamaOnline
-          ? 'Ask anything about your code,\narchitecture, or decisions.'
+          ? <>Ask anything about your code,<br/>architecture, or decisions.</>
           : 'Start Ollama to enable AI features.'}
       </p>
       {!ollamaOnline && (
@@ -87,56 +128,136 @@ function EmptyState({ ollamaOnline }: { ollamaOnline: boolean }) {
 
 function OfflineBanner() {
   return (
-    <div style={{
-      margin: '0 12px 10px', padding: '7px 10px', borderRadius: 6,
-      background: '#1A120A', border: '1px solid #F59E0B30',
-      display: 'flex', alignItems: 'center', gap: 7,
-    }}>
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <div style={{ margin: '0 12px 8px', padding: '7px 10px', borderRadius: 6, background: '#1A120A', border: '1px solid #F59E0B30', display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <path d="M7 2l5.5 10H1.5z"/><line x1="7" y1="6" x2="7" y2="9"/><circle cx="7" cy="11" r="0.5" fill="#F59E0B"/>
       </svg>
       <span style={{ fontSize: 11, color: '#F59E0B', opacity: 0.8 }}>
-        Ollama offline — run <code style={{ fontFamily: 'JetBrains Mono,monospace', opacity: 0.9 }}>ollama serve</code>
+        Ollama offline — run <code style={{ fontFamily: 'JetBrains Mono,monospace' }}>ollama serve</code>
       </span>
     </div>
   );
 }
 
+// ─── System prompt builder ────────────────────────────────────────────────────
+
+function buildSystemPrompt(workspacePath: string | null, activeFile: string | null): string {
+  let p = `You are APEX, an AI coding assistant embedded in a local-first developer workspace.
+Help developers write, understand, debug, and improve code.
+Be concise and direct. Format code in markdown code blocks with the language specified (e.g. \`\`\`typescript).
+When suggesting changes, show the complete updated function or block.`;
+
+  if (workspacePath) {
+    const name = workspacePath.split(/[\\/]/).pop() ?? workspacePath;
+    p += `\n\nProject: ${name} (${workspacePath})`;
+  }
+  if (activeFile) {
+    const name = activeFile.split(/[\\/]/).pop() ?? activeFile;
+    p += `\nActive file: ${name}`;
+  }
+  return p;
+}
+
 // ─── Intel Panel ──────────────────────────────────────────────────────────────
 
 export function IntelPanel() {
-  const { intelPanelOpen, intelPanelWidth, setIntelPanelWidth, intelTab, setIntelTab, toggleIntelPanel, ollamaOnline, ollamaModels } = useAppStore();
+  const {
+    intelPanelOpen, intelPanelWidth, setIntelPanelWidth,
+    intelTab, setIntelTab, toggleIntelPanel,
+    ollamaOnline, ollamaModels,
+    ollamaSelectedModel, setOllamaSelectedModel,
+    workspacePath, activeFile,
+  } = useAppStore();
 
-  const [input, setInput]       = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [input, setInput]         = useState('');
+  const [messages, setMessages]   = useState<Message[]>([]);
+  const [isStreaming, setStreaming] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; path: string } | null>(null);
 
-  // Scroll to bottom on new messages
+  const abortRef   = useRef<AbortController | null>(null);
+  const bottomRef  = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView({ behavior: isStreaming ? 'instant' : 'smooth' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   if (!intelPanelOpen) return null;
 
-  const handleSend = () => {
+  // ── @file attachment ───────────────────────────────────────────────────────
+  const handleAttachFile = () => {
+    if (!activeFile) return;
+    const name = activeFile.split(/[\\/]/).pop() ?? activeFile;
+    setAttachedFile({ name, path: activeFile });
+  };
+
+  // ── Send / stream ──────────────────────────────────────────────────────────
+  const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text) return;
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    // Day 5: wire up Ollama streaming response here
-    // For now, show a placeholder assistant reply
-    if (ollamaOnline) {
-      setTimeout(() => {
-        const model = ollamaModels[0]?.split(':')[0] ?? 'Ollama';
-        const reply: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: `[${model}] Response coming in Day 5 — Ollama streaming not yet wired up.`,
-        };
-        setMessages(prev => [...prev, reply]);
-      }, 400);
+    if (!text || isStreaming || !ollamaOnline) return;
+
+    let userContent = text;
+
+    // Prepend attached file content
+    if (attachedFile) {
+      try {
+        const content = await readFile(attachedFile.path);
+        const lang    = getLang(attachedFile.path);
+        userContent   = `File \`${attachedFile.name}\`:\n\`\`\`${lang}\n${content}\n\`\`\`\n\n${text}`;
+      } catch {
+        userContent = `[File \`${attachedFile.name}\` attached — content unavailable in browser preview]\n\n${text}`;
+      }
+      setAttachedFile(null);
     }
+
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
+    // (We show only the display text in the UI; the file content is in the API payload)
+
+    const historyForApi: ChatMessage[] = [
+      { role: 'system', content: buildSystemPrompt(workspacePath, activeFile) },
+      ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      { role: 'user', content: userContent },
+    ];
+
+    setInput('');
+    setMessages(prev => [...prev, userMsg]);
+    setStreaming(true);
+
+    const assistantId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true }]);
+
+    abortRef.current = new AbortController();
+    const model = ollamaSelectedModel || ollamaModels[0] || 'llama3.2';
+
+    try {
+      for await (const token of streamChat(model, historyForApi, abortRef.current.signal)) {
+        setMessages(prev => prev.map(m =>
+          m.id === assistantId ? { ...m, content: m.content + token } : m
+        ));
+      }
+    } catch (e: unknown) {
+      const err = e as Error;
+      if (err.name !== 'AbortError') {
+        setMessages(prev => prev.map(m =>
+          m.id === assistantId
+            ? { ...m, content: (m.content || '') + `\n\n⚠️ ${err.message}` }
+            : m
+        ));
+      }
+    } finally {
+      setMessages(prev => prev.map(m =>
+        m.id === assistantId ? { ...m, streaming: false } : m
+      ));
+      setStreaming(false);
+      abortRef.current = null;
+      inputRef.current?.focus();
+    }
+  }, [input, isStreaming, ollamaOnline, attachedFile, messages, workspacePath, activeFile, ollamaSelectedModel, ollamaModels]);
+
+  const handleStop = () => {
+    abortRef.current?.abort();
   };
 
   // ── Drag resize (left edge) ────────────────────────────────────────────────
@@ -145,9 +266,7 @@ export function IntelPanel() {
     const startX = e.clientX;
     const startW = intelPanelWidth;
     document.body.classList.add('resizing');
-
     const onMove = (ev: MouseEvent) => {
-      // Dragging LEFT (negative delta) = wider panel
       const next = Math.max(200, Math.min(560, startW - (ev.clientX - startX)));
       setIntelPanelWidth(next);
     };
@@ -160,36 +279,29 @@ export function IntelPanel() {
     document.addEventListener('mouseup', onUp);
   };
 
-  const modelLabel = ollamaOnline
-    ? (ollamaModels[0] ?? 'connected')
-    : null;
-
   return (
     <div
       className="app-intel flex flex-col"
       style={{ background: '#111118', borderLeft: '1px solid #252535', overflow: 'hidden', flexShrink: 0, position: 'relative' }}
     >
-      {/* Drag handle — left edge */}
+      {/* Drag handle */}
       <div className="rh-left" onMouseDown={handleResizeMouseDown} />
 
-      {/* Animated gradient top line */}
+      {/* Gradient top line */}
       <div className="grad-line" />
 
       {/* ── Tabs ────────────────────────────────────────────────────────── */}
-      <div style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 12px', gap: 6, borderBottom: '1px solid #252535', flexShrink: 0 }}>
+      <div style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 4, borderBottom: '1px solid #252535', flexShrink: 0 }}>
         {(['chat', 'knowledge', 'context'] as const).map((tab) => (
-          <button
-            key={tab}
+          <button key={tab}
             onClick={() => setIntelTab(tab as 'chat' | 'context' | 'history')}
             style={{
-              height: 26, padding: '0 10px', borderRadius: 6,
-              fontSize: 12, fontWeight: 500, cursor: 'pointer',
-              display: 'flex', alignItems: 'center',
+              height: 26, padding: '0 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+              cursor: 'pointer', display: 'flex', alignItems: 'center',
               border: intelTab === tab ? '1px solid #6366F1' : '1px solid transparent',
               background: intelTab === tab ? '#1A1A3A' : 'transparent',
               color: intelTab === tab ? '#6366F1' : '#4A4A65',
-              textTransform: 'capitalize', whiteSpace: 'nowrap',
-              transition: 'all 0.12s',
+              textTransform: 'capitalize', whiteSpace: 'nowrap', transition: 'all 0.12s',
             }}
             className={intelTab !== tab ? 'hover:!text-[#8888A8] hover:!bg-[#18181F]' : ''}
           >
@@ -206,80 +318,161 @@ export function IntelPanel() {
         </button>
       </div>
 
-      {/* ── Model badge ─────────────────────────────────────────────────── */}
-      {modelLabel && (
-        <div style={{ padding: '6px 12px 0', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+      {/* ── Model selector ─────────────────────────────────────────────── */}
+      {ollamaOnline && (
+        <div style={{ padding: '5px 12px 0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', boxShadow: '0 0 5px #22C55E88', flexShrink: 0 }} />
-          <span style={{ fontSize: 10, color: '#4A4A65', fontFamily: 'JetBrains Mono,monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {modelLabel}
-          </span>
+          {ollamaModels.length > 1 ? (
+            <select
+              value={ollamaSelectedModel}
+              onChange={e => setOllamaSelectedModel(e.target.value)}
+              style={{
+                background: 'transparent', border: 'none', outline: 'none',
+                color: '#4A4A65', fontSize: 10, cursor: 'pointer',
+                fontFamily: '"JetBrains Mono",monospace',
+              }}
+            >
+              {ollamaModels.map(m => <option key={m} value={m} style={{ background: '#18181F' }}>{m}</option>)}
+            </select>
+          ) : (
+            <span style={{ fontSize: 10, color: '#4A4A65', fontFamily: '"JetBrains Mono",monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {ollamaSelectedModel || ollamaModels[0] || 'Ollama'}
+            </span>
+          )}
         </div>
       )}
-
-      {/* ── Offline banner ───────────────────────────────────────────────── */}
-      {!ollamaOnline && messages.length > 0 && <OfflineBanner />}
 
       {/* ── Messages or empty state ──────────────────────────────────────── */}
       {messages.length === 0 ? (
         <EmptyState ollamaOnline={ollamaOnline} />
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
           {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
           <div ref={bottomRef} />
         </div>
       )}
 
-      {/* ── Input ────────────────────────────────────────────────────────── */}
-      <div style={{ borderTop: '1px solid #252535', background: '#111118', padding: 12, flexShrink: 0 }}>
+      {/* ── Input area ───────────────────────────────────────────────────── */}
+      <div style={{ borderTop: '1px solid #252535', background: '#0F0F16', padding: '10px 12px', flexShrink: 0 }}>
+        {/* Offline banner (inline, only when no messages) */}
         {!ollamaOnline && messages.length === 0 && <OfflineBanner />}
+
+        {/* Attached file badge */}
+        {attachedFile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px', marginBottom: 6, background: '#18181F', border: '1px solid #252535', borderRadius: 4 }}>
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#6366F1" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+              <path d="M7 1H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4z"/><polyline points="7,1 7,4 10,4"/>
+            </svg>
+            <span style={{ fontSize: 10, color: '#8888A8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: '"JetBrains Mono",monospace' }}>
+              {attachedFile.name}
+            </span>
+            <button onClick={() => setAttachedFile(null)}
+              style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, fontSize: 13, padding: '0 2px' }}
+              className="hover:!text-[#EF4444] transition-colors">×</button>
+          </div>
+        )}
+
+        {/* Textarea */}
         <textarea
+          ref={inputRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-          placeholder={ollamaOnline ? 'Ask APEX anything… (Enter to send)' : 'Start Ollama to enable AI…'}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+          placeholder={
+            !ollamaOnline
+              ? 'Start Ollama to enable AI…'
+              : isStreaming
+              ? 'Generating…'
+              : 'Ask APEX anything… (Enter to send, Shift+Enter for newline)'
+          }
           rows={2}
-          disabled={!ollamaOnline}
+          disabled={!ollamaOnline || isStreaming}
           style={{
-            width: '100%', background: ollamaOnline ? '#18181F' : '#111118',
-            border: `1px solid ${ollamaOnline ? '#252535' : '#1A1A28'}`,
-            borderRadius: 6, padding: '9px 11px',
-            fontSize: 12, fontFamily: 'inherit',
-            color: ollamaOnline ? '#E2E2EC' : '#4A4A65',
-            resize: 'none', minHeight: 42, outline: 'none', lineHeight: 1.5,
-            opacity: ollamaOnline ? 1 : 0.6,
-            cursor: ollamaOnline ? 'text' : 'not-allowed',
+            width: '100%',
+            background: ollamaOnline && !isStreaming ? '#18181F' : '#111118',
+            border: `1px solid ${ollamaOnline && !isStreaming ? '#252535' : '#1A1A28'}`,
+            borderRadius: 6, padding: '8px 10px', fontSize: 12,
+            fontFamily: 'inherit', color: ollamaOnline ? '#E2E2EC' : '#4A4A65',
+            resize: 'none', minHeight: 40, outline: 'none', lineHeight: 1.5,
+            opacity: !ollamaOnline ? 0.5 : 1,
+            cursor: !ollamaOnline || isStreaming ? 'not-allowed' : 'text',
+            transition: 'border-color 0.15s',
           }}
-          className="focus:!border-[#6366F140]"
+          className={ollamaOnline && !isStreaming ? 'focus:!border-[#6366F140]' : ''}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-          {/* Attach / Image / Voice */}
-          {[
-            <svg key="at" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="8" r="3"/><circle cx="8" cy="8" r="6.5" strokeDasharray="3 2"/></svg>,
-            <svg key="img" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="5.5" cy="7" r="1.5"/><polyline points="1,13 5,9 8,12 11,9 15,13"/></svg>,
-            <svg key="mic" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="5.5" y="1" width="5" height="8" rx="2.5"/><path d="M3 8a5 5 0 0 0 10 0"/><line x1="8" y1="13" x2="8" y2="15"/></svg>,
-          ].map((icon, i) => (
-            <span key={i} style={{ color: '#4A4A65', cursor: 'pointer', lineHeight: 1 }}
-              className="hover:!text-[#8888A8] transition-colors">{icon}</span>
-          ))}
-          {/* Send */}
+
+        {/* Actions row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
+          {/* Attach current file */}
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || !ollamaOnline}
+            onClick={handleAttachFile}
+            disabled={!activeFile || !!attachedFile}
+            title={activeFile ? `Attach ${activeFile.split(/[\\/]/).pop()}` : 'Open a file to attach'}
             style={{
-              marginLeft: 'auto', width: 30, height: 30,
-              background: input.trim() && ollamaOnline ? '#6366F1' : '#1A1A3A',
-              borderRadius: 6, border: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: input.trim() && ollamaOnline ? 'pointer' : 'default',
-              flexShrink: 0, transition: 'background 0.15s',
+              color: activeFile && !attachedFile ? '#6366F1' : '#4A4A65',
+              background: 'none', border: 'none', cursor: activeFile && !attachedFile ? 'pointer' : 'default',
+              padding: 2, lineHeight: 1, opacity: !activeFile || !!attachedFile ? 0.4 : 1,
             }}
+            className={activeFile && !attachedFile ? 'hover:!text-[#7C7FFF]' : ''}
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
-              stroke={input.trim() && ollamaOnline ? 'white' : '#4A4A65'}
-              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="2" x2="2" y2="12"/><polyline points="12,2 12,8 6,2"/>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13.5 8l-5.5 5.5a4 4 0 0 1-5.657-5.657l6-6a2.5 2.5 0 0 1 3.536 3.536l-6.071 6.07a1 1 0 0 1-1.414-1.414l5.5-5.5"/>
             </svg>
           </button>
+
+          {/* Voice (placeholder) */}
+          <button style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'default', padding: 2, lineHeight: 1, opacity: 0.4 }}>
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5.5" y="1" width="5" height="8" rx="2.5"/><path d="M3 8a5 5 0 0 0 10 0"/><line x1="8" y1="13" x2="8" y2="15"/>
+            </svg>
+          </button>
+
+          {/* Token / char count */}
+          {input.length > 0 && (
+            <span style={{ fontSize: 10, color: '#4A4A65', fontVariantNumeric: 'tabular-nums' }}>
+              {input.length}
+            </span>
+          )}
+
+          {/* Stop / Send */}
+          {isStreaming ? (
+            <button
+              onClick={handleStop}
+              title="Stop generating"
+              style={{
+                marginLeft: 'auto', width: 30, height: 30,
+                background: '#2D1515', border: '1px solid #EF444440',
+                borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+              className="hover:!bg-[#3D1515] transition-colors"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="#EF4444">
+                <rect x="1" y="1" width="8" height="8" rx="1"/>
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || !ollamaOnline}
+              title="Send (Enter)"
+              style={{
+                marginLeft: 'auto', width: 30, height: 30,
+                background: input.trim() && ollamaOnline ? '#6366F1' : '#1A1A3A',
+                borderRadius: 6, border: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: input.trim() && ollamaOnline ? 'pointer' : 'default',
+                flexShrink: 0, transition: 'background 0.15s',
+              }}
+              className={input.trim() && ollamaOnline ? 'hover:!bg-[#7C7FFF]' : ''}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                stroke={input.trim() && ollamaOnline ? 'white' : '#4A4A65'}
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="2" x2="2" y2="12"/><polyline points="12,2 12,8 6,2"/>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </div>

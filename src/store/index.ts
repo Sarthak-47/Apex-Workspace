@@ -67,6 +67,10 @@ interface AppState {
   ollamaModels: string[];
   setOllamaStatus: (online: boolean, models: string[]) => void;
 
+  // Selected model (persisted)
+  ollamaSelectedModel: string;
+  setOllamaSelectedModel: (model: string) => void;
+
   // Git branch (not persisted)
   gitBranch: string;
   setGitBranch: (branch: string) => void;
@@ -170,6 +174,10 @@ export const useAppStore = create<AppState>()(
       ollamaModels: [],
       setOllamaStatus: (online, models) => set({ ollamaOnline: online, ollamaModels: models }),
 
+      // Selected model (persisted)
+      ollamaSelectedModel: '',
+      setOllamaSelectedModel: (model) => set({ ollamaSelectedModel: model }),
+
       // Git branch (live, not persisted)
       gitBranch: 'main',
       setGitBranch: (branch) => set({ gitBranch: branch }),
@@ -190,6 +198,7 @@ export const useAppStore = create<AppState>()(
         intelPanelWidth: s.intelPanelWidth,
         terminalOpen: s.terminalOpen,
         terminalHeight: s.terminalHeight,
+        ollamaSelectedModel: s.ollamaSelectedModel,
       }),
     }
   )

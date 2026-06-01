@@ -18,7 +18,8 @@ export default function App() {
     leftPanelOpen, leftPanelWidth,
     intelPanelOpen, intelPanelWidth,
     terminalOpen, terminalHeight,
-    setOllamaStatus,
+    setOllamaStatus, ollamaOnline, ollamaModels,
+    ollamaSelectedModel, setOllamaSelectedModel,
     setGitBranch, workspacePath,
     commandPaletteOpen, setCommandPaletteOpen,
   } = useAppStore();
@@ -33,6 +34,15 @@ export default function App() {
     const id = setInterval(poll, 5000);
     return () => clearInterval(id);
   }, [setOllamaStatus]);
+
+  // ── Auto-select first available model when Ollama comes online ────────────
+  useEffect(() => {
+    if (ollamaOnline && ollamaModels.length > 0) {
+      if (!ollamaSelectedModel || !ollamaModels.includes(ollamaSelectedModel)) {
+        setOllamaSelectedModel(ollamaModels[0]);
+      }
+    }
+  }, [ollamaOnline, ollamaModels, ollamaSelectedModel, setOllamaSelectedModel]);
 
   // ── Git branch — re-read whenever workspace changes ────────────────────────
   useEffect(() => {
