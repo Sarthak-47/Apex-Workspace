@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
+import { getGitBranch } from "@/lib/tauri";
+import { CommandPalette } from "@/components/ui/CommandPalette";
 import { Titlebar } from "@/components/layout/Titlebar";
 import { ModeBar } from "@/components/layout/ModeBar";
 import { LeftNav } from "@/components/layout/LeftNav";
@@ -12,7 +14,14 @@ import { StatusBar } from "@/components/layout/StatusBar";
 import { Toaster } from "@/components/ui/Toaster";
 
 export default function App() {
-  const { leftPanelOpen, leftPanelWidth, intelPanelOpen, intelPanelWidth, terminalOpen, terminalHeight, setOllamaStatus } = useAppStore();
+  const {
+    leftPanelOpen, leftPanelWidth,
+    intelPanelOpen, intelPanelWidth,
+    terminalOpen, terminalHeight,
+    setOllamaStatus,
+    setGitBranch, workspacePath,
+    commandPaletteOpen, setCommandPaletteOpen,
+  } = useAppStore();
 
   // ── Ollama health polling (every 5 s) ──────────────────────────────────────
   useEffect(() => {
@@ -24,6 +33,24 @@ export default function App() {
     const id = setInterval(poll, 5000);
     return () => clearInterval(id);
   }, [setOllamaStatus]);
+
+  // ── Git branch — re-read whenever workspace changes ────────────────────────
+  useEffect(() => {
+    if (!workspacePath) { setGitBranch(''); return; }
+    getGitBranch(workspacePath).then(setGitBranch);
+  }, [workspacePath, setGitBranch]);
+
+  // ── Global Ctrl+K → open command palette ──────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [setCommandPaletteOpen]);
 
   // Keep CSS vars in sync with store (for future drag-to-resize)
   useEffect(() => {
@@ -56,6 +83,7 @@ export default function App() {
       <TerminalPanel />
       <StatusBar />
       <Toaster />
+      {commandPaletteOpen && <CommandPalette onClose={() => setCommandPaletteOpen(false)} />}
     </div>
   );
 }

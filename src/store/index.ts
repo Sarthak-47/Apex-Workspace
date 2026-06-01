@@ -66,6 +66,14 @@ interface AppState {
   ollamaOnline: boolean;
   ollamaModels: string[];
   setOllamaStatus: (online: boolean, models: string[]) => void;
+
+  // Git branch (not persisted)
+  gitBranch: string;
+  setGitBranch: (branch: string) => void;
+
+  // Command palette
+  commandPaletteOpen: boolean;
+  setCommandPaletteOpen: (open: boolean) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -161,6 +169,14 @@ export const useAppStore = create<AppState>()(
       ollamaOnline: false,
       ollamaModels: [],
       setOllamaStatus: (online, models) => set({ ollamaOnline: online, ollamaModels: models }),
+
+      // Git branch (live, not persisted)
+      gitBranch: 'main',
+      setGitBranch: (branch) => set({ gitBranch: branch }),
+
+      // Command palette
+      commandPaletteOpen: false,
+      setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
     }),
     {
       name: "apex-app-state",

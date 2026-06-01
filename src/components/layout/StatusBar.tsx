@@ -23,7 +23,7 @@ function SbItem({ children, onClick }: { children: React.ReactNode; onClick?: ()
 }
 
 export function StatusBar() {
-  const { mode, activeFile, terminalOpen, toggleTerminal, ollamaOnline, ollamaModels } = useAppStore();
+  const { mode, activeFile, terminalOpen, toggleTerminal, ollamaOnline, ollamaModels, gitBranch } = useAppStore();
   const fileName = activeFile?.split('/').pop() ?? null;
 
   return (
@@ -36,7 +36,7 @@ export function StatusBar() {
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.8 }}>
           <polyline points="1,4 4,1 8,5"/><polyline points="4,1 4,8"/><polyline points="1,9 11,9"/>
         </svg>
-        main
+        {gitBranch || 'main'}
       </SbItem>
 
       <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />

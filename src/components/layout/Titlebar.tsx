@@ -67,6 +67,7 @@ function OllamaStatusDot() {
 
 // ─── Titlebar ─────────────────────────────────────────────────────────────────
 export function Titlebar() {
+  const { setCommandPaletteOpen } = useAppStore();
   return (
     <div
       className="app-titlebar drag"
@@ -83,7 +84,9 @@ export function Titlebar() {
       {/* ── CENTER — Search bar (always truly centered) ── */}
       <div
         className="no-drag"
-        style={{ width:280, height:26, background:'#18181F', border:'1px solid #252535', borderRadius:6, display:'flex', alignItems:'center', padding:'0 9px', gap:6, flexShrink:0 }}
+        onClick={() => setCommandPaletteOpen(true)}
+        style={{ width:280, height:26, background:'#18181F', border:'1px solid #252535', borderRadius:6, display:'flex', alignItems:'center', padding:'0 9px', gap:6, flexShrink:0, cursor:'pointer' }}
+        title="Search files and commands (Ctrl+K)"
       >
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#4A4A65" strokeWidth="1.5">
           <circle cx="5.5" cy="5.5" r="4"/><line x1="9" y1="9" x2="12" y2="12"/>

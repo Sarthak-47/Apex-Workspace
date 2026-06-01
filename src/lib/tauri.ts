@@ -143,6 +143,47 @@ export async function listDir(path: string): Promise<DirEntry[]> {
   return MOCK_TREE[path] ?? [];
 }
 
+/** Recursively collect every file under rootPath (max 8 levels). */
+export async function listAllFiles(rootPath: string): Promise<DirEntry[]> {
+  if (isTauri()) {
+    const result: DirEntry[] = [];
+    const recurse = async (path: string, depth: number) => {
+      if (depth > 8) return;
+      try {
+        for (const e of await listDir(path)) {
+          if (e.is_dir) await recurse(e.path, depth + 1);
+          else result.push(e);
+        }
+      } catch { /* ignore unreadable dirs */ }
+    };
+    await recurse(rootPath, 0);
+    return result;
+  }
+  // Browser mock — flatten MOCK_TREE, skip dirs
+  const result: DirEntry[] = [];
+  for (const entries of Object.values(MOCK_TREE)) {
+    for (const e of entries) {
+      if (!e.is_dir) result.push(e);
+    }
+  }
+  return result;
+}
+
+/** Read the current git branch from .git/HEAD (falls back to 'main'). */
+export async function getGitBranch(workspacePath: string): Promise<string> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const head: string = await invoke('read_file', { path: `${workspacePath}/.git/HEAD` });
+      const match = head.match(/ref: refs\/heads\/(.+)/);
+      return match ? match[1].trim() : head.trim().slice(0, 7);
+    } catch {
+      return 'main';
+    }
+  }
+  return 'main';
+}
+
 // ─── Folder picker dialog ─────────────────────────────────────────────────────
 
 /**

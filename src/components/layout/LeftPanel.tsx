@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppStore } from "@/store";
 import { listDir, openFolderDialog, deletePath, renamePath, type DirEntry } from "@/lib/tauri";
 
@@ -171,6 +171,25 @@ function DeleteDialog({ entry, onConfirm, onCancel }: {
 
 // ─── File tree node ────────────────────────────────────────────────────────────
 
+// ─── Flat visible list builder (for keyboard nav) ─────────────────────────────
+
+function buildVisibleList(
+  parentPath: string,
+  dirCache: Record<string, DirEntry[]>,
+  openDirs: Set<string>,
+): DirEntry[] {
+  const result: DirEntry[] = [];
+  for (const e of dirCache[parentPath] ?? []) {
+    result.push(e);
+    if (e.is_dir && openDirs.has(e.path)) {
+      result.push(...buildVisibleList(e.path, dirCache, openDirs));
+    }
+  }
+  return result;
+}
+
+// ─── File tree node ────────────────────────────────────────────────────────────
+
 interface TreeNodeProps {
   entry: DirEntry;
   depth: number;
@@ -179,6 +198,7 @@ interface TreeNodeProps {
   loadingDirs: Set<string>;
   renamingPath: string | null;
   renameValue: string;
+  focusedPath: string | null;
   onToggleDir: (path: string) => void;
   onOpenFile: (path: string) => void;
   onContextMenu: (e: React.MouseEvent, entry: DirEntry) => void;
@@ -190,15 +210,16 @@ interface TreeNodeProps {
 
 function TreeNode({
   entry, depth, dirCache, openDirs, loadingDirs,
-  renamingPath, renameValue,
+  renamingPath, renameValue, focusedPath,
   onToggleDir, onOpenFile, onContextMenu,
   onRenameChange, onRenameSubmit, onRenameCancel,
   activeFile,
 }: TreeNodeProps) {
-  const indent  = depth * 12 + 10;
-  const isOpen  = openDirs.has(entry.path);
+  const indent    = depth * 12 + 10;
+  const isOpen    = openDirs.has(entry.path);
   const isLoading = loadingDirs.has(entry.path);
   const isActive  = activeFile === entry.path;
+  const isFocused = focusedPath === entry.path;
   const isRenaming = renamingPath === entry.path;
 
   const nameCell = isRenaming ? (
@@ -230,16 +251,19 @@ function TreeNode({
     return (
       <>
         <div
+          data-tree-path={entry.path}
           onClick={() => !isRenaming && onToggleDir(entry.path)}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, entry); }}
           style={{
             height: 26, display: 'flex', alignItems: 'center',
             paddingLeft: indent, paddingRight: 8, gap: 4,
             cursor: 'pointer',
-            background: isOpen ? '#18181F' : 'transparent',
+            background: isFocused ? '#1E1E2E' : isOpen ? '#18181F' : 'transparent',
+            outline: isFocused ? '1px solid #6366F130' : 'none',
+            outlineOffset: -1,
             flexShrink: 0, userSelect: 'none',
           }}
-          className="hover:bg-[#18181F] transition-colors"
+          className={!isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}
         >
           {isLoading ? (
             <div style={{ width: 10, height: 10, flexShrink: 0, border: '1.5px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -259,6 +283,7 @@ function TreeNode({
             loadingDirs={loadingDirs}
             renamingPath={renamingPath}
             renameValue={renameValue}
+            focusedPath={focusedPath}
             onToggleDir={onToggleDir}
             onOpenFile={onOpenFile}
             onContextMenu={onContextMenu}
@@ -274,17 +299,19 @@ function TreeNode({
 
   return (
     <div
+      data-tree-path={entry.path}
       onClick={() => !isRenaming && onOpenFile(entry.path)}
       onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, entry); }}
       style={{
         height: 26, display: 'flex', alignItems: 'center',
         paddingLeft: indent + 14, paddingRight: 8, gap: 5,
         cursor: 'pointer',
-        background: isActive ? '#1A1A3A' : 'transparent',
-        borderLeft: isActive ? '2px solid #6366F1' : '2px solid transparent',
+        background: isActive ? '#1A1A3A' : isFocused ? '#1E1E2E' : 'transparent',
+        borderLeft: isActive ? '2px solid #6366F1' : isFocused ? '2px solid #6366F130' : '2px solid transparent',
+        outline: 'none',
         flexShrink: 0,
       }}
-      className={isActive ? '' : 'hover:bg-[#18181F] transition-colors'}
+      className={!isActive && !isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}
     >
       <FileIcon ext={entry.ext} />
       {nameCell}
@@ -303,6 +330,17 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
   const [dirCache, setDirCache]       = useState<Record<string, DirEntry[]>>({});
   const [openDirs, setOpenDirs]       = useState<Set<string>>(new Set([workspacePath]));
   const [loadingDirs, setLoadingDirs] = useState<Set<string>>(new Set());
+
+  // Keyboard focus (separate from active file)
+  const [focusedPath, setFocusedPath] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (!focusedPath) return;
+    const el = containerRef.current?.querySelector(`[data-tree-path="${focusedPath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [focusedPath]);
 
   // Context menu
   const [ctxMenu, setCtxMenu]       = useState<CtxMenu | null>(null);
@@ -339,6 +377,64 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
       return next;
     });
   }, [loadDir]);
+
+  // ── Keyboard navigation ────────────────────────────────────────────────────
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const visible = buildVisibleList(workspacePath, dirCache, openDirs);
+    if (visible.length === 0) return;
+    const idx = focusedPath ? visible.findIndex(v => v.path === focusedPath) : -1;
+
+    switch (e.key) {
+      case 'ArrowDown': {
+        e.preventDefault();
+        const next = idx < visible.length - 1 ? idx + 1 : 0;
+        setFocusedPath(visible[next].path);
+        break;
+      }
+      case 'ArrowUp': {
+        e.preventDefault();
+        const prev = idx > 0 ? idx - 1 : visible.length - 1;
+        setFocusedPath(visible[prev].path);
+        break;
+      }
+      case 'ArrowRight': {
+        e.preventDefault();
+        const entry = visible[idx];
+        if (entry?.is_dir && !openDirs.has(entry.path)) handleToggleDir(entry.path);
+        break;
+      }
+      case 'ArrowLeft': {
+        e.preventDefault();
+        const entry = visible[idx];
+        if (!entry) break;
+        if (entry.is_dir && openDirs.has(entry.path)) {
+          handleToggleDir(entry.path);
+        } else {
+          const parent = entry.path.substring(0, entry.path.lastIndexOf('/'));
+          if (parent && parent !== workspacePath) setFocusedPath(parent);
+        }
+        break;
+      }
+      case 'Enter': case ' ': {
+        e.preventDefault();
+        const entry = visible[idx];
+        if (!entry) break;
+        if (entry.is_dir) handleToggleDir(entry.path);
+        else onOpenFile(entry.path);
+        break;
+      }
+      case 'Home': {
+        e.preventDefault();
+        setFocusedPath(visible[0].path);
+        break;
+      }
+      case 'End': {
+        e.preventDefault();
+        setFocusedPath(visible[visible.length - 1].path);
+        break;
+      }
+    }
+  }, [workspacePath, dirCache, openDirs, focusedPath, handleToggleDir, onOpenFile]);
 
   // ── Context menu handlers ──────────────────────────────────────────────────
   const handleContextMenu = useCallback((e: React.MouseEvent, entry: DirEntry) => {
@@ -445,8 +541,14 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
 
   return (
     <>
-      {/* Tree content */}
-      <div style={{ overflowY: 'auto', flex: 1 }} onClick={() => setCtxMenu(null)}>
+      {/* Tree content — focusable for keyboard nav */}
+      <div
+        ref={containerRef}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onClick={() => setCtxMenu(null)}
+        style={{ overflowY: 'auto', flex: 1, outline: 'none' }}
+      >
         {rootLoading && (
           <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 12, height: 12, border: '1.5px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
@@ -466,6 +568,7 @@ function FileTree({ workspacePath, activeFile, onOpenFile }: {
             loadingDirs={loadingDirs}
             renamingPath={renamingPath}
             renameValue={renameValue}
+            focusedPath={focusedPath}
             onToggleDir={handleToggleDir}
             onOpenFile={onOpenFile}
             onContextMenu={handleContextMenu}
