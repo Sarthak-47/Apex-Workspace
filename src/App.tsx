@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/store";
+import { checkOllama } from "@/lib/ollama";
 import { Titlebar } from "@/components/layout/Titlebar";
 import { ModeBar } from "@/components/layout/ModeBar";
 import { LeftNav } from "@/components/layout/LeftNav";
@@ -11,7 +12,18 @@ import { StatusBar } from "@/components/layout/StatusBar";
 import { Toaster } from "@/components/ui/Toaster";
 
 export default function App() {
-  const { leftPanelOpen, leftPanelWidth, intelPanelOpen, intelPanelWidth, terminalOpen, terminalHeight } = useAppStore();
+  const { leftPanelOpen, leftPanelWidth, intelPanelOpen, intelPanelWidth, terminalOpen, terminalHeight, setOllamaStatus } = useAppStore();
+
+  // ── Ollama health polling (every 5 s) ──────────────────────────────────────
+  useEffect(() => {
+    const poll = async () => {
+      const { online, models } = await checkOllama();
+      setOllamaStatus(online, models.map(m => m.name));
+    };
+    poll();
+    const id = setInterval(poll, 5000);
+    return () => clearInterval(id);
+  }, [setOllamaStatus]);
 
   // Keep CSS vars in sync with store (for future drag-to-resize)
   useEffect(() => {

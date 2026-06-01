@@ -61,6 +61,11 @@ interface AppState {
   // Intel panel active tab
   intelTab: "chat" | "knowledge" | "context" | "history";
   setIntelTab: (tab: "chat" | "knowledge" | "context" | "history") => void;
+
+  // Ollama live status (not persisted)
+  ollamaOnline: boolean;
+  ollamaModels: string[];
+  setOllamaStatus: (online: boolean, models: string[]) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -151,6 +156,11 @@ export const useAppStore = create<AppState>()(
       // Intel tab
       intelTab: "chat" as "chat" | "knowledge" | "context" | "history",
       setIntelTab: (tab) => set({ intelTab: tab }),
+
+      // Ollama status (live, not persisted)
+      ollamaOnline: false,
+      ollamaModels: [],
+      setOllamaStatus: (online, models) => set({ ollamaOnline: online, ollamaModels: models }),
     }),
     {
       name: "apex-app-state",

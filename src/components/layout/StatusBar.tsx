@@ -23,7 +23,7 @@ function SbItem({ children, onClick }: { children: React.ReactNode; onClick?: ()
 }
 
 export function StatusBar() {
-  const { mode, activeFile, terminalOpen, toggleTerminal } = useAppStore();
+  const { mode, activeFile, terminalOpen, toggleTerminal, ollamaOnline, ollamaModels } = useAppStore();
   const fileName = activeFile?.split('/').pop() ?? null;
 
   return (
@@ -84,8 +84,15 @@ export function StatusBar() {
       )}
 
       <SbItem>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4A4A65', flexShrink: 0 }} />
-        Ollama offline
+        <div style={{
+          width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+          background: ollamaOnline ? '#22C55E' : '#4A4A65',
+          boxShadow: ollamaOnline ? '0 0 5px #22C55E88' : 'none',
+          transition: 'all 0.4s',
+        }} />
+        <span style={{ opacity: ollamaOnline ? 1 : 0.6 }}>
+          {ollamaOnline ? (ollamaModels[0]?.split(':')[0] ?? 'Ollama') : 'Ollama offline'}
+        </span>
       </SbItem>
 
       <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />

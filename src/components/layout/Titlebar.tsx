@@ -1,5 +1,6 @@
 import { minimize, toggleMaximize, closeWindow } from "@/lib/tauri";
 import { useAppStore } from "@/store";
+import { useEffect, useState } from "react";
 
 // ─── Window Controls ──────────────────────────────────────────────────────────
 function WindowControls() {
@@ -37,6 +38,33 @@ function WorkspaceName() {
   );
 }
 
+// ─── Ollama live status dot ───────────────────────────────────────────────────
+function OllamaStatusDot() {
+  const { ollamaOnline, ollamaModels } = useAppStore();
+  // Pulse animation triggers once when transitioning to online
+  const [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    if (ollamaOnline) { setPulse(true); setTimeout(() => setPulse(false), 800); }
+  }, [ollamaOnline]);
+
+  const label = ollamaOnline
+    ? (ollamaModels[0]?.split(':')[0] ?? 'Ollama')
+    : 'Ollama offline';
+
+  return (
+    <div className="flex items-center gap-1.5" style={{ fontSize: 11, color: ollamaOnline ? '#8888A8' : '#4A4A65', paddingRight: 8, transition: 'color 0.4s' }}>
+      <div style={{
+        width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+        background: ollamaOnline ? '#22C55E' : '#4A4A65',
+        boxShadow: ollamaOnline ? '0 0 6px #22C55E88' : 'none',
+        transition: 'all 0.4s',
+        transform: pulse ? 'scale(1.4)' : 'scale(1)',
+      }} />
+      <span>{label}</span>
+    </div>
+  );
+}
+
 // ─── Titlebar ─────────────────────────────────────────────────────────────────
 export function Titlebar() {
   return (
@@ -69,10 +97,7 @@ export function Titlebar() {
 
       {/* ── RIGHT GROUP (flex:1, right-aligned) ── */}
       <div className="no-drag flex items-center justify-end" style={{ flex:1 }}>
-        <div className="flex items-center gap-1.5" style={{ fontSize:11, color:'#8888A8', paddingRight:8 }}>
-          <div style={{ width:8, height:8, borderRadius:'50%', background:'#4A4A65', flexShrink:0 }} />
-          <span>Ollama offline</span>
-        </div>
+        <OllamaStatusDot />
         <div style={{ width:1, height:14, background:'#252535' }} />
         <WindowControls />
       </div>
