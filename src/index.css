@@ -102,14 +102,36 @@ html, body, #root {
 .drag    { -webkit-app-region: drag;    app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
 
-/* ── Resize handle ────────────────────────────────────────────────────────── */
+/* ── Resize handles ───────────────────────────────────────────────────────── */
+/* Right-edge (left panel) */
 .rh {
-  width: 2px; background: #252535;
-  cursor: col-resize; flex-shrink: 0;
-  transition: background 80ms, width 80ms;
-  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 4px; background: transparent;
+  cursor: col-resize;
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 20;
+  transition: background 80ms;
 }
-.rh:hover, .rh.active { width: 3px; background: #6366F1; }
+.rh:hover, .rh.active { background: #6366F140; }
+
+/* Left-edge (intel panel) */
+.rh-left {
+  width: 4px; background: transparent;
+  cursor: col-resize;
+  position: absolute; top: 0; left: 0; bottom: 0; z-index: 20;
+  transition: background 80ms;
+}
+.rh-left:hover, .rh-left.active { background: #6366F140; }
+
+/* Top-edge (terminal panel) */
+.rh-top {
+  height: 4px; background: transparent;
+  cursor: row-resize;
+  position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+  transition: background 80ms;
+}
+.rh-top:hover, .rh-top.active { background: #6366F140; }
+
+/* Instant feedback during drag — kill all transitions */
+body.resizing * { transition: none !important; user-select: none !important; }
 
 /* ── Animated gradient line (intel panel top) ─────────────────────────────── */
 @keyframes gs { 0%{background-position:0%} 100%{background-position:200%} }

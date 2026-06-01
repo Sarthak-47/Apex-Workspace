@@ -459,8 +459,29 @@ function XtermTerminal() {
 
 // ─── TerminalPanel (outer shell) ─────────────────────────────────────────────
 export function TerminalPanel() {
-  const { terminalOpen, toggleTerminal } = useAppStore();
+  const { terminalOpen, toggleTerminal, terminalHeight, setTerminalHeight } = useAppStore();
   if (!terminalOpen) return null;
+
+  // ── Drag resize (top edge) ─────────────────────────────────────────────────
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = terminalHeight;
+    document.body.classList.add('resizing');
+
+    const onMove = (ev: MouseEvent) => {
+      // Dragging UP (negative delta) = taller terminal
+      const next = Math.max(80, Math.min(600, startH - (ev.clientY - startY)));
+      setTerminalHeight(next);
+    };
+    const onUp = () => {
+      document.body.classList.remove('resizing');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
 
   return (
     <div
@@ -470,8 +491,11 @@ export function TerminalPanel() {
         borderTop: '1px solid #252535',
         flexShrink: 0,
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
+      {/* Drag handle — top edge */}
+      <div className="rh-top" onMouseDown={handleResizeMouseDown} />
       {/* ── Tab bar ────────────────────────────────────────────────────────── */}
       <div style={{
         height: 32,
