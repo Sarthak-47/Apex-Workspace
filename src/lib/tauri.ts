@@ -14,7 +14,6 @@ export async function minimize() {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     return getCurrentWindow().minimize();
   }
-  // no-op in browser
 }
 
 export async function toggleMaximize() {
@@ -22,7 +21,6 @@ export async function toggleMaximize() {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     return getCurrentWindow().toggleMaximize();
   }
-  // no-op in browser
 }
 
 export async function closeWindow() {
@@ -30,7 +28,6 @@ export async function closeWindow() {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     return getCurrentWindow().close();
   }
-  // no-op in browser
 }
 
 // ─── File system commands ─────────────────────────────────────────────────────
@@ -51,6 +48,20 @@ export async function writeFile(path: string, content: string): Promise<void> {
   throw new Error('File system not available in browser preview');
 }
 
+export async function deletePath(path: string): Promise<void> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('delete_path', { path });
+  }
+}
+
+export async function renamePath(oldPath: string, newPath: string): Promise<void> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('rename_path', { oldPath, newPath });
+  }
+}
+
 export interface DirEntry {
   name: string;
   path: string;
@@ -59,14 +70,96 @@ export interface DirEntry {
   ext: string | null;
 }
 
+// ─── Browser mock file tree ───────────────────────────────────────────────────
+// Simulates a realistic project structure for web-first testing
+
+const MOCK_TREE: Record<string, DirEntry[]> = {
+  '/demo-workspace': [
+    { name: 'src',          path: '/demo-workspace/src',          is_dir: true,  size: 0,       ext: null },
+    { name: 'public',       path: '/demo-workspace/public',       is_dir: true,  size: 0,       ext: null },
+    { name: 'src-tauri',    path: '/demo-workspace/src-tauri',    is_dir: true,  size: 0,       ext: null },
+    { name: 'package.json', path: '/demo-workspace/package.json', is_dir: false, size: 1280,    ext: 'json' },
+    { name: 'tsconfig.json',path: '/demo-workspace/tsconfig.json',is_dir: false, size: 512,     ext: 'json' },
+    { name: 'vite.config.ts',path:'/demo-workspace/vite.config.ts',is_dir:false, size: 800,     ext: 'ts' },
+    { name: '.gitignore',   path: '/demo-workspace/.gitignore',   is_dir: false, size: 220,     ext: null },
+    { name: 'README.md',    path: '/demo-workspace/README.md',    is_dir: false, size: 1024,    ext: 'md' },
+  ],
+  '/demo-workspace/src': [
+    { name: 'components',   path: '/demo-workspace/src/components', is_dir: true,  size: 0,     ext: null },
+    { name: 'editor',       path: '/demo-workspace/src/editor',     is_dir: true,  size: 0,     ext: null },
+    { name: 'lib',          path: '/demo-workspace/src/lib',        is_dir: true,  size: 0,     ext: null },
+    { name: 'store',        path: '/demo-workspace/src/store',      is_dir: true,  size: 0,     ext: null },
+    { name: 'App.tsx',      path: '/demo-workspace/src/App.tsx',    is_dir: false, size: 2048,  ext: 'tsx' },
+    { name: 'main.tsx',     path: '/demo-workspace/src/main.tsx',   is_dir: false, size: 512,   ext: 'tsx' },
+    { name: 'index.css',    path: '/demo-workspace/src/index.css',  is_dir: false, size: 4096,  ext: 'css' },
+  ],
+  '/demo-workspace/src/components': [
+    { name: 'layout',       path: '/demo-workspace/src/components/layout',      is_dir: true,  size: 0,    ext: null },
+    { name: 'ui',           path: '/demo-workspace/src/components/ui',          is_dir: true,  size: 0,    ext: null },
+  ],
+  '/demo-workspace/src/components/layout': [
+    { name: 'CenterArea.tsx',   path: '/demo-workspace/src/components/layout/CenterArea.tsx',   is_dir: false, size: 8192,  ext: 'tsx' },
+    { name: 'IntelPanel.tsx',   path: '/demo-workspace/src/components/layout/IntelPanel.tsx',   is_dir: false, size: 6144,  ext: 'tsx' },
+    { name: 'LeftNav.tsx',      path: '/demo-workspace/src/components/layout/LeftNav.tsx',      is_dir: false, size: 3072,  ext: 'tsx' },
+    { name: 'LeftPanel.tsx',    path: '/demo-workspace/src/components/layout/LeftPanel.tsx',    is_dir: false, size: 5120,  ext: 'tsx' },
+    { name: 'ModeBar.tsx',      path: '/demo-workspace/src/components/layout/ModeBar.tsx',      is_dir: false, size: 2048,  ext: 'tsx' },
+    { name: 'StatusBar.tsx',    path: '/demo-workspace/src/components/layout/StatusBar.tsx',    is_dir: false, size: 2560,  ext: 'tsx' },
+    { name: 'TerminalPanel.tsx',path: '/demo-workspace/src/components/layout/TerminalPanel.tsx',is_dir: false, size: 2048,  ext: 'tsx' },
+    { name: 'Titlebar.tsx',     path: '/demo-workspace/src/components/layout/Titlebar.tsx',     is_dir: false, size: 4096,  ext: 'tsx' },
+  ],
+  '/demo-workspace/src/components/ui': [
+    { name: 'Toaster.tsx',  path: '/demo-workspace/src/components/ui/Toaster.tsx', is_dir: false, size: 2048, ext: 'tsx' },
+  ],
+  '/demo-workspace/src/editor': [
+    { name: 'MonacoEditor.tsx', path: '/demo-workspace/src/editor/MonacoEditor.tsx', is_dir: false, size: 12288, ext: 'tsx' },
+  ],
+  '/demo-workspace/src/lib': [
+    { name: 'tauri.ts', path: '/demo-workspace/src/lib/tauri.ts', is_dir: false, size: 3072, ext: 'ts' },
+  ],
+  '/demo-workspace/src/store': [
+    { name: 'index.ts', path: '/demo-workspace/src/store/index.ts', is_dir: false, size: 6144, ext: 'ts' },
+  ],
+  '/demo-workspace/public': [
+    { name: 'apex-logo.svg', path: '/demo-workspace/public/apex-logo.svg', is_dir: false, size: 2621440, ext: 'svg' },
+  ],
+  '/demo-workspace/src-tauri': [
+    { name: 'src',            path: '/demo-workspace/src-tauri/src',            is_dir: true,  size: 0,    ext: null },
+    { name: 'Cargo.toml',     path: '/demo-workspace/src-tauri/Cargo.toml',     is_dir: false, size: 512,  ext: 'toml' },
+    { name: 'tauri.conf.json',path: '/demo-workspace/src-tauri/tauri.conf.json',is_dir: false, size: 1024, ext: 'json' },
+  ],
+  '/demo-workspace/src-tauri/src': [
+    { name: 'lib.rs',  path: '/demo-workspace/src-tauri/src/lib.rs',  is_dir: false, size: 3072, ext: 'rs' },
+    { name: 'main.rs', path: '/demo-workspace/src-tauri/src/main.rs', is_dir: false, size: 256,  ext: 'rs' },
+  ],
+};
+
 export async function listDir(path: string): Promise<DirEntry[]> {
   if (isTauri()) {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('list_dir', { path });
   }
-  // Return mock data in browser
-  return [
-    { name: 'src', path: `${path}/src`, is_dir: true, size: 0, ext: null },
-    { name: 'package.json', path: `${path}/package.json`, is_dir: false, size: 1024, ext: 'json' },
-  ];
+  // Browser mock: simulate realistic project tree
+  await new Promise(r => setTimeout(r, 60)); // tiny latency to test loading states
+  return MOCK_TREE[path] ?? [];
+}
+
+// ─── Folder picker dialog ─────────────────────────────────────────────────────
+
+/**
+ * Opens a native folder picker dialog.
+ * In Tauri: uses @tauri-apps/plugin-dialog (requires plugin in Cargo.toml).
+ * In browser: returns a demo workspace path for web-first testing.
+ */
+export async function openFolderDialog(): Promise<string | null> {
+  if (isTauri()) {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const result = await open({ directory: true, multiple: false, title: 'Open Workspace Folder' });
+      return typeof result === 'string' ? result : null;
+    } catch {
+      return null;
+    }
+  }
+  // Browser preview — return the mock workspace
+  return '/demo-workspace';
 }
