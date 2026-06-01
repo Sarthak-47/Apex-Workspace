@@ -11,11 +11,151 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   streaming?: boolean;
+  isPlan?: boolean;
 }
 
 type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'code'; lang: string; code: string };
+
+interface PlanStep {
+  number: number;
+  title: string;
+  detail: string;
+}
+
+// ─── Plan parser + renderer ───────────────────────────────────────────────────
+
+function parsePlanSteps(content: string): PlanStep[] {
+  const steps: PlanStep[] = [];
+  const lines = content.split('\n');
+  let current: PlanStep | null = null;
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    const match = line.match(/^(\d+)\.\s+(.+)/);
+    if (match) {
+      if (current) steps.push(current);
+      const rest = match[2];
+      // Split on first " — " or " - " for optional detail
+      const sep = rest.indexOf(' — ') >= 0 ? ' — ' : rest.indexOf(' - ') >= 0 ? ' - ' : null;
+      if (sep) {
+        const idx = rest.indexOf(sep);
+        current = { number: parseInt(match[1]), title: rest.slice(0, idx).trim(), detail: rest.slice(idx + sep.length).trim() };
+      } else {
+        current = { number: parseInt(match[1]), title: rest, detail: '' };
+      }
+    } else if (current && line && !line.startsWith('```')) {
+      // Append continuation text as detail
+      if (!current.detail) current.detail = line;
+    }
+  }
+  if (current) steps.push(current);
+  return steps;
+}
+
+function hasPlanStructure(content: string): boolean {
+  const numbered = content.split('\n').filter(l => /^\d+\.\s+\S/.test(l.trim()));
+  return numbered.length >= 3;
+}
+
+function PlanResponse({ content, streaming }: { content: string; streaming?: boolean }) {
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+  const steps = parsePlanSteps(content);
+
+  // Extract text before the numbered list as intro
+  const firstStepIdx = content.search(/^\d+\.\s/m);
+  const intro = firstStepIdx > 0 ? content.slice(0, firstStepIdx).trim() : '';
+
+  const toggle = (n: number) => setChecked(prev => {
+    const next = new Set(prev);
+    next.has(n) ? next.delete(n) : next.add(n);
+    return next;
+  });
+
+  const done = checked.size;
+
+  return (
+    <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+      {/* Intro text */}
+      {intro && <p style={{ marginBottom: 10, color: '#C0C0D0' }}>{intro}</p>}
+
+      {/* Step cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {steps.map(step => {
+          const isDone = checked.has(step.number);
+          return (
+            <div
+              key={step.number}
+              onClick={() => toggle(step.number)}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                padding: '7px 10px', borderRadius: 6, cursor: 'pointer',
+                background: isDone ? '#0A1A0A' : '#18181F',
+                border: `1px solid ${isDone ? '#22C55E20' : '#252535'}`,
+                transition: 'all 0.15s',
+              }}
+              className="hover:!border-[#6366F130]"
+            >
+              {/* Checkbox */}
+              <div style={{
+                width: 16, height: 16, borderRadius: 3, flexShrink: 0, marginTop: 1,
+                border: `1.5px solid ${isDone ? '#22C55E' : '#4A4A65'}`,
+                background: isDone ? '#22C55E' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}>
+                {isDone && <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><polyline points="1.5,5 4,7.5 8.5,2.5"/></svg>}
+              </div>
+
+              {/* Step number badge */}
+              <span style={{
+                width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                background: isDone ? '#22C55E20' : '#1A1A3A',
+                border: `1px solid ${isDone ? '#22C55E40' : '#6366F130'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, fontWeight: 700,
+                color: isDone ? '#22C55E' : '#6366F1',
+              }}>
+                {step.number}
+              </span>
+
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 12, fontWeight: 500,
+                  color: isDone ? '#4A4A65' : '#E2E2EC',
+                  textDecoration: isDone ? 'line-through' : 'none',
+                  transition: 'all 0.15s',
+                }}>
+                  {step.title}
+                </div>
+                {step.detail && (
+                  <div style={{ fontSize: 11, color: isDone ? '#4A4A65' : '#8888A8', marginTop: 1 }}>
+                    {step.detail}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progress + streaming cursor */}
+      {steps.length > 0 && (
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1, height: 3, background: '#252535', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: '#22C55E', borderRadius: 2, transition: 'width 0.3s', width: `${(done / steps.length) * 100}%` }} />
+          </div>
+          <span style={{ fontSize: 10, color: done === steps.length ? '#22C55E' : '#4A4A65' }}>
+            {done === steps.length ? '✓ all done' : `${done}/${steps.length}`}
+          </span>
+          {streaming && <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom' }} />}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Content parser ───────────────────────────────────────────────────────────
 
@@ -135,14 +275,23 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
     );
   }
 
-  // Assistant — render raw during streaming, parse blocks when done
+  // Assistant streaming — show raw text
   if (msg.streaming) {
+    const looksLikePlan = hasPlanStructure(msg.content);
+    if (looksLikePlan) {
+      return <PlanResponse content={msg.content} streaming />;
+    }
     return (
       <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
         <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</span>
         <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom', marginLeft: 2 }} />
       </div>
     );
+  }
+
+  // Completed plan response
+  if (msg.isPlan || hasPlanStructure(msg.content)) {
+    return <PlanResponse content={msg.content} />;
   }
 
   const activeLang = activeFile ? normLang(getLang(activeFile)) : null;
@@ -251,6 +400,7 @@ export function IntelPanel() {
   const [messages, setMessages]   = useState<Message[]>([]);
   const [isStreaming, setStreaming] = useState(false);
   const [attachedFile, setAttachedFile] = useState<{ name: string; path: string } | null>(null);
+  const [planMode, setPlanMode]   = useState(false);
 
   const abortRef   = useRef<AbortController | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
@@ -293,8 +443,13 @@ export function IntelPanel() {
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
     // (We show only the display text in the UI; the file content is in the API payload)
 
+    const sysPrompt = buildSystemPrompt(workspacePath, activeFile)
+      + (planMode
+        ? '\n\nPLAN MODE: Respond with a numbered step-by-step plan. Format each step as:\n1. Step title — Brief description of what this step does\n2. ...\nUse at least 3 steps. Be specific and actionable.'
+        : '');
+
     const historyForApi: ChatMessage[] = [
-      { role: 'system', content: buildSystemPrompt(workspacePath, activeFile) },
+      { role: 'system', content: sysPrompt },
       ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       { role: 'user', content: userContent },
     ];
@@ -304,7 +459,7 @@ export function IntelPanel() {
     setStreaming(true);
 
     const assistantId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true }]);
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true, isPlan: planMode }]);
 
     abortRef.current = new AbortController();
     const model = ollamaSelectedModel || ollamaModels[0] || 'llama3.2';
@@ -531,6 +686,30 @@ export function IntelPanel() {
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M13.5 8l-5.5 5.5a4 4 0 0 1-5.657-5.657l6-6a2.5 2.5 0 0 1 3.536 3.536l-6.071 6.07a1 1 0 0 1-1.414-1.414l5.5-5.5"/>
             </svg>
+          </button>
+
+          {/* Plan mode toggle */}
+          <button
+            onClick={() => setPlanMode(p => !p)}
+            title={planMode ? 'Plan mode on — click to disable' : 'Plan mode — AI generates a step-by-step plan'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px',
+              borderRadius: 3, border: `1px solid ${planMode ? '#6366F130' : 'transparent'}`,
+              background: planMode ? '#1A1A3A' : 'none',
+              color: planMode ? '#6366F1' : '#4A4A65',
+              cursor: 'pointer', fontSize: 10, fontWeight: planMode ? 600 : 400,
+              transition: 'all 0.15s',
+            }}
+            className={!planMode ? 'hover:!text-[#8888A8]' : ''}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="2" y1="3" x2="10" y2="3"/>
+              <line x1="2" y1="6" x2="7" y2="6"/>
+              <line x1="2" y1="9" x2="8" y2="9"/>
+              <circle cx="10" cy="6" r="1.5" fill="currentColor" stroke="none"/>
+              <circle cx="10" cy="9" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>
+            Plan
           </button>
 
           {/* Voice (placeholder) */}
