@@ -2,10 +2,10 @@ import { useRef } from "react";
 import { DiffEditor } from "@monaco-editor/react";
 import type { editor as MonacoEditorNS } from "monaco-editor";
 import { useAppStore, useToast } from "@/store";
-import { defineApexTheme, getLang } from "@/components/editor/MonacoEditor";
+import { registerAllThemes, getLang } from "@/components/editor/MonacoEditor";
 
 export function DiffReview() {
-  const { pendingDiffReview, setPendingDiffReview, setPendingFileEdit } = useAppStore();
+  const { pendingDiffReview, setPendingDiffReview, setPendingFileEdit, editorTheme } = useAppStore();
   const { success } = useToast();
   const diffRef = useRef<MonacoEditorNS.IStandaloneDiffEditor | null>(null);
 
@@ -106,8 +106,8 @@ export function DiffReview() {
             original={original}
             modified={proposed}
             language={lang}
-            theme="apex-dark"
-            beforeMount={defineApexTheme}
+            theme={editorTheme}
+            beforeMount={registerAllThemes}
             onMount={handleMount}
             options={{
               fontFamily: '"JetBrains Mono","Cascadia Code","Consolas",monospace',

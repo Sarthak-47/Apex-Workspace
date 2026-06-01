@@ -1,4 +1,4 @@
-import Editor from '@monaco-editor/react';
+import Editor, { useMonaco } from '@monaco-editor/react';
 import type { OnMount, BeforeMount, OnChange } from '@monaco-editor/react';
 import type * as MonacoType from 'monaco-editor';
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -106,12 +106,13 @@ function getDemo(path: string): string {
   return DEMO[lang] ?? `// ${path}\n// (browser preview — open in desktop app to edit real files)\n`;
 }
 
-// ─── APEX dark theme ──────────────────────────────────────────────────────────
+// ─── Theme definitions ────────────────────────────────────────────────────────
 
-export const defineApexTheme: BeforeMount = (monaco) => {
-  monaco.editor.defineTheme('apex-dark', {
-    base: 'vs-dark',
-    inherit: true,
+type ThemeData = Parameters<typeof MonacoType.editor.defineTheme>[1];
+
+const THEMES: Record<string, ThemeData> = {
+  'apex-dark': {
+    base: 'vs-dark', inherit: true,
     rules: [
       { token: '',                      foreground: 'E2E2EC' },
       { token: 'keyword',               foreground: 'C084FC' },
@@ -173,7 +174,6 @@ export const defineApexTheme: BeforeMount = (monaco) => {
       'minimapSlider.activeBackground':         '#6366F140',
       'editorGutter.background':                '#0A0A0F',
       'editorOverviewRuler.border':             '#00000000',
-      'editorOverviewRuler.selectionHighlightForeground': '#6366F160',
       'peekView.border':                        '#6366F1',
       'peekViewEditor.background':              '#111118',
       'peekViewResult.background':              '#0D0D16',
@@ -185,8 +185,264 @@ export const defineApexTheme: BeforeMount = (monaco) => {
       'editorHoverWidget.border':               '#252535',
       'editorHoverWidget.foreground':           '#E2E2EC',
     },
-  });
+  },
+
+  'dark-plus': {
+    base: 'vs-dark', inherit: true,
+    rules: [
+      { token: '',                     foreground: 'd4d4d4' },
+      { token: 'keyword',              foreground: '569cd6' },
+      { token: 'keyword.control',      foreground: 'c586c0' },
+      { token: 'string',               foreground: 'ce9178' },
+      { token: 'comment',              foreground: '6a9955', fontStyle: 'italic' },
+      { token: 'number',               foreground: 'b5cea8' },
+      { token: 'type',                 foreground: '4ec9b0' },
+      { token: 'entity.name.function', foreground: 'dcdcaa' },
+      { token: 'entity.name.type',     foreground: '4ec9b0' },
+      { token: 'variable',             foreground: '9cdcfe' },
+      { token: 'variable.parameter',   foreground: '9cdcfe' },
+      { token: 'operator',             foreground: 'd4d4d4' },
+      { token: 'delimiter',            foreground: 'd4d4d4' },
+      { token: 'tag',                  foreground: '569cd6' },
+      { token: 'attribute.name',       foreground: '9cdcfe' },
+      { token: 'attribute.value',      foreground: 'ce9178' },
+    ],
+    colors: {
+      'editor.background':                      '#1e1e1e',
+      'editor.foreground':                      '#d4d4d4',
+      'editor.lineHighlightBackground':         '#2a2d2e',
+      'editor.lineHighlightBorder':             '#00000000',
+      'editor.selectionBackground':             '#264f78',
+      'editorLineNumber.foreground':            '#858585',
+      'editorLineNumber.activeForeground':      '#c6c6c6',
+      'editorCursor.foreground':                '#a6a6a6',
+      'editorIndentGuide.background1':          '#404040',
+      'editorIndentGuide.activeBackground1':    '#707070',
+      'scrollbarSlider.background':             '#79797966',
+      'editorWidget.background':                '#252526',
+      'editorWidget.border':                    '#454545',
+      'editorSuggestWidget.background':         '#252526',
+      'editorSuggestWidget.border':             '#454545',
+      'editorSuggestWidget.selectedBackground': '#062f4a',
+      'minimap.background':                     '#1e1e1e',
+    },
+  },
+
+  'github-dark': {
+    base: 'vs-dark', inherit: true,
+    rules: [
+      { token: '',                     foreground: 'e6edf3' },
+      { token: 'keyword',              foreground: 'ff7b72' },
+      { token: 'string',               foreground: 'a5d6ff' },
+      { token: 'comment',              foreground: '8b949e', fontStyle: 'italic' },
+      { token: 'number',               foreground: 'f8c8ae' },
+      { token: 'type',                 foreground: '79c0ff' },
+      { token: 'entity.name.function', foreground: 'd2a8ff' },
+      { token: 'entity.name.type',     foreground: 'ffa657' },
+      { token: 'variable',             foreground: 'e6edf3' },
+      { token: 'operator',             foreground: 'ff7b72' },
+      { token: 'tag',                  foreground: '7ee787' },
+      { token: 'attribute.name',       foreground: '79c0ff' },
+      { token: 'attribute.value',      foreground: 'a5d6ff' },
+    ],
+    colors: {
+      'editor.background':                      '#0d1117',
+      'editor.foreground':                      '#e6edf3',
+      'editor.lineHighlightBackground':         '#161b22',
+      'editor.lineHighlightBorder':             '#00000000',
+      'editor.selectionBackground':             '#264f78',
+      'editorLineNumber.foreground':            '#6e7681',
+      'editorLineNumber.activeForeground':      '#e6edf3',
+      'editorCursor.foreground':                '#58a6ff',
+      'editorIndentGuide.background1':          '#21262d',
+      'editorIndentGuide.activeBackground1':    '#3d444d',
+      'scrollbarSlider.background':             '#21262d70',
+      'editorWidget.background':                '#161b22',
+      'editorWidget.border':                    '#30363d',
+      'editorSuggestWidget.background':         '#161b22',
+      'editorSuggestWidget.border':             '#30363d',
+      'editorSuggestWidget.selectedBackground': '#21262d',
+      'minimap.background':                     '#0d1117',
+    },
+  },
+
+  'github-light': {
+    base: 'vs', inherit: true,
+    rules: [
+      { token: '',                     foreground: '24292f' },
+      { token: 'keyword',              foreground: 'cf222e' },
+      { token: 'string',               foreground: '0a3069' },
+      { token: 'comment',              foreground: '6e7781', fontStyle: 'italic' },
+      { token: 'number',               foreground: '0550ae' },
+      { token: 'type',                 foreground: '0550ae' },
+      { token: 'entity.name.function', foreground: '8250df' },
+      { token: 'entity.name.type',     foreground: '953800' },
+      { token: 'variable',             foreground: '24292f' },
+      { token: 'operator',             foreground: 'cf222e' },
+      { token: 'tag',                  foreground: '116329' },
+      { token: 'attribute.name',       foreground: '0550ae' },
+      { token: 'attribute.value',      foreground: '0a3069' },
+    ],
+    colors: {
+      'editor.background':                      '#ffffff',
+      'editor.foreground':                      '#24292f',
+      'editor.lineHighlightBackground':         '#f6f8fa',
+      'editor.lineHighlightBorder':             '#00000000',
+      'editor.selectionBackground':             '#ADD6FF',
+      'editorLineNumber.foreground':            '#8c959f',
+      'editorLineNumber.activeForeground':      '#24292f',
+      'editorCursor.foreground':                '#0550ae',
+      'editorIndentGuide.background1':          '#d0d7de',
+      'editorIndentGuide.activeBackground1':    '#8c959f',
+      'scrollbarSlider.background':             '#8c959f40',
+      'editorWidget.background':                '#f6f8fa',
+      'editorWidget.border':                    '#d0d7de',
+      'editorSuggestWidget.background':         '#ffffff',
+      'editorSuggestWidget.border':             '#d0d7de',
+      'editorSuggestWidget.selectedBackground': '#f6f8fa',
+      'minimap.background':                     '#ffffff',
+    },
+  },
+
+  'tokyo-night': {
+    base: 'vs-dark', inherit: true,
+    rules: [
+      { token: '',                     foreground: 'a9b1d6' },
+      { token: 'keyword',              foreground: 'bb9af7' },
+      { token: 'keyword.control',      foreground: '9d7cd8' },
+      { token: 'string',               foreground: '9ece6a' },
+      { token: 'comment',              foreground: '565f89', fontStyle: 'italic' },
+      { token: 'number',               foreground: 'ff9e64' },
+      { token: 'type',                 foreground: '7dcfff' },
+      { token: 'entity.name.function', foreground: '7aa2f7' },
+      { token: 'entity.name.type',     foreground: '2ac3de' },
+      { token: 'variable',             foreground: 'c0caf5' },
+      { token: 'operator',             foreground: '89ddff' },
+      { token: 'delimiter',            foreground: '89ddff' },
+      { token: 'tag',                  foreground: 'f7768e' },
+      { token: 'attribute.name',       foreground: 'bb9af7' },
+      { token: 'attribute.value',      foreground: '9ece6a' },
+    ],
+    colors: {
+      'editor.background':                      '#1a1b26',
+      'editor.foreground':                      '#a9b1d6',
+      'editor.lineHighlightBackground':         '#1f2335',
+      'editor.lineHighlightBorder':             '#00000000',
+      'editor.selectionBackground':             '#283457',
+      'editor.selectionHighlightBackground':    '#28345740',
+      'editorLineNumber.foreground':            '#3b4261',
+      'editorLineNumber.activeForeground':      '#737aa2',
+      'editorCursor.foreground':                '#c0caf5',
+      'editorIndentGuide.background1':          '#1f2335',
+      'editorIndentGuide.activeBackground1':    '#2a2f4a',
+      'scrollbarSlider.background':             '#28345770',
+      'scrollbarSlider.hoverBackground':        '#28345790',
+      'editorWidget.background':                '#1f2335',
+      'editorWidget.border':                    '#414868',
+      'editorSuggestWidget.background':         '#1f2335',
+      'editorSuggestWidget.border':             '#414868',
+      'editorSuggestWidget.selectedBackground': '#283457',
+      'minimap.background':                     '#1a1b26',
+    },
+  },
+
+  'nord': {
+    base: 'vs-dark', inherit: true,
+    rules: [
+      { token: '',                     foreground: 'd8dee9' },
+      { token: 'keyword',              foreground: '81a1c1' },
+      { token: 'string',               foreground: 'a3be8c' },
+      { token: 'comment',              foreground: '4c566a', fontStyle: 'italic' },
+      { token: 'number',               foreground: 'b48ead' },
+      { token: 'type',                 foreground: '8fbcbb' },
+      { token: 'entity.name.function', foreground: '88c0d0' },
+      { token: 'entity.name.type',     foreground: '8fbcbb' },
+      { token: 'variable',             foreground: 'd8dee9' },
+      { token: 'operator',             foreground: '81a1c1' },
+      { token: 'delimiter',            foreground: 'eceff4' },
+      { token: 'tag',                  foreground: 'bf616a' },
+      { token: 'attribute.name',       foreground: '81a1c1' },
+      { token: 'attribute.value',      foreground: 'a3be8c' },
+    ],
+    colors: {
+      'editor.background':                      '#2e3440',
+      'editor.foreground':                      '#d8dee9',
+      'editor.lineHighlightBackground':         '#3b4252',
+      'editor.lineHighlightBorder':             '#00000000',
+      'editor.selectionBackground':             '#434c5e',
+      'editorLineNumber.foreground':            '#4c566a',
+      'editorLineNumber.activeForeground':      '#d8dee9',
+      'editorCursor.foreground':                '#88c0d0',
+      'editorIndentGuide.background1':          '#3b4252',
+      'editorIndentGuide.activeBackground1':    '#434c5e',
+      'scrollbarSlider.background':             '#3b425270',
+      'editorWidget.background':                '#3b4252',
+      'editorWidget.border':                    '#4c566a',
+      'editorSuggestWidget.background':         '#3b4252',
+      'editorSuggestWidget.border':             '#4c566a',
+      'editorSuggestWidget.selectedBackground': '#434c5e',
+      'minimap.background':                     '#2e3440',
+    },
+  },
+
+  'monokai': {
+    base: 'vs-dark', inherit: true,
+    rules: [
+      { token: '',                     foreground: 'f8f8f2' },
+      { token: 'keyword',              foreground: 'f92672' },
+      { token: 'string',               foreground: 'e6db74' },
+      { token: 'comment',              foreground: '75715e', fontStyle: 'italic' },
+      { token: 'number',               foreground: 'ae81ff' },
+      { token: 'type',                 foreground: '66d9ef' },
+      { token: 'entity.name.function', foreground: 'a6e22e' },
+      { token: 'entity.name.type',     foreground: '66d9ef' },
+      { token: 'variable',             foreground: 'f8f8f2' },
+      { token: 'operator',             foreground: 'f92672' },
+      { token: 'delimiter',            foreground: 'f8f8f2' },
+      { token: 'tag',                  foreground: 'f92672' },
+      { token: 'attribute.name',       foreground: 'a6e22e' },
+      { token: 'attribute.value',      foreground: 'e6db74' },
+    ],
+    colors: {
+      'editor.background':                      '#272822',
+      'editor.foreground':                      '#f8f8f2',
+      'editor.lineHighlightBackground':         '#3e3d32',
+      'editor.lineHighlightBorder':             '#00000000',
+      'editor.selectionBackground':             '#49483e',
+      'editorLineNumber.foreground':            '#75715e',
+      'editorLineNumber.activeForeground':      '#f8f8f2',
+      'editorCursor.foreground':                '#f8f8f0',
+      'editorIndentGuide.background1':          '#3e3d32',
+      'editorIndentGuide.activeBackground1':    '#49483e',
+      'scrollbarSlider.background':             '#49483e70',
+      'editorWidget.background':                '#1e1f1c',
+      'editorWidget.border':                    '#75715e',
+      'editorSuggestWidget.background':         '#272822',
+      'editorSuggestWidget.border':             '#75715e',
+      'editorSuggestWidget.selectedBackground': '#49483e',
+      'minimap.background':                     '#272822',
+    },
+  },
 };
+
+export const THEME_OPTIONS = [
+  { value: 'apex-dark',    label: 'APEX Dark' },
+  { value: 'dark-plus',    label: 'Dark+'     },
+  { value: 'github-dark',  label: 'GitHub Dark' },
+  { value: 'github-light', label: 'GitHub Light' },
+  { value: 'tokyo-night',  label: 'Tokyo Night' },
+  { value: 'nord',         label: 'Nord'      },
+  { value: 'monokai',      label: 'Monokai'   },
+];
+
+export const registerAllThemes: BeforeMount = (monaco) => {
+  for (const [name, data] of Object.entries(THEMES)) {
+    monaco.editor.defineTheme(name, data);
+  }
+};
+
+// Keep as alias for DiffReview which already imports it
+export const defineApexTheme: BeforeMount = registerAllThemes;
 
 // ─── Editor toolbar ───────────────────────────────────────────────────────────
 
@@ -203,41 +459,32 @@ interface ToolbarProps {
   wordWrap: boolean;
   minimap: boolean;
   fontSize: number;
+  editorTheme: string;
+  autoSave: boolean;
   onWordWrapToggle: () => void;
   onMinimapToggle: () => void;
   onFontIncrease: () => void;
   onFontDecrease: () => void;
+  onThemeChange: (t: string) => void;
+  onAutoSaveToggle: () => void;
 }
 
 function EditorToolbar({
-  language, wordWrap, minimap, fontSize,
+  language, wordWrap, minimap, fontSize, editorTheme, autoSave,
   onWordWrapToggle, onMinimapToggle, onFontIncrease, onFontDecrease,
+  onThemeChange, onAutoSaveToggle,
 }: ToolbarProps) {
-  const btn = (
-    active: boolean,
-    onClick: () => void,
-    children: React.ReactNode,
-    title: string,
-  ) => (
+  const btn = (active: boolean, onClick: () => void, children: React.ReactNode, title: string) => (
     <button
       onClick={onClick}
       title={title}
       style={{
-        height: 22,
-        padding: '0 7px',
-        borderRadius: 3,
-        fontSize: 11,
-        fontWeight: 500,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 4,
+        height: 22, padding: '0 7px', borderRadius: 3, fontSize: 11, fontWeight: 500,
+        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
         border: active ? '1px solid #6366F140' : '1px solid transparent',
         background: active ? '#1A1A3A' : 'transparent',
         color: active ? '#6366F1' : '#4A4A65',
-        transition: 'all 120ms',
-        flexShrink: 0,
-        lineHeight: 1,
+        transition: 'all 120ms', flexShrink: 0, lineHeight: 1,
       }}
       className={active ? '' : 'hover:!text-[#8888A8] hover:!bg-white/5'}
     >
@@ -247,19 +494,12 @@ function EditorToolbar({
 
   return (
     <div style={{
-      height: 28,
-      background: '#0D0D16',
-      borderBottom: '1px solid #1A1A28',
-      display: 'flex',
-      alignItems: 'center',
-      padding: '0 10px',
-      gap: 2,
-      flexShrink: 0,
+      height: 28, background: '#0D0D16', borderBottom: '1px solid #1A1A28',
+      display: 'flex', alignItems: 'center', padding: '0 10px', gap: 2, flexShrink: 0,
     }}>
-      {/* Left: editor toggles */}
+      {/* Word wrap */}
       {btn(wordWrap, onWordWrapToggle, (
         <>
-          {/* Word wrap icon */}
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <path d="M1 3h10M1 6h7a2 2 0 0 1 0 4H6l2-2M6 10l2 2"/>
           </svg>
@@ -269,9 +509,9 @@ function EditorToolbar({
 
       <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 3px' }} />
 
+      {/* Minimap */}
       {btn(minimap, onMinimapToggle, (
         <>
-          {/* Minimap icon */}
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <rect x="1" y="1" width="10" height="10" rx="1"/>
             <rect x="7" y="1" width="4" height="10" rx="0" opacity="0.5" fill="currentColor" stroke="none"/>
@@ -279,55 +519,63 @@ function EditorToolbar({
             <line x1="3" y1="5.5" x2="5.5" y2="5.5" opacity="0.7"/>
             <line x1="3" y1="7.5" x2="4.5" y2="7.5" opacity="0.7"/>
           </svg>
-          Minimap
+          Map
         </>
       ), 'Toggle minimap')}
+
+      <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 3px' }} />
+
+      {/* Auto-save */}
+      {btn(autoSave, onAutoSaveToggle, (
+        <>
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 6A4 4 0 1 1 5.5 2"/>
+            <polyline points="7,1 9,1 9,3"/>
+            <line x1="9" y1="1" x2="5.5" y2="4.5"/>
+          </svg>
+          Auto
+        </>
+      ), 'Toggle auto-save (1s delay)')}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Right: font size */}
+      {/* Theme picker */}
+      <select
+        value={editorTheme}
+        onChange={e => onThemeChange(e.target.value)}
+        title="Editor theme"
+        style={{
+          height: 22, padding: '0 4px', borderRadius: 3, fontSize: 10,
+          background: '#1A1A28', border: '1px solid #252535',
+          color: '#8888A8', cursor: 'pointer', outline: 'none',
+          fontFamily: 'inherit',
+        }}
+      >
+        {THEME_OPTIONS.map(t => (
+          <option key={t.value} value={t.value}>{t.label}</option>
+        ))}
+      </select>
+
+      <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 6px' }} />
+
+      {/* Font size */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <button
-          onClick={onFontDecrease}
-          title="Decrease font size (Ctrl+-)"
-          disabled={fontSize <= 10}
-          style={{
-            width: 22, height: 22, borderRadius: 3,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: fontSize <= 10 ? 'not-allowed' : 'pointer',
-            color: fontSize <= 10 ? '#252535' : '#4A4A65',
-            background: 'transparent', border: 'none',
-            fontSize: 13, lineHeight: 1,
-            transition: 'color 120ms',
-          }}
-          className={fontSize > 10 ? 'hover:!text-[#8888A8]' : ''}
-        >
+        <button onClick={onFontDecrease} title="Decrease font size (Ctrl+-)" disabled={fontSize <= 10}
+          style={{ width: 22, height: 22, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: fontSize <= 10 ? 'not-allowed' : 'pointer', color: fontSize <= 10 ? '#252535' : '#4A4A65',
+            background: 'transparent', border: 'none', fontSize: 13, lineHeight: 1, transition: 'color 120ms' }}
+          className={fontSize > 10 ? 'hover:!text-[#8888A8]' : ''}>
           A<span style={{ fontSize: 8, verticalAlign: 'sub' }}>−</span>
         </button>
-
-        <span style={{
-          fontSize: 11, color: '#8888A8', minWidth: 20,
-          textAlign: 'center', fontVariantNumeric: 'tabular-nums',
-        }}>
+        <span style={{ fontSize: 11, color: '#8888A8', minWidth: 20, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
           {fontSize}
         </span>
-
-        <button
-          onClick={onFontIncrease}
-          title="Increase font size (Ctrl+=)"
-          disabled={fontSize >= 24}
-          style={{
-            width: 22, height: 22, borderRadius: 3,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: fontSize >= 24 ? 'not-allowed' : 'pointer',
-            color: fontSize >= 24 ? '#252535' : '#4A4A65',
-            background: 'transparent', border: 'none',
-            fontSize: 13, lineHeight: 1,
-            transition: 'color 120ms',
-          }}
-          className={fontSize < 24 ? 'hover:!text-[#8888A8]' : ''}
-        >
+        <button onClick={onFontIncrease} title="Increase font size (Ctrl+=)" disabled={fontSize >= 24}
+          style={{ width: 22, height: 22, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: fontSize >= 24 ? 'not-allowed' : 'pointer', color: fontSize >= 24 ? '#252535' : '#4A4A65',
+            background: 'transparent', border: 'none', fontSize: 13, lineHeight: 1, transition: 'color 120ms' }}
+          className={fontSize < 24 ? 'hover:!text-[#8888A8]' : ''}>
           A<span style={{ fontSize: 8, verticalAlign: 'super' }}>+</span>
         </button>
       </div>
@@ -335,10 +583,7 @@ function EditorToolbar({
       <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 6px' }} />
 
       {/* Language badge */}
-      <span style={{
-        fontSize: 10, color: '#6366F1', fontWeight: 500,
-        letterSpacing: '0.02em',
-      }}>
+      <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 500, letterSpacing: '0.02em' }}>
         {LANG_LABELS[language] ?? language}
       </span>
     </div>
@@ -358,9 +603,25 @@ export function MonacoEditor({ path }: Props) {
   const [minimap, setMinimap]   = useState(true);
   const [fontSize, setFontSize] = useState(13);
 
-  const { markFileUnsaved, markFileSaved, pendingFileEdit, setPendingFileEdit } = useAppStore();
-  const editorRef  = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
-  const dirtyRef   = useRef(false);
+  const {
+    markFileUnsaved, markFileSaved,
+    pendingFileEdit, setPendingFileEdit,
+    editorTheme, setEditorTheme,
+    autoSave, setAutoSave,
+    setEditorCursor, setEditorFileSize,
+  } = useAppStore();
+
+  const editorRef       = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
+  const dirtyRef        = useRef(false);
+  const autoSaveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const monacoInstance  = useMonaco();
+
+  // ── Apply global theme change ─────────────────────────────────────────────
+  useEffect(() => {
+    if (monacoInstance) {
+      monacoInstance.editor.setTheme(editorTheme);
+    }
+  }, [monacoInstance, editorTheme]);
 
   // ── Apply pending AI file edit ────────────────────────────────────────────
   useEffect(() => {
@@ -395,20 +656,31 @@ export function MonacoEditor({ path }: Props) {
 
   // ── Monaco lifecycle ──────────────────────────────────────────────────────
   const handleBeforeMount: BeforeMount = useCallback((monaco) => {
-    defineApexTheme(monaco);
+    registerAllThemes(monaco);
   }, []);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
 
-    // Ctrl+S / Cmd+S → save
+    // Cursor position → store
+    editor.onDidChangeCursorPosition((e) => {
+      setEditorCursor(e.position.lineNumber, e.position.column);
+    });
+
+    // File size → store (update on content change)
+    editor.onDidChangeModelContent(() => {
+      const model = editor.getModel();
+      if (model) setEditorFileSize(new TextEncoder().encode(model.getValue()).length);
+    });
+
+    // Ctrl+S → save
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
       try { await writeFile(path, editor.getValue()); } catch { /* browser no-op */ }
       dirtyRef.current = false;
       markFileSaved(path);
     });
 
-    // Ctrl+= / Ctrl+Shift+= → font increase
+    // Ctrl+= → font increase
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Equal, () => {
       setFontSize(f => Math.min(f + 1, 24));
     });
@@ -421,20 +693,38 @@ export function MonacoEditor({ path }: Props) {
       setFontSize(f => Math.max(f - 1, 10));
     });
 
-    // Alt+Z → word wrap toggle (matches VS Code convention)
+    // Alt+Z → word wrap
     editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, () => {
       setWordWrap(w => !w);
     });
 
+    // Initial file size
+    const model = editor.getModel();
+    if (model) setEditorFileSize(new TextEncoder().encode(model.getValue()).length);
+
     editor.focus();
-  }, [path, markFileSaved]);
+  }, [path, markFileSaved, setEditorCursor, setEditorFileSize]);
 
   const handleChange: OnChange = useCallback((value) => {
     if (value !== undefined && !dirtyRef.current) {
       dirtyRef.current = true;
       markFileUnsaved(path);
     }
-  }, [path, markFileUnsaved]);
+    // Auto-save debounce
+    if (autoSave && value !== undefined) {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(async () => {
+        try {
+          await writeFile(path, value);
+          dirtyRef.current = false;
+          markFileSaved(path);
+        } catch { /* browser no-op */ }
+      }, 1000);
+    }
+  }, [path, markFileUnsaved, markFileSaved, autoSave]);
+
+  // Cleanup auto-save timer on unmount
+  useEffect(() => () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); }, []);
 
   const lang = getLang(path);
 
@@ -445,22 +735,20 @@ export function MonacoEditor({ path }: Props) {
         wordWrap={wordWrap}
         minimap={minimap}
         fontSize={fontSize}
+        editorTheme={editorTheme}
+        autoSave={autoSave}
         onWordWrapToggle={() => setWordWrap(w => !w)}
         onMinimapToggle={() => setMinimap(m => !m)}
         onFontIncrease={() => setFontSize(f => Math.min(f + 1, 24))}
         onFontDecrease={() => setFontSize(f => Math.max(f - 1, 10))}
+        onThemeChange={setEditorTheme}
+        onAutoSaveToggle={() => setAutoSave(!autoSave)}
       />
 
       {loading ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0A0A0F' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 24, height: 24,
-              border: '2px solid #252535',
-              borderTopColor: '#6366F1',
-              borderRadius: '50%',
-              animation: 'spin 0.7s linear infinite',
-            }} />
+            <div style={{ width: 24, height: 24, border: '2px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
             <span style={{ fontSize: 12, color: '#4A4A65' }}>Loading…</span>
           </div>
         </div>
@@ -471,7 +759,7 @@ export function MonacoEditor({ path }: Props) {
             height="100%"
             language={lang}
             defaultValue={content ?? ''}
-            theme="apex-dark"
+            theme={editorTheme}
             beforeMount={handleBeforeMount}
             onMount={handleMount}
             onChange={handleChange}
@@ -488,13 +776,7 @@ export function MonacoEditor({ path }: Props) {
               glyphMargin: false,
               folding: true,
               wordWrap: wordWrap ? 'on' : 'off',
-              scrollbar: {
-                verticalScrollbarSize: 8,
-                horizontalScrollbarSize: 8,
-                useShadows: false,
-                vertical: 'visible',
-                horizontal: 'visible',
-              },
+              scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8, useShadows: false, vertical: 'visible', horizontal: 'visible' },
               overviewRulerBorder: false,
               hideCursorInOverviewRuler: true,
               overviewRulerLanes: 0,

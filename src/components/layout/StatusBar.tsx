@@ -1,17 +1,23 @@
 import { useAppStore } from "@/store";
+import { getLang } from "@/components/editor/MonacoEditor";
 
-function SbItem({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+const LANG_LABELS: Record<string, string> = {
+  typescript: 'TypeScript', javascript: 'JavaScript',
+  python: 'Python', rust: 'Rust', go: 'Go', java: 'Java',
+  json: 'JSON', markdown: 'Markdown', css: 'CSS', scss: 'SCSS',
+  html: 'HTML', toml: 'TOML', yaml: 'YAML', shell: 'Shell',
+  sql: 'SQL', xml: 'XML', c: 'C', cpp: 'C++', plaintext: 'Text',
+};
+
+function SbItem({ children, onClick, title }: { children: React.ReactNode; onClick?: () => void; title?: string }) {
   return (
     <div
       onClick={onClick}
+      title={title}
       style={{
-        fontSize: 11,
-        color: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 4,
-        padding: '0 8px',
-        height: '100%',
+        fontSize: 11, color: '#fff',
+        display: 'flex', alignItems: 'center', gap: 4,
+        padding: '0 8px', height: '100%',
         cursor: onClick ? 'pointer' : 'default',
         whiteSpace: 'nowrap',
       }}
@@ -22,16 +28,28 @@ function SbItem({ children, onClick }: { children: React.ReactNode; onClick?: ()
   );
 }
 
+function Divider() {
+  return <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />;
+}
+
 export function StatusBar() {
-  const { mode, activeFile, terminalOpen, toggleTerminal, ollamaOnline, ollamaModels, gitBranch } = useAppStore();
-  const fileName = activeFile?.split('/').pop() ?? null;
+  const {
+    mode, activeFile, terminalOpen, toggleTerminal,
+    ollamaOnline, ollamaModels, gitBranch,
+    cursorLine, cursorCol, editorFileSize,
+  } = useAppStore();
+
+  const fmtSize = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`;
+
+  const lang     = activeFile ? getLang(activeFile) : null;
+  const langLabel = lang ? (LANG_LABELS[lang] ?? lang) : null;
 
   return (
     <div
       className="app-statusbar flex items-center"
       style={{ height: 26, background: '#6366F1', flexShrink: 0 }}
     >
-      {/* Left items */}
+      {/* ── Left ──────────────────────────────────────────────────────── */}
       <SbItem>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.8 }}>
           <polyline points="1,4 4,1 8,5"/><polyline points="4,1 4,8"/><polyline points="1,9 11,9"/>
@@ -39,7 +57,7 @@ export function StatusBar() {
         {gitBranch || 'main'}
       </SbItem>
 
-      <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />
+      <Divider />
 
       <SbItem>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" style={{ opacity: 0.8 }}>
@@ -48,21 +66,18 @@ export function StatusBar() {
         0 errors
       </SbItem>
 
-      <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />
+      <Divider />
 
       <SbItem>
         <span style={{ opacity: 0.8 }}>{mode}</span>
       </SbItem>
 
-      <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />
+      <Divider />
 
       {/* Terminal toggle */}
-      <SbItem onClick={toggleTerminal}>
-        <svg
-          width="12" height="12" viewBox="0 0 12 12" fill="none"
-          stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ opacity: terminalOpen ? 1 : 0.6 }}
-        >
+      <SbItem onClick={toggleTerminal} title="Toggle terminal">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ opacity: terminalOpen ? 1 : 0.6 }}>
           <rect x="1" y="1" width="10" height="10" rx="1.5"/>
           <polyline points="3,4.5 5.5,6 3,7.5"/>
           <line x1="6.5" y1="7.5" x2="9" y2="7.5"/>
@@ -73,16 +88,45 @@ export function StatusBar() {
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Right items */}
-      {fileName && (
+      {/* ── Right ─────────────────────────────────────────────────────── */}
+
+      {/* Cursor position */}
+      {activeFile && (
         <>
-          <SbItem>
-            <span style={{ opacity: 0.75 }}>{fileName}</span>
+          <SbItem title="Cursor position">
+            Ln {cursorLine}, Col {cursorCol}
           </SbItem>
-          <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />
+          <Divider />
         </>
       )}
 
+      {/* Language mode */}
+      {langLabel && (
+        <>
+          <SbItem title="Language mode">
+            {langLabel}
+          </SbItem>
+          <Divider />
+        </>
+      )}
+
+      {/* Encoding + spaces + size */}
+      {activeFile && (
+        <>
+          <SbItem title="File encoding">UTF-8</SbItem>
+          <Divider />
+          <SbItem title="Indentation">Spaces: 2</SbItem>
+          <Divider />
+          {editorFileSize > 0 && (
+            <>
+              <SbItem title="File size">{fmtSize(editorFileSize)}</SbItem>
+              <Divider />
+            </>
+          )}
+        </>
+      )}
+
+      {/* Ollama status */}
       <SbItem>
         <div style={{
           width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
@@ -95,7 +139,7 @@ export function StatusBar() {
         </span>
       </SbItem>
 
-      <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />
+      <Divider />
 
       <SbItem>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5" style={{ opacity: 0.8 }}>

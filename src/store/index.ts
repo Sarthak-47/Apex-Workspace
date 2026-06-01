@@ -86,6 +86,22 @@ interface AppState {
   // Diff review before applying (not persisted)
   pendingDiffReview: { path: string; original: string; proposed: string } | null;
   setPendingDiffReview: (r: { path: string; original: string; proposed: string } | null) => void;
+
+  // Editor preferences (persisted)
+  editorTheme: string;
+  setEditorTheme: (theme: string) => void;
+  autoSave: boolean;
+  setAutoSave: (v: boolean) => void;
+
+  // Cursor position + file size (not persisted)
+  cursorLine: number;
+  cursorCol: number;
+  editorFileSize: number;
+  setEditorCursor: (line: number, col: number) => void;
+  setEditorFileSize: (bytes: number) => void;
+
+  // Recent workspaces (persisted, max 10)
+  recentWorkspaces: string[];
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -153,7 +169,15 @@ export const useAppStore = create<AppState>()(
 
       // Workspace
       workspacePath: null,
-      setWorkspacePath: (path) => set({ workspacePath: path }),
+      setWorkspacePath: (path) => {
+        if (path) {
+          const current = get().recentWorkspaces;
+          const filtered = current.filter(p => p !== path);
+          set({ workspacePath: path, recentWorkspaces: [path, ...filtered].slice(0, 10) });
+        } else {
+          set({ workspacePath: path });
+        }
+      },
 
       // Toasts
       toasts: [],
@@ -201,6 +225,22 @@ export const useAppStore = create<AppState>()(
       // Diff review
       pendingDiffReview: null,
       setPendingDiffReview: (r) => set({ pendingDiffReview: r }),
+
+      // Editor preferences
+      editorTheme: 'apex-dark',
+      setEditorTheme: (theme) => set({ editorTheme: theme }),
+      autoSave: false,
+      setAutoSave: (v) => set({ autoSave: v }),
+
+      // Cursor position + file size
+      cursorLine: 1,
+      cursorCol: 1,
+      editorFileSize: 0,
+      setEditorCursor: (line, col) => set({ cursorLine: line, cursorCol: col }),
+      setEditorFileSize: (bytes) => set({ editorFileSize: bytes }),
+
+      // Recent workspaces
+      recentWorkspaces: [],
     }),
     {
       name: "apex-app-state",
@@ -215,6 +255,9 @@ export const useAppStore = create<AppState>()(
         terminalOpen: s.terminalOpen,
         terminalHeight: s.terminalHeight,
         ollamaSelectedModel: s.ollamaSelectedModel,
+        editorTheme: s.editorTheme,
+        autoSave: s.autoSave,
+        recentWorkspaces: s.recentWorkspaces,
       }),
     }
   )
