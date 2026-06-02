@@ -1,3 +1,6 @@
+mod terminal;
+mod git;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tauri::command;
@@ -22,7 +25,6 @@ async fn read_file(path: String) -> Result<String, String> {
 
 #[command]
 async fn write_file(path: String, content: String) -> Result<(), String> {
-    // Ensure parent directory exists
     if let Some(parent) = std::path::Path::new(&path).parent() {
         fs::create_dir_all(parent).map_err(|e| format!("create_dir error: {e}"))?;
     }
@@ -51,7 +53,6 @@ async fn list_dir(path: String) -> Result<Vec<DirEntry>, String> {
             ext,
         });
     }
-    // Sort: dirs first, then files, both alphabetically
     result.sort_by(|a, b| {
         b.is_dir
             .cmp(&a.is_dir)
@@ -89,13 +90,33 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .manage(terminal::PtyRegistry::new())
         .invoke_handler(tauri::generate_handler![
+            // File system
             read_file,
             write_file,
             list_dir,
             create_dir,
             delete_path,
             rename_path,
+            // Terminal (PTY)
+            terminal::create_pty,
+            terminal::write_pty,
+            terminal::resize_pty,
+            terminal::close_pty,
+            // Git
+            git::git_status,
+            git::git_diff_file,
+            git::git_stage_file,
+            git::git_unstage_file,
+            git::git_stage_all,
+            git::git_unstage_all,
+            git::git_commit,
+            git::git_push,
+            git::git_pull,
+            git::git_log,
+            git::git_current_branch,
+            git::git_discard_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running APEX");
