@@ -248,6 +248,8 @@ export const useAppStore = create<AppState>()(
       partialize: (s) => ({
         mode: s.mode,
         workspacePath: s.workspacePath,
+        openFiles: s.openFiles,
+        activeFile: s.activeFile,
         leftPanelOpen: s.leftPanelOpen,
         leftPanelWidth: s.leftPanelWidth,
         intelPanelOpen: s.intelPanelOpen,
