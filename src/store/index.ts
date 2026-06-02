@@ -59,8 +59,12 @@ interface AppState {
   dismissToast: (id: string) => void;
 
   // Intel panel active tab
-  intelTab: "chat" | "knowledge" | "context" | "history";
-  setIntelTab: (tab: "chat" | "knowledge" | "context" | "history") => void;
+  intelTab: "chat" | "knowledge" | "context" | "history" | "preview";
+  setIntelTab: (tab: "chat" | "knowledge" | "context" | "history" | "preview") => void;
+
+  // Vim mode
+  vimMode: boolean;
+  setVimMode: (v: boolean) => void;
 
   // Ollama live status (not persisted)
   ollamaOnline: boolean;
@@ -206,8 +210,12 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
       // Intel tab
-      intelTab: "chat" as "chat" | "knowledge" | "context" | "history",
+      intelTab: "chat" as "chat" | "knowledge" | "context" | "history" | "preview",
       setIntelTab: (tab) => set({ intelTab: tab }),
+
+      // Vim mode
+      vimMode: false,
+      setVimMode: (v) => set({ vimMode: v }),
 
       // Ollama status (live, not persisted)
       ollamaOnline: false,
@@ -276,6 +284,7 @@ export const useAppStore = create<AppState>()(
         ollamaSelectedModel: s.ollamaSelectedModel,
         editorTheme: s.editorTheme,
         autoSave: s.autoSave,
+        vimMode: s.vimMode,
         recentWorkspaces: s.recentWorkspaces,
       }),
     }

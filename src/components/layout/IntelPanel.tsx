@@ -540,9 +540,9 @@ export function IntelPanel() {
 
       {/* ── Tabs ────────────────────────────────────────────────────────── */}
       <div style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 4, borderBottom: '1px solid #252535', flexShrink: 0 }}>
-        {(['chat', 'knowledge', 'context'] as const).map((tab) => (
+        {(['chat', 'knowledge', 'context', 'preview'] as const).map((tab) => (
           <button key={tab}
-            onClick={() => setIntelTab(tab as 'chat' | 'context' | 'history')}
+            onClick={() => setIntelTab(tab)}
             style={{
               height: 26, padding: '0 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
               cursor: 'pointer', display: 'flex', alignItems: 'center',
@@ -578,8 +578,11 @@ export function IntelPanel() {
         </button>
       </div>
 
-      {/* ── Model selector ─────────────────────────────────────────────── */}
-      {ollamaOnline && (
+      {/* ── Web Preview tab ──────────────────────────────────────────────── */}
+      {intelTab === 'preview' && <WebPreviewPanel />}
+
+      {/* ── Chat tab content ─────────────────────────────────────────────── */}
+      {intelTab === 'chat' && ollamaOnline && (
         <div style={{ padding: '5px 12px 0', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', boxShadow: '0 0 5px #22C55E88', flexShrink: 0 }} />
           {ollamaModels.length > 1 ? (
@@ -603,7 +606,7 @@ export function IntelPanel() {
       )}
 
       {/* ── Messages or empty state ──────────────────────────────────────── */}
-      {messages.length === 0 ? (
+      {intelTab === 'chat' && (messages.length === 0 ? (
         <EmptyState ollamaOnline={ollamaOnline} />
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
@@ -618,10 +621,10 @@ export function IntelPanel() {
           ))}
           <div ref={bottomRef} />
         </div>
-      )}
+      ))}
 
-      {/* ── Input area ───────────────────────────────────────────────────── */}
-      <div style={{ borderTop: '1px solid #252535', background: '#0F0F16', padding: '10px 12px', flexShrink: 0 }}>
+      {/* ── Input area (chat only) ───────────────────────────────────────── */}
+      {intelTab === 'chat' && <div style={{ borderTop: '1px solid #252535', background: '#0F0F16', padding: '10px 12px', flexShrink: 0 }}>
         {/* Offline banner (inline, only when no messages) */}
         {!ollamaOnline && messages.length === 0 && <OfflineBanner />}
 
@@ -766,6 +769,90 @@ export function IntelPanel() {
             </button>
           )}
         </div>
+      </div>}
+    </div>
+  );
+}
+
+// ─── Web Preview Panel ────────────────────────────────────────────────────────
+
+const DEV_PORTS = [3000, 3001, 4000, 5173, 8080, 8000, 8888];
+
+function WebPreviewPanel() {
+  const [url, setUrl]         = useState('http://localhost:5173');
+  const [input, setInput]     = useState('http://localhost:5173');
+  const [reloadKey, setReload] = useState(0);
+
+  const navigate = () => {
+    let target = input.trim();
+    if (!target.startsWith('http')) target = 'http://' + target;
+    setUrl(target);
+    setInput(target);
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+      {/* URL bar */}
+      <div style={{ height: 36, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4, borderBottom: '1px solid #1A1A28', flexShrink: 0 }}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') navigate(); }}
+          style={{
+            flex: 1, height: 26, background: '#0A0A0F', border: '1px solid #252535',
+            borderRadius: 4, color: '#E2E2EC', fontSize: 11, padding: '0 8px',
+            outline: 'none', fontFamily: '"JetBrains Mono", monospace',
+          }}
+          className="focus:!border-[#6366F160]"
+        />
+        <button onClick={navigate}
+          style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 4, cursor: 'pointer', color: '#6366F1', flexShrink: 0 }}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="1" y1="5" x2="9" y2="5"/><polyline points="6,2 9,5 6,8"/>
+          </svg>
+        </button>
+        <button onClick={() => setReload(k => k + 1)} title="Reload"
+          style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', borderRadius: 4, cursor: 'pointer', color: '#4A4A65', flexShrink: 0 }}
+          className="hover:!text-[#E2E2EC] hover:!bg-[#18181F] transition-colors">
+          <svg width="12" height="12" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <path d="M11 6.5A4.5 4.5 0 0 1 2 6.5"/><polyline points="2,4 2,6.5 4.5,6.5"/>
+          </svg>
+        </button>
+        <button onClick={() => window.open(url, '_blank')} title="Open in browser"
+          style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', borderRadius: 4, cursor: 'pointer', color: '#4A4A65', flexShrink: 0 }}
+          className="hover:!text-[#E2E2EC] hover:!bg-[#18181F] transition-colors">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 2H2a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V7"/>
+            <polyline points="8,1 11,1 11,4"/><line x1="5.5" y1="6.5" x2="11" y2="1"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Quick port buttons */}
+      <div style={{ display: 'flex', gap: 4, padding: '4px 8px', flexShrink: 0, flexWrap: 'wrap' }}>
+        {DEV_PORTS.map(p => (
+          <button key={p} onClick={() => { const u = `http://localhost:${p}`; setUrl(u); setInput(u); }}
+            style={{
+              height: 20, padding: '0 7px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+              background: url.includes(`:${p}`) ? '#1A1A3A' : 'none',
+              border: `1px solid ${url.includes(`:${p}`) ? '#6366F140' : '#252535'}`,
+              color: url.includes(`:${p}`) ? '#6366F1' : '#4A4A65',
+              fontFamily: '"JetBrains Mono", monospace',
+            }}>
+            :{p}
+          </button>
+        ))}
+      </div>
+
+      {/* iframe */}
+      <div style={{ flex: 1, minHeight: 0, background: '#fff' }}>
+        <iframe
+          key={`${url}-${reloadKey}`}
+          src={url}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          title="Web Preview"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+        />
       </div>
     </div>
   );

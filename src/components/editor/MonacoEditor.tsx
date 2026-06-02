@@ -4,6 +4,9 @@ import type * as MonacoType from 'monaco-editor';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store';
 import { readFile, writeFile } from '@/lib/tauri';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { initVimMode } from 'monaco-vim';
 
 // ─── Language detection ───────────────────────────────────────────────────────
 
@@ -461,18 +464,20 @@ interface ToolbarProps {
   fontSize: number;
   editorTheme: string;
   autoSave: boolean;
+  vimMode: boolean;
   onWordWrapToggle: () => void;
   onMinimapToggle: () => void;
   onFontIncrease: () => void;
   onFontDecrease: () => void;
   onThemeChange: (t: string) => void;
   onAutoSaveToggle: () => void;
+  onVimToggle: () => void;
 }
 
 function EditorToolbar({
-  language, wordWrap, minimap, fontSize, editorTheme, autoSave,
+  language, wordWrap, minimap, fontSize, editorTheme, autoSave, vimMode,
   onWordWrapToggle, onMinimapToggle, onFontIncrease, onFontDecrease,
-  onThemeChange, onAutoSaveToggle,
+  onThemeChange, onAutoSaveToggle, onVimToggle,
 }: ToolbarProps) {
   const btn = (active: boolean, onClick: () => void, children: React.ReactNode, title: string) => (
     <button
@@ -536,6 +541,11 @@ function EditorToolbar({
           Auto
         </>
       ), 'Toggle auto-save (1s delay)')}
+
+      <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 3px' }} />
+
+      {/* Vim mode */}
+      {btn(vimMode, onVimToggle, 'VIM', 'Toggle Vim mode')}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
@@ -608,6 +618,7 @@ export function MonacoEditor({ path }: Props) {
     pendingFileEdit, setPendingFileEdit,
     editorTheme, setEditorTheme,
     autoSave, setAutoSave,
+    vimMode, setVimMode,
     setEditorCursor, setEditorFileSize,
   } = useAppStore();
 
@@ -615,6 +626,9 @@ export function MonacoEditor({ path }: Props) {
   const dirtyRef        = useRef(false);
   const autoSaveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const monacoInstance  = useMonaco();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const vimModeRef      = useRef<any>(null);
+  const vimStatusRef    = useRef<HTMLDivElement>(null);
 
   // ── Apply global theme change ─────────────────────────────────────────────
   useEffect(() => {
@@ -632,6 +646,25 @@ export function MonacoEditor({ path }: Props) {
       setPendingFileEdit(null);
     }
   }, [pendingFileEdit, path, markFileUnsaved, setPendingFileEdit]);
+
+  // ── Vim mode ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const editor = editorRef.current;
+    const statusEl = vimStatusRef.current;
+    if (!editor) return;
+    if (vimMode) {
+      if (!vimModeRef.current && statusEl) {
+        vimModeRef.current = initVimMode(editor, statusEl);
+      }
+    } else {
+      vimModeRef.current?.dispose();
+      vimModeRef.current = null;
+    }
+    return () => {
+      vimModeRef.current?.dispose();
+      vimModeRef.current = null;
+    };
+  }, [vimMode]);
 
   // ── Sync editor options when toggles change ───────────────────────────────
   useEffect(() => {
@@ -737,12 +770,14 @@ export function MonacoEditor({ path }: Props) {
         fontSize={fontSize}
         editorTheme={editorTheme}
         autoSave={autoSave}
+        vimMode={vimMode}
         onWordWrapToggle={() => setWordWrap(w => !w)}
         onMinimapToggle={() => setMinimap(m => !m)}
         onFontIncrease={() => setFontSize(f => Math.min(f + 1, 24))}
         onFontDecrease={() => setFontSize(f => Math.max(f - 1, 10))}
         onThemeChange={setEditorTheme}
         onAutoSaveToggle={() => setAutoSave(!autoSave)}
+        onVimToggle={() => setVimMode(!vimMode)}
       />
 
       {loading ? (
@@ -753,10 +788,10 @@ export function MonacoEditor({ path }: Props) {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <Editor
             key={path}
-            height="100%"
+            height={vimMode ? 'calc(100% - 24px)' : '100%'}
             language={lang}
             defaultValue={content ?? ''}
             theme={editorTheme}
@@ -800,6 +835,14 @@ export function MonacoEditor({ path }: Props) {
               fixedOverflowWidgets: true,
             }}
           />
+          {/* Vim status bar */}
+          <div ref={vimStatusRef} style={{
+            display: vimMode ? 'flex' : 'none',
+            height: 24, alignItems: 'center', padding: '0 8px',
+            background: '#6366F1', color: '#fff', fontSize: 12,
+            fontFamily: '"JetBrains Mono", monospace',
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+          }} />
         </div>
       )}
     </div>
