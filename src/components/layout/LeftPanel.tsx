@@ -5,6 +5,7 @@ import {
   createFile, createDir, revealInExplorer,
   type DirEntry,
 } from "@/lib/tauri";
+import { GitPanel } from "@/components/layout/GitPanel";
 
 // ─── File type icon ────────────────────────────────────────────────────────────
 
@@ -758,10 +759,47 @@ function NodeRow({ type, label }: { type: keyof typeof NODE_ICONS; label: string
   );
 }
 
+// ─── Search view (simple inline file search) ──────────────────────────────────
+
+function SearchView() {
+  const { workspacePath } = useAppStore();
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ padding: '8px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '0 8px', height: 28 }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#4A4A65" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+            <circle cx="5.5" cy="5.5" r="4"/><line x1="9" y1="9" x2="11" y2="11"/>
+          </svg>
+          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
+            placeholder="Search files…"
+            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 12, color: '#E2E2EC', fontFamily: 'inherit' }} />
+        </div>
+      </div>
+      <div style={{ padding: '0 8px 4px', fontSize: 10, color: '#4A4A65' }}>
+        {workspacePath ? 'Use Ctrl+P for quick file open' : 'Open a folder to search'}
+      </div>
+      {/* Tip: press Ctrl+P for the full command palette */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, padding: 16 }}>
+        <kbd style={{ fontSize: 11, color: '#6366F1', background: '#1A1A3A', padding: '4px 10px', borderRadius: 5, border: '1px solid #6366F130', fontFamily: 'JetBrains Mono, monospace' }}>Ctrl+P</kbd>
+        <span style={{ fontSize: 11, color: '#4A4A65', textAlign: 'center' }}>Quick open any file</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Left Panel ────────────────────────────────────────────────────────────────
 
 export function LeftPanel() {
-  const { leftPanelOpen, leftPanelWidth, setLeftPanelWidth, activeFile, workspacePath, setWorkspacePath, openFile } = useAppStore();
+  const {
+    leftPanelOpen, leftPanelWidth, setLeftPanelWidth,
+    leftPanelView,
+    activeFile, workspacePath, setWorkspacePath, openFile,
+  } = useAppStore();
   const [collapseSignal, setCollapseSignal] = useState(0);
   const [expandSignal, setExpandSignal]     = useState(0);
 
@@ -797,94 +835,96 @@ export function LeftPanel() {
       style={{ background: '#111118', borderRight: '1px solid #252535', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
       <div className="rh" onMouseDown={handleResizeMouseDown} />
 
-      {/* ── Explorer header ────────────────────────────────────────────── */}
-      <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 6px 0 10px', justifyContent: 'space-between', flexShrink: 0, borderBottom: '1px solid #1A1A28' }}>
-        <span style={{ fontSize: 10, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.1em', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-          {folderName ?? 'Explorer'}
-        </span>
-        <div style={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-          {/* New file */}
-          <button title="New File" onClick={() => {/* TODO: trigger from root level */}}
-            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
-            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 1.5H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5z"/>
-              <polyline points="7 1.5 7 5 10 5"/>
-              <line x1="6.5" y1="7" x2="6.5" y2="10"/><line x1="5" y1="8.5" x2="8" y2="8.5"/>
-            </svg>
-          </button>
-          {/* Expand all */}
-          <button title="Expand all" onClick={() => setExpandSignal(s => s + 1)}
-            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
-            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3,1 1,3 3,5"/><polyline points="10,1 12,3 10,5"/>
-              <polyline points="3,8 1,10 3,12"/><polyline points="10,8 12,10 10,12"/>
-            </svg>
-          </button>
-          {/* Collapse all */}
-          <button title="Collapse all" onClick={() => setCollapseSignal(s => s + 1)}
-            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
-            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <line x1="2" y1="3" x2="11" y2="3"/>
-              <line x1="2" y1="6.5" x2="11" y2="6.5"/>
-              <line x1="2" y1="10" x2="11" y2="10"/>
-            </svg>
-          </button>
-          {/* Refresh */}
-          <button onClick={() => workspacePath && setWorkspacePath(workspacePath + '')} title="Refresh"
-            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
-            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M11 6.5A4.5 4.5 0 0 1 2 6.5"/><polyline points="2,4 2,6.5 4.5,6.5"/>
-            </svg>
-          </button>
-          {/* Open folder */}
-          <button onClick={handleOpenFolder} title="Open Folder"
-            style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
-            className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 4a1 1 0 0 1 1-1h2.586a1 1 0 0 1 .707.293L6.414 4.414A1 1 0 0 0 7.121 4.707H11a1 1 0 0 1 1 1V10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4z"/>
-              <line x1="6.5" y1="6" x2="6.5" y2="9"/><line x1="5" y1="7.5" x2="8" y2="7.5"/>
-            </svg>
-          </button>
+      {/* ── View-specific header ──────────────────────────────────────── */}
+      {leftPanelView === 'explorer' && (
+        <div style={{ height: 32, display: 'flex', alignItems: 'center', padding: '0 6px 0 10px', justifyContent: 'space-between', flexShrink: 0, borderBottom: '1px solid #1A1A28' }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.1em', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+            {folderName ?? 'Explorer'}
+          </span>
+          <div style={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+            <button title="Expand all" onClick={() => setExpandSignal(s => s + 1)}
+              style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+              className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3,1 1,3 3,5"/><polyline points="10,1 12,3 10,5"/>
+                <polyline points="3,8 1,10 3,12"/><polyline points="10,8 12,10 10,12"/>
+              </svg>
+            </button>
+            <button title="Collapse all" onClick={() => setCollapseSignal(s => s + 1)}
+              style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+              className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <line x1="2" y1="3" x2="11" y2="3"/>
+                <line x1="2" y1="6.5" x2="11" y2="6.5"/>
+                <line x1="2" y1="10" x2="11" y2="10"/>
+              </svg>
+            </button>
+            <button onClick={() => workspacePath && setWorkspacePath(workspacePath + '')} title="Refresh"
+              style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+              className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M11 6.5A4.5 4.5 0 0 1 2 6.5"/><polyline points="2,4 2,6.5 4.5,6.5"/>
+              </svg>
+            </button>
+            <button onClick={handleOpenFolder} title="Open Folder"
+              style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+              className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 4a1 1 0 0 1 1-1h2.586a1 1 0 0 1 .707.293L6.414 4.414A1 1 0 0 0 7.121 4.707H11a1 1 0 0 1 1 1V10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4z"/>
+                <line x1="6.5" y1="6" x2="6.5" y2="9"/><line x1="5" y1="7.5" x2="8" y2="7.5"/>
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── File tree or empty state ───────────────────────────────────── */}
-      <div style={{ flex: '0 0 58%', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-        {workspacePath ? (
-          <FileTree
-            key={workspacePath}
-            workspacePath={workspacePath}
-            activeFile={activeFile}
-            onOpenFile={openFile}
-            collapseAllSignal={collapseSignal}
-            expandAllSignal={expandSignal}
-          />
-        ) : (
-          <NoWorkspace onOpen={handleOpenFolder} />
-        )}
-      </div>
+      {/* ── Git view ──────────────────────────────────────────────────── */}
+      {leftPanelView === 'git' && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+          <GitPanel />
+        </div>
+      )}
 
-      {/* ── Connected divider ──────────────────────────────────────────── */}
-      <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: '#252535' }} />
-        <span style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.12em', textTransform: 'uppercase',
-          background: '#111118', padding: '0 8px', position: 'relative', zIndex: 1, margin: '0 auto' }}>
-          Connected
-        </span>
-      </div>
+      {/* ── Search view ───────────────────────────────────────────────── */}
+      {leftPanelView === 'search' && <SearchView />}
 
-      {/* ── Knowledge nodes ────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-        <NodeRow type="people"   label="Alex Chen" />
-        <NodeRow type="decision" label="Auth Decision #12" />
-        <NodeRow type="meeting"  label="Sprint 23 Standup" />
-        <NodeRow type="question" label="2 open questions" />
-        <NodeRow type="project"  label="Auth v2 Project" />
-      </div>
+      {/* ── Explorer view ─────────────────────────────────────────────── */}
+      {leftPanelView === 'explorer' && (
+        <>
+          <div style={{ flex: '0 0 58%', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+            {workspacePath ? (
+              <FileTree
+                key={workspacePath}
+                workspacePath={workspacePath}
+                activeFile={activeFile}
+                onOpenFile={openFile}
+                collapseAllSignal={collapseSignal}
+                expandAllSignal={expandSignal}
+              />
+            ) : (
+              <NoWorkspace onOpen={handleOpenFolder} />
+            )}
+          </div>
+
+          {/* Connected divider */}
+          <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: '#252535' }} />
+            <span style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.12em', textTransform: 'uppercase',
+              background: '#111118', padding: '0 8px', position: 'relative', zIndex: 1, margin: '0 auto' }}>
+              Connected
+            </span>
+          </div>
+
+          {/* Knowledge nodes */}
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <NodeRow type="people"   label="Alex Chen" />
+            <NodeRow type="decision" label="Auth Decision #12" />
+            <NodeRow type="meeting"  label="Sprint 23 Standup" />
+            <NodeRow type="question" label="2 open questions" />
+            <NodeRow type="project"  label="Auth v2 Project" />
+          </div>
+        </>
+      )}
     </div>
   );
 }

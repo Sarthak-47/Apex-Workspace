@@ -4,6 +4,7 @@ import { checkOllama } from "@/lib/ollama";
 import { getGitBranch } from "@/lib/tauri";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { DiffReview } from "@/components/ui/DiffReview";
+import { SettingsDialog } from "@/components/ui/SettingsDialog";
 import { Titlebar } from "@/components/layout/Titlebar";
 import { ModeBar } from "@/components/layout/ModeBar";
 import { LeftNav } from "@/components/layout/LeftNav";
@@ -23,6 +24,7 @@ export default function App() {
     ollamaSelectedModel, setOllamaSelectedModel,
     setGitBranch, workspacePath,
     commandPaletteOpen, setCommandPaletteOpen,
+    settingsOpen, setSettingsOpen,
   } = useAppStore();
 
   // ── Ollama health polling (every 5 s) ──────────────────────────────────────
@@ -51,17 +53,27 @@ export default function App() {
     getGitBranch(workspacePath).then(setGitBranch);
   }, [workspacePath, setGitBranch]);
 
-  // ── Global Ctrl+K → open command palette ──────────────────────────────────
+  // ── Global keyboard shortcuts ──────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      const ctrl = e.ctrlKey || e.metaKey;
+      // Ctrl+K or Ctrl+P or Ctrl+Shift+P → command palette
+      if (ctrl && (e.key === 'k' || e.key === 'p')) {
         e.preventDefault();
         setCommandPaletteOpen(true);
+        return;
       }
+      // Ctrl+, → settings
+      if (ctrl && e.key === ',') {
+        e.preventDefault();
+        setSettingsOpen(true);
+        return;
+      }
+      // Ctrl+` → toggle terminal
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [setCommandPaletteOpen]);
+  }, [setCommandPaletteOpen, setSettingsOpen]);
 
   // Keep CSS vars in sync with store (for future drag-to-resize)
   useEffect(() => {
@@ -95,6 +107,7 @@ export default function App() {
       <StatusBar />
       <Toaster />
       {commandPaletteOpen && <CommandPalette onClose={() => setCommandPaletteOpen(false)} />}
+      {settingsOpen && <SettingsDialog />}
       <DiffReview />
     </div>
   );

@@ -1,592 +1,436 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { useAppStore } from "@/store";
+import { isTauri } from "@/lib/tauri";
 
-// ─── APEX xterm theme ─────────────────────────────────────────────────────────
+// ─── xterm theme ──────────────────────────────────────────────────────────────
 const APEX_THEME = {
   background:          '#090910',
   foreground:          '#C0C0D0',
   cursor:              '#6366F1',
   cursorAccent:        '#090910',
   selectionBackground: '#25255280',
-  black:               '#090910',
-  brightBlack:         '#252535',
-  red:                 '#EF4444',
-  brightRed:           '#F87171',
-  green:               '#22C55E',
-  brightGreen:         '#4ADE80',
-  yellow:              '#F59E0B',
-  brightYellow:        '#FCD34D',
-  blue:                '#3B82F6',
-  brightBlue:          '#6366F1',
-  magenta:             '#A78BFA',
-  brightMagenta:       '#C084FC',
-  cyan:                '#06B6D4',
-  brightCyan:          '#67E8F9',
-  white:               '#C0C0D0',
-  brightWhite:         '#E2E2EC',
+  black:               '#090910', brightBlack:   '#252535',
+  red:                 '#EF4444', brightRed:     '#F87171',
+  green:               '#22C55E', brightGreen:   '#4ADE80',
+  yellow:              '#F59E0B', brightYellow:  '#FCD34D',
+  blue:                '#3B82F6', brightBlue:    '#6366F1',
+  magenta:             '#A78BFA', brightMagenta: '#C084FC',
+  cyan:                '#06B6D4', brightCyan:    '#67E8F9',
+  white:               '#C0C0D0', brightWhite:   '#E2E2EC',
+};
+
+const TERM_OPTIONS = {
+  theme:             APEX_THEME,
+  fontFamily:        '"JetBrains Mono", "Cascadia Code", "Consolas", monospace',
+  fontSize:          13,
+  lineHeight:        1.6,
+  cursorBlink:       true,
+  cursorStyle:       'bar' as const,
+  scrollback:        10000,
+  convertEol:        true,
+  allowTransparency: false,
 };
 
 // ─── ANSI color helpers ───────────────────────────────────────────────────────
 const C = {
-  red:     (s: string) => `\x1b[38;2;239;68;68m${s}\x1b[0m`,
-  green:   (s: string) => `\x1b[38;2;34;197;94m${s}\x1b[0m`,
-  yellow:  (s: string) => `\x1b[38;2;245;158;11m${s}\x1b[0m`,
-  blue:    (s: string) => `\x1b[38;2;99;102;241m${s}\x1b[0m`,
-  cyan:    (s: string) => `\x1b[38;2;6;182;212m${s}\x1b[0m`,
-  grey:    (s: string) => `\x1b[38;2;136;136;168m${s}\x1b[0m`,
-  white:   (s: string) => `\x1b[38;2;226;226;236m${s}\x1b[0m`,
-  dim:     (s: string) => `\x1b[2m${s}\x1b[22m`,
-  dir:     (s: string) => `\x1b[1;38;2;6;182;212m${s}\x1b[0m`,
+  red:    (s: string) => `\x1b[38;2;239;68;68m${s}\x1b[0m`,
+  green:  (s: string) => `\x1b[38;2;34;197;94m${s}\x1b[0m`,
+  yellow: (s: string) => `\x1b[38;2;245;158;11m${s}\x1b[0m`,
+  blue:   (s: string) => `\x1b[38;2;99;102;241m${s}\x1b[0m`,
+  cyan:   (s: string) => `\x1b[38;2;6;182;212m${s}\x1b[0m`,
+  grey:   (s: string) => `\x1b[38;2;136;136;168m${s}\x1b[0m`,
+  white:  (s: string) => `\x1b[38;2;226;226;236m${s}\x1b[0m`,
+  dim:    (s: string) => `\x1b[2m${s}\x1b[22m`,
+  dir:    (s: string) => `\x1b[1;38;2;6;182;212m${s}\x1b[0m`,
 };
 
-// ─── Mock file system ─────────────────────────────────────────────────────────
+// ─── Mock shell ───────────────────────────────────────────────────────────────
 const MOCK_FS: Record<string, string[]> = {
-  '/demo-workspace': [
-    'src/', 'public/', 'src-tauri/',
-    'package.json', 'tsconfig.json', 'vite.config.ts', '.gitignore', 'README.md',
-  ],
-  '/demo-workspace/src': [
-    'components/', 'editor/', 'lib/', 'store/',
-    'App.tsx', 'main.tsx', 'index.css',
-  ],
+  '/demo-workspace': ['src/', 'public/', 'src-tauri/', 'package.json', 'tsconfig.json', 'vite.config.ts', '.gitignore', 'README.md'],
+  '/demo-workspace/src': ['components/', 'editor/', 'lib/', 'store/', 'App.tsx', 'main.tsx', 'index.css'],
   '/demo-workspace/src/components': ['layout/', 'ui/'],
-  '/demo-workspace/src/components/layout': [
-    'CenterArea.tsx', 'IntelPanel.tsx', 'LeftNav.tsx', 'LeftPanel.tsx',
-    'ModeBar.tsx', 'StatusBar.tsx', 'TerminalPanel.tsx', 'Titlebar.tsx',
-  ],
-  '/demo-workspace/src/components/ui': ['Toaster.tsx'],
-  '/demo-workspace/src/editor':    ['MonacoEditor.tsx'],
-  '/demo-workspace/src/lib':       ['tauri.ts'],
-  '/demo-workspace/src/store':     ['index.ts'],
-  '/demo-workspace/public':        ['apex-logo.svg'],
-  '/demo-workspace/src-tauri':     ['src/', 'Cargo.toml', 'tauri.conf.json'],
-  '/demo-workspace/src-tauri/src': ['lib.rs', 'main.rs'],
+  '/demo-workspace/src/components/layout': ['CenterArea.tsx', 'IntelPanel.tsx', 'LeftNav.tsx', 'LeftPanel.tsx', 'ModeBar.tsx', 'StatusBar.tsx', 'TerminalPanel.tsx', 'Titlebar.tsx'],
+  '/demo-workspace/src/components/ui': ['CommandPalette.tsx', 'Toaster.tsx'],
+  '/demo-workspace/src/lib': ['tauri.ts', 'ollama.ts'],
+  '/demo-workspace/src/store': ['index.ts'],
+  '/demo-workspace/public': ['apex-logo.svg'],
+  '/demo-workspace/src-tauri': ['src/', 'Cargo.toml', 'tauri.conf.json'],
+  '/demo-workspace/src-tauri/src': ['lib.rs', 'main.rs', 'terminal.rs', 'git.rs'],
 };
 
-const MOCK_FILES: Record<string, string> = {
-  'package.json':  '{\n  "name": "apex",\n  "version": "0.1.0",\n  "type": "module"\n}',
-  'README.md':     '# APEX\n\nLocal-first AI-native developer workspace.',
-  '.gitignore':    'node_modules/\ndist/\ntarget/\n.env',
-  'tsconfig.json': '{\n  "compilerOptions": {\n    "target": "ES2020",\n    "module": "ESNext"\n  }\n}',
-};
-
-// ─── Prompt builder ───────────────────────────────────────────────────────────
-function buildPrompt(cwd: string): string {
+function buildPrompt(cwd: string) {
   const display = cwd.replace('/demo-workspace', '~') || '~';
-  return (
-    `${C.blue('APEX')} ` +
-    `${C.grey(display)} ` +
-    `${C.green('main')}` +
-    `\x1b[38;2;226;226;236m $\x1b[0m `
-  );
+  return `${C.blue('APEX')} ${C.grey(display)} ${C.green('main')}\x1b[38;2;226;226;236m $\x1b[0m `;
 }
 
-// ─── Mock shell command executor ──────────────────────────────────────────────
-function execCmd(
-  raw: string,
-  cwdRef: { current: string },
-  term: Terminal,
-): void {
+function execMockCmd(raw: string, cwdRef: { current: string }, term: Terminal) {
   const parts = raw.trim().split(/\s+/);
-  const cmd   = parts[0];
-  const args  = parts.slice(1);
-  const cwd   = cwdRef.current;
+  const cmd = parts[0], args = parts.slice(1);
+  const cwd = cwdRef.current;
   const W = (s: string) => term.writeln(s);
 
   switch (cmd) {
     case '': return;
-
     case 'help':
-      W('');
-      W(`  \x1b[1;38;2;245;158;11mAPEX Mock Shell\x1b[0m  ${C.grey('— browser preview mode')}`);
-      W('');
-      W(`  ${C.cyan('ls')} ${C.grey('[-la]')}       list directory contents`);
-      W(`  ${C.cyan('cd')} ${C.grey('<dir>')}        change directory`);
-      W(`  ${C.cyan('pwd')}            print working directory`);
-      W(`  ${C.cyan('clear')}          clear terminal  ${C.grey('Ctrl+L')}`);
-      W(`  ${C.cyan('echo')} ${C.grey('<text>')}     print text`);
-      W(`  ${C.cyan('cat')} ${C.grey('<file>')}      print file contents`);
-      W(`  ${C.cyan('git')} ${C.grey('status|log|branch|diff|pull')}`);
-      W(`  ${C.cyan('node')} ${C.grey('-v')}         Node.js version`);
-      W(`  ${C.cyan('npm')} ${C.grey('-v')}          npm version`);
-      W(`  ${C.cyan('rustc')} ${C.grey('-V')}        Rust compiler version`);
-      W(`  ${C.cyan('cargo')} ${C.grey('-V')}        Cargo version`);
-      W(`  ${C.cyan('date')}  ${C.cyan('whoami')}  ${C.cyan('uname')}`);
-      W('');
-      W(C.dim('  ↑/↓ history  ·  Tab complete  ·  Ctrl+C cancel  ·  Ctrl+L clear  ·  Ctrl+U erase line'));
-      W('');
-      return;
-
-    case 'clear':
-      term.clear();
-      return;
-
-    case 'pwd':
-      W(cwd);
-      return;
-
+      W(''); W(`  \x1b[1mAPEX Mock Shell\x1b[0m  ${C.grey('browser mode')}`); W('');
+      W(`  ${C.cyan('ls')} ${C.cyan('cd')} ${C.cyan('pwd')} ${C.cyan('clear')} ${C.cyan('echo')} ${C.cyan('cat')} ${C.cyan('git')} ${C.cyan('node')} ${C.cyan('npm')} ${C.cyan('rustc')} ${C.cyan('cargo')}`);
+      W(''); W(C.dim(C.grey('  ↑/↓ history  ·  Tab complete  ·  Ctrl+C  ·  Ctrl+L clear'))); W(''); return;
+    case 'clear': term.clear(); return;
+    case 'pwd': W(cwd); return;
     case 'ls': {
-      const isLong  = args.some(a => /^-[la]+$/.test(a));
-      const dirArg  = args.find(a => !a.startsWith('-'));
-      const target  = dirArg
-        ? (dirArg.startsWith('/') ? dirArg : `${cwd}/${dirArg}`)
+      const target = args.find(a => !a.startsWith('-'))
+        ? (args.find(a => !a.startsWith('-'))!.startsWith('/') ? args.find(a => !a.startsWith('-'))! : `${cwd}/${args.find(a => !a.startsWith('-'))}`)
         : cwd;
       const entries = MOCK_FS[target];
-      if (entries === undefined) { W(C.red(`ls: ${target}: No such file or directory`)); return; }
-      if (entries.length === 0)  { W(C.grey('(empty directory)')); return; }
-      if (isLong) {
-        W(C.grey(`total ${entries.length}`));
-        for (const e of entries) {
-          const isDir = e.endsWith('/');
-          const perms = isDir ? 'drwxr-xr-x' : '-rw-r--r--';
-          const sz    = isDir ? '   4096' : '  12288';
-          const dt    = C.grey('Jun  1 09:42');
-          W(`${C.dim(perms)}  1 ${C.grey('user')}  ${sz} ${dt}  ${isDir ? C.dir(e) : C.white(e)}`);
-        }
-      } else {
-        W(entries.map(e => e.endsWith('/') ? C.dir(e) : C.white(e)).join('  '));
-      }
+      if (!entries) { W(C.red(`ls: ${target}: No such file or directory`)); return; }
+      W(entries.map(e => e.endsWith('/') ? C.dir(e) : C.white(e)).join('  '));
       return;
     }
-
     case 'cd': {
-      const target = args[0] ?? '~';
-      if (!target || target === '~') { cwdRef.current = '/demo-workspace'; return; }
-      if (target === '.')            { return; }
-      if (target === '..') {
-        const segs = cwd.split('/').filter(Boolean);
-        segs.pop();
-        cwdRef.current = segs.length >= 2 ? '/' + segs.join('/') : '/demo-workspace';
-        return;
+      const t = args[0] ?? '~';
+      if (!t || t === '~') { cwdRef.current = '/demo-workspace'; return; }
+      if (t === '.') return;
+      if (t === '..') {
+        const segs = cwd.split('/').filter(Boolean); segs.pop();
+        cwdRef.current = segs.length >= 2 ? '/' + segs.join('/') : '/demo-workspace'; return;
       }
-      const abs = target.startsWith('/')
-        ? target
-        : `${cwd}/${target}`.replace(/\/+/g, '/');
+      const abs = t.startsWith('/') ? t : `${cwd}/${t}`.replace(/\/+/g, '/');
       if (MOCK_FS[abs] !== undefined) { cwdRef.current = abs; return; }
-      W(C.red(`cd: ${target}: No such file or directory`));
-      return;
+      W(C.red(`cd: ${t}: No such file or directory`)); return;
     }
-
-    case 'echo':
-      W(args.join(' '));
-      return;
-
-    case 'cat': {
-      const fname = args[0];
-      if (!fname)            { W(C.red('cat: missing operand')); return; }
-      const content = MOCK_FILES[fname];
-      if (!content)          { W(C.red(`cat: ${fname}: No such file or directory`)); return; }
-      for (const line of content.split('\n')) W(line);
-      return;
-    }
-
+    case 'echo': W(args.join(' ')); return;
     case 'git': {
       const sub = args[0];
-      switch (sub) {
-        case 'status':
-          W(`On branch ${C.green('main')}`);
-          W(`Your branch is up to date with ${C.cyan("'origin/main'")}.`);
-          W('');
-          W(C.green('nothing to commit, working tree clean'));
-          return;
-        case 'log': {
-          const oneline = args.includes('--oneline');
-          const commits = [
-            { h: '0cf68d7', m: 'fix: blend titlebar logo into dark background' },
-            { h: '32eae2a', m: 'feat: show open workspace folder name in Titlebar' },
-            { h: '4ba328f', m: 'feat: rewrite LeftPanel with real recursive file tree' },
-            { h: 'cebe5a8', m: 'feat: add openFolderDialog and rich browser mock file tree' },
-            { h: 'bc9d188', m: 'fix: make nav icons visible, add terminal toggle to left nav' },
-          ];
-          if (oneline) {
-            for (const c of commits) W(`${C.yellow(c.h)} ${c.m}`);
-          } else {
-            for (const c of commits) {
-              W('');
-              W(`${C.yellow('commit ' + c.h)}`);
-              W('Author: Sarthak-47 <0906sarthak@gmail.com>');
-              W('Date:   Mon Jun 1 2026');
-              W('');
-              W(`    ${c.m}`);
-            }
-          }
-          return;
-        }
-        case 'branch':
-          W(`* ${C.green('main')}`);
-          W(`  ${C.grey('dev')}`);
-          return;
-        case 'diff':
-          W(C.grey('(no local changes)'));
-          return;
-        case 'stash':
-          W(C.grey('No local changes to save'));
-          return;
-        case 'pull':
-          W(`From https://github.com/Sarthak-47/Apex-Workspace`);
-          W(`   0cf68d7..0cf68d7  main -> origin/main`);
-          W('Already up to date.');
-          return;
-        default:
-          W(C.grey(`git: '${sub ?? ''}' — try: status, log [--oneline], branch, diff, pull`));
-          return;
-      }
+      if (sub === 'status') { W(`On branch ${C.green('main')}`); W(C.green('nothing to commit, working tree clean')); }
+      else if (sub === 'log') W(`${C.yellow('e3ac196')} feat: persist open tabs`);
+      else if (sub === 'branch') W(`* ${C.green('main')}`);
+      else W(C.grey(`git: '${sub}' — try: status, log, branch`));
+      return;
     }
-
-    case 'node':
-      if (args[0] === '--version' || args[0] === '-v') { W('v22.14.0'); return; }
-      W(C.grey('node: interactive REPL not available in browser preview'));
-      return;
-
-    case 'npm':
-      if (args[0] === '--version' || args[0] === '-v') { W('10.9.2'); return; }
-      if (args[0] === 'run') {
-        W(C.grey(`npm run ${args[1] ?? ''}: script execution requires Tauri shell`));
-        return;
-      }
-      W(C.grey('npm: limited support in browser preview'));
-      return;
-
-    case 'rustc':
-      if (args[0] === '--version' || args[0] === '-V') { W('rustc 1.83.0 (90b35a623 2024-11-26)'); return; }
-      W(C.grey('rustc: compilation requires Tauri shell'));
-      return;
-
-    case 'cargo':
-      if (args[0] === '--version' || args[0] === '-V') { W('cargo 1.83.0 (5ffbef321 2024-10-29)'); return; }
-      W(C.grey('cargo: build commands require Tauri desktop shell'));
-      return;
-
-    case 'which':
-      if (args[0]) W(`/usr/local/bin/${args[0]}`);
-      return;
-
-    case 'whoami':
-      W('user');
-      return;
-
-    case 'date':
-      W(new Date().toLocaleString());
-      return;
-
-    case 'uname':
-      W(args.includes('-a') ? 'APEX-OS 0.1.0 Tauri/2.x x86_64' : 'APEX-OS');
-      return;
-
-    case 'exit':
-      W(C.grey('exit: use the × button or Ctrl+` to toggle the terminal panel'));
-      return;
-
-    default:
-      W(C.red(`${cmd}: command not found`) + C.dim(C.grey('  (browser mock — Tauri mode for real shell)')));
-      return;
+    case 'node': W(args[0] === '-v' || args[0] === '--version' ? 'v22.14.0' : C.grey('node: use Tauri mode for REPL')); return;
+    case 'npm':  W(args[0] === '-v' || args[0] === '--version' ? '10.9.2'   : C.grey('npm: limited in browser mode'));  return;
+    case 'rustc': W(args[0] === '-V' ? 'rustc 1.83.0' : C.grey('rustc: needs Tauri mode')); return;
+    case 'cargo': W(args[0] === '-V' ? 'cargo 1.83.0' : C.grey('cargo: needs Tauri mode')); return;
+    case 'whoami': W('user'); return;
+    case 'date':   W(new Date().toLocaleString()); return;
+    case 'exit':   W(C.grey('exit: use × to close this tab')); return;
+    default: W(C.red(`${cmd}: command not found`) + C.dim(C.grey('  (browser mock)')));
   }
 }
 
-// ─── Inner xterm component ────────────────────────────────────────────────────
-function XtermTerminal() {
+function setupMockShell(term: Terminal, fitAddon: FitAddon): () => void {
+  const cwdRef = { current: '/demo-workspace' };
+  let line = '';
+  const history: string[] = [];
+  let histIdx = -1;
+
+  fitAddon.fit();
+
+  term.writeln(`${C.blue('▸')} \x1b[1mAPEX Terminal\x1b[0m  ${C.grey('browser preview · start in Tauri for real shell')}`);
+  term.writeln(C.grey(`  Type ${C.yellow('help')} for commands`) + C.dim(C.grey('  ·  ↑/↓ history  ·  Ctrl+L clear')));
+  term.write(buildPrompt(cwdRef.current));
+
+  const disposable = term.onKey(({ key, domEvent: ev }) => {
+    if (ev.ctrlKey && !ev.altKey && !ev.metaKey) {
+      if (ev.key === 'c') { term.write(`${C.grey('^C')}\r\n` + buildPrompt(cwdRef.current)); line = ''; histIdx = -1; return; }
+      if (ev.key === 'l') { term.clear(); term.write(buildPrompt(cwdRef.current)); return; }
+      if (ev.key === 'u') { line = ''; term.write('\r' + buildPrompt(cwdRef.current) + '\x1b[K'); return; }
+      return;
+    }
+    if (ev.altKey || ev.metaKey) return;
+    switch (ev.key) {
+      case 'Enter': {
+        const cmd = line.trim();
+        term.write('\r\n');
+        if (cmd) { history.unshift(cmd); if (history.length > 200) history.pop(); histIdx = -1; execMockCmd(cmd, cwdRef, term); }
+        line = '';
+        term.write(buildPrompt(cwdRef.current));
+        return;
+      }
+      case 'Backspace':
+        if (line.length > 0) { line = line.slice(0, -1); term.write('\b \b'); } return;
+      case 'Tab': {
+        ev.preventDefault?.();
+        if (!line) return;
+        const entries = MOCK_FS[cwdRef.current] ?? [];
+        const word = line.split(/\s+/).pop() ?? '';
+        const m = entries.filter(e => e.startsWith(word));
+        if (m.length === 1) { const rest = m[0].slice(word.length); line += rest; term.write(rest); }
+        else if (m.length > 1) { term.write('\r\n' + m.join('  ') + '\r\n' + buildPrompt(cwdRef.current) + line); }
+        return;
+      }
+      case 'ArrowUp':
+        if (history.length === 0) return;
+        histIdx = Math.min(histIdx + 1, history.length - 1);
+        line = history[histIdx];
+        term.write('\r' + buildPrompt(cwdRef.current) + '\x1b[K' + line); return;
+      case 'ArrowDown':
+        if (histIdx <= 0) { histIdx = -1; line = ''; term.write('\r' + buildPrompt(cwdRef.current) + '\x1b[K'); return; }
+        histIdx--;
+        line = history[histIdx];
+        term.write('\r' + buildPrompt(cwdRef.current) + '\x1b[K' + line); return;
+      case 'ArrowLeft': case 'ArrowRight': case 'Home': case 'End':
+      case 'PageUp': case 'PageDown': case 'Insert': case 'Delete': case 'Escape': return;
+    }
+    if (key.length === 1 && key.charCodeAt(0) >= 32) { line += key; term.write(key); }
+  });
+
+  return () => { disposable.dispose(); };
+}
+
+async function setupRealPty(
+  term: Terminal,
+  fitAddon: FitAddon,
+  cwd: string,
+): Promise<() => void> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const { listen }  = await import('@tauri-apps/api/event');
+
+  let ptyId: string | null = null;
+  let cancelled = false;
+  const unlisteners: Array<() => void> = [];
+
+  try {
+    ptyId = await invoke<string>('create_pty', { shell: null, cwd });
+    if (cancelled) { await invoke('close_pty', { ptyId }); return () => {}; }
+
+    unlisteners.push(
+      await listen<string>(`pty-output-${ptyId}`, e => term.write(e.payload)),
+      await listen(`pty-exit-${ptyId}`, () => {
+        term.writeln('\r\n\x1b[38;2;100;100;130m[Process completed]\x1b[0m');
+      }),
+    );
+
+    term.onData(data => {
+      if (ptyId) invoke('write_pty', { ptyId, data }).catch(() => {});
+    });
+
+    term.onResize(({ cols, rows }) => {
+      if (ptyId) invoke('resize_pty', { ptyId, cols, rows }).catch(() => {});
+    });
+
+    fitAddon.fit();
+    invoke('resize_pty', { ptyId, cols: term.cols, rows: term.rows }).catch(() => {});
+
+  } catch (err) {
+    term.writeln(`\r\n\x1b[31mFailed to start PTY: ${err}\x1b[0m`);
+  }
+
+  return () => {
+    cancelled = true;
+    for (const u of unlisteners) u();
+    if (ptyId) import('@tauri-apps/api/core').then(({ invoke: inv }) => inv('close_pty', { ptyId }).catch(() => {}));
+  };
+}
+
+// ─── Single terminal pane ─────────────────────────────────────────────────────
+
+function XtermPane({ visible, workspacePath }: { visible: boolean; workspacePath: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const fitRef       = useRef<FitAddon | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    // Mutable shell state (plain objects, not React state — must not trigger re-renders)
-    const cwdRef    = { current: '/demo-workspace' };
-    let lineBuffer  = '';
-    const cmdHistory: string[] = [];
-    let histIdx     = -1;
-
-    const term = new Terminal({
-      theme:             APEX_THEME,
-      fontFamily:        '"JetBrains Mono", "Cascadia Code", "Consolas", monospace',
-      fontSize:          13,
-      lineHeight:        1.6,
-      cursorBlink:       true,
-      cursorStyle:       'bar',
-      scrollback:        5000,
-      convertEol:        true,
-      allowTransparency: false,
-    });
-
-    const fitAddon      = new FitAddon();
-    const webLinksAddon = new WebLinksAddon();
+    const term        = new Terminal(TERM_OPTIONS);
+    const fitAddon    = new FitAddon();
+    const linksAddon  = new WebLinksAddon();
     term.loadAddon(fitAddon);
-    term.loadAddon(webLinksAddon);
-
+    term.loadAddon(linksAddon);
     term.open(el);
-    requestAnimationFrame(() => { try { fitAddon.fit(); } catch { /* ignore */ } });
+    fitRef.current = fitAddon;
 
-    // ── Welcome banner ──────────────────────────────────────────────────────
-    term.writeln(
-      `${C.blue('▸')} \x1b[1;38;2;226;226;236mAPEX Terminal\x1b[0m  ` +
-      C.grey('browser preview  ·  start in Tauri for real shell')
-    );
-    term.writeln(
-      C.grey(`  Type ${C.yellow('help')} for commands`) +
-      C.dim(C.grey('  ·  ↑/↓ history  ·  Tab complete  ·  Ctrl+L clear'))
-    );
-    term.write(buildPrompt(cwdRef.current));
+    let cleanupFn: (() => void) | null = null;
 
-    // ── Key handler ──────────────────────────────────────────────────────────
-    term.onKey(({ key, domEvent }) => {
-      const { key: k, ctrlKey, altKey, metaKey } = domEvent;
-
-      // Ctrl combos (no alt/meta)
-      if (ctrlKey && !altKey && !metaKey) {
-        switch (k) {
-          case 'c':
-            term.write(`${C.grey('^C')}\r\n` + buildPrompt(cwdRef.current));
-            lineBuffer = '';
-            histIdx    = -1;
-            return;
-          case 'l':
-            term.clear();
-            term.write(buildPrompt(cwdRef.current));
-            return;
-          case 'u':
-            lineBuffer = '';
-            term.write('\r' + buildPrompt(cwdRef.current) + '\x1b[K');
-            return;
-          default:
-            return;
-        }
-      }
-
-      if (altKey || metaKey) return;
-
-      // Special keys
-      switch (k) {
-        case 'Enter': {
-          const cmd = lineBuffer.trim();
-          term.write('\r\n');
-          if (cmd) {
-            cmdHistory.unshift(cmd);
-            if (cmdHistory.length > 200) cmdHistory.pop();
-            histIdx = -1;
-            execCmd(cmd, cwdRef, term);
-          }
-          lineBuffer = '';
-          term.write(buildPrompt(cwdRef.current));
-          return;
-        }
-
-        case 'Backspace':
-          if (lineBuffer.length > 0) {
-            lineBuffer = lineBuffer.slice(0, -1);
-            term.write('\b \b');
-          }
-          return;
-
-        case 'Tab': {
-          domEvent.preventDefault?.();
-          if (!lineBuffer) return;
-          const entries = MOCK_FS[cwdRef.current] ?? [];
-          const word    = lineBuffer.split(/\s+/).pop() ?? '';
-          const matches = entries.filter(e => e.startsWith(word));
-          if (matches.length === 1) {
-            const rest  = matches[0].slice(word.length);
-            lineBuffer += rest;
-            term.write(rest);
-          } else if (matches.length > 1) {
-            term.write('\r\n' + matches.map(m => m.endsWith('/') ? C.dir(m) : C.white(m)).join('  '));
-            term.write('\r\n' + buildPrompt(cwdRef.current) + lineBuffer);
-          }
-          return;
-        }
-
-        case 'ArrowUp':
-          if (cmdHistory.length === 0) return;
-          histIdx    = Math.min(histIdx + 1, cmdHistory.length - 1);
-          lineBuffer = cmdHistory[histIdx];
-          term.write('\r' + buildPrompt(cwdRef.current) + '\x1b[K' + lineBuffer);
-          return;
-
-        case 'ArrowDown':
-          if (histIdx <= 0) {
-            histIdx    = -1;
-            lineBuffer = '';
-            term.write('\r' + buildPrompt(cwdRef.current) + '\x1b[K');
-            return;
-          }
-          histIdx--;
-          lineBuffer = cmdHistory[histIdx];
-          term.write('\r' + buildPrompt(cwdRef.current) + '\x1b[K' + lineBuffer);
-          return;
-
-        // Ignore cursor-movement keys (no inline cursor movement in mock shell)
-        case 'ArrowLeft':
-        case 'ArrowRight':
-        case 'Home':
-        case 'End':
-        case 'PageUp':
-        case 'PageDown':
-        case 'Insert':
-        case 'Delete':
-        case 'Escape':
-          return;
-      }
-
-      // Printable characters
-      if (key.length === 1 && key.charCodeAt(0) >= 32) {
-        lineBuffer += key;
-        term.write(key);
-      }
-    });
-
-    // ── Resize observer — refit when container changes size ─────────────────
-    const ro = new ResizeObserver(() => {
-      requestAnimationFrame(() => { try { fitAddon.fit(); } catch { /* ignore */ } });
-    });
-    ro.observe(el);
+    if (isTauri()) {
+      setupRealPty(term, fitAddon, workspacePath ?? '.').then(fn => { cleanupFn = fn; });
+    } else {
+      cleanupFn = setupMockShell(term, fitAddon);
+    }
 
     return () => {
-      ro.disconnect();
+      cleanupFn?.();
       term.dispose();
+      fitRef.current = null;
     };
-  }, []); // empty deps — mount once, no re-runs
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fit when this pane becomes visible
+  useEffect(() => {
+    if (visible) {
+      requestAnimationFrame(() => { try { fitRef.current?.fit(); } catch {} });
+    }
+  }, [visible]);
+
+  // Resize observer
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => { try { fitRef.current?.fit(); } catch {} });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', background: APEX_THEME.background, padding: '4px 2px 2px' }}>
+    <div style={{
+      flex: 1, display: visible ? 'flex' : 'none',
+      flexDirection: 'column', minHeight: 0,
+      background: APEX_THEME.background, padding: '4px 2px 2px',
+    }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
     </div>
   );
 }
 
-// ─── TerminalPanel (outer shell) ─────────────────────────────────────────────
+// ─── Tab close button ─────────────────────────────────────────────────────────
+
+function CloseBtn({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
+  return (
+    <span
+      onClick={onClick}
+      style={{ marginLeft: 4, width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 3, flexShrink: 0, color: '#4A4A65' }}
+      className="hover:!bg-[#252535] hover:!text-[#E2E2EC] transition-colors"
+    >
+      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        <line x1="1" y1="1" x2="7" y2="7"/><line x1="7" y1="1" x2="1" y2="7"/>
+      </svg>
+    </span>
+  );
+}
+
+// ─── Tab types ────────────────────────────────────────────────────────────────
+
+interface TermTab { id: string; label: string }
+
+// ─── TerminalPanel ────────────────────────────────────────────────────────────
+
 export function TerminalPanel() {
-  const { terminalOpen, toggleTerminal, terminalHeight, setTerminalHeight } = useAppStore();
+  const { terminalOpen, toggleTerminal, terminalHeight, setTerminalHeight, workspacePath } = useAppStore();
+
+  const [tabs, setTabs]         = useState<TermTab[]>([{ id: 'tab-0', label: isTauri() ? 'shell' : 'mock' }]);
+  const [activeTabId, setActive] = useState('tab-0');
+  const counter = useRef(1);
+
+  const addTab = useCallback(() => {
+    const id    = `tab-${counter.current++}`;
+    const label = isTauri() ? 'shell' : 'mock';
+    setTabs(prev => [...prev, { id, label }]);
+    setActive(id);
+  }, []);
+
+  const closeTab = useCallback((id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTabs(prev => {
+      if (prev.length === 1) return prev; // keep at least one tab
+      const next = prev.filter(t => t.id !== id);
+      setActive(cur => cur === id ? next[next.length - 1].id : cur);
+      return next;
+    });
+  }, []);
+
+  // Rename tab on double click
+  const [renamingId, setRenamingId]   = useState<string | null>(null);
+  const [renameVal, setRenameVal]     = useState('');
+
+  const startRename = (tab: TermTab) => { setRenamingId(tab.id); setRenameVal(tab.label); };
+  const submitRename = () => {
+    if (renamingId && renameVal.trim()) {
+      setTabs(prev => prev.map(t => t.id === renamingId ? { ...t, label: renameVal.trim() } : t));
+    }
+    setRenamingId(null);
+  };
+
   if (!terminalOpen) return null;
 
-  // ── Drag resize (top edge) ─────────────────────────────────────────────────
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    const startY = e.clientY;
-    const startH = terminalHeight;
+    const startY = e.clientY, startH = terminalHeight;
     document.body.classList.add('resizing');
-
-    const onMove = (ev: MouseEvent) => {
-      // Dragging UP (negative delta) = taller terminal
-      const next = Math.max(80, Math.min(600, startH - (ev.clientY - startY)));
-      setTerminalHeight(next);
-    };
-    const onUp = () => {
-      document.body.classList.remove('resizing');
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
+    const onMove = (ev: MouseEvent) => setTerminalHeight(Math.max(80, Math.min(600, startH - (ev.clientY - startY))));
+    const onUp   = () => { document.body.classList.remove('resizing'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   };
 
   return (
-    <div
-      className="app-terminal flex flex-col"
-      style={{
-        background: '#090910',
-        borderTop: '1px solid #252535',
-        flexShrink: 0,
-        overflow: 'hidden',
-        position: 'relative',
-      }}
-    >
-      {/* Drag handle — top edge */}
+    <div className="app-terminal flex flex-col" style={{ background: '#090910', borderTop: '1px solid #252535', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
       <div className="rh-top" onMouseDown={handleResizeMouseDown} />
-      {/* ── Tab bar ────────────────────────────────────────────────────────── */}
-      <div style={{
-        height: 32,
-        background: '#111118',
-        borderBottom: '1px solid #1A1A28',
-        display: 'flex',
-        alignItems: 'center',
-        paddingLeft: 8,
-        paddingRight: 6,
-        gap: 4,
-        flexShrink: 0,
-      }}>
-        {/* Active tab */}
-        <div style={{
-          height: 26,
-          padding: '0 10px',
-          borderRadius: 4,
-          fontSize: 11,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 5,
-          background: '#18181F',
-          color: '#E2E2EC',
-          border: '1px solid #252535',
-          userSelect: 'none',
-        }}>
-          {/* Terminal icon */}
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="1" y="1" width="10" height="10" rx="1.5"/>
-            <polyline points="3,4.5 5.5,6 3,7.5"/>
-            <line x1="6.5" y1="7.5" x2="9" y2="7.5"/>
+
+      {/* ── Tab bar ──────────────────────────────────────────────────────── */}
+      <div style={{ height: 32, background: '#111118', borderBottom: '1px solid #1A1A28', display: 'flex', alignItems: 'center', paddingLeft: 6, paddingRight: 6, gap: 2, flexShrink: 0, overflowX: 'auto' }}>
+        {tabs.map(tab => {
+          const isActive = tab.id === activeTabId;
+          return (
+            <div
+              key={tab.id}
+              onClick={() => setActive(tab.id)}
+              onDoubleClick={() => startRename(tab)}
+              style={{
+                height: 26, padding: '0 8px', borderRadius: 4, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4,
+                background: isActive ? '#18181F' : 'transparent',
+                color: isActive ? '#E2E2EC' : '#4A4A65',
+                border: isActive ? '1px solid #252535' : '1px solid transparent',
+                cursor: 'pointer', userSelect: 'none', flexShrink: 0,
+              }}
+              className={!isActive ? 'hover:!text-[#8888A8] transition-colors' : ''}
+            >
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke={isActive ? '#6366F1' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="1" width="10" height="10" rx="1.5"/>
+                <polyline points="3,4.5 5.5,6 3,7.5"/><line x1="6.5" y1="7.5" x2="9" y2="7.5"/>
+              </svg>
+              {renamingId === tab.id
+                ? <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') submitRename(); if (e.key === 'Escape') setRenamingId(null); }}
+                    onBlur={submitRename}
+                    onClick={e => e.stopPropagation()}
+                    style={{ width: 60, fontSize: 11, background: '#0A0A0F', border: '1px solid #6366F1', borderRadius: 3, color: '#E2E2EC', padding: '1px 4px', outline: 'none' }} />
+                : <span>{tab.label}</span>
+              }
+              {tabs.length > 1 && <CloseBtn onClick={e => closeTab(tab.id, e)} />}
+            </div>
+          );
+        })}
+
+        {/* Add tab button */}
+        <button onClick={addTab} title="New Terminal"
+          style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', flexShrink: 0 }}
+          className="hover:!text-[#E2E2EC] hover:!bg-[#18181F] transition-colors">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="5" y1="1" x2="5" y2="9"/><line x1="1" y1="5" x2="9" y2="5"/>
           </svg>
-          <span>bash</span>
-          <span style={{ color: '#4A4A65', fontSize: 9, marginLeft: 1 }}>mock</span>
-        </div>
+        </button>
 
         <div style={{ flex: 1 }} />
 
-        {/* Action buttons */}
-        {([
-          {
-            title: 'New Terminal',
-            icon: (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <line x1="7" y1="2" x2="7" y2="12"/><line x1="2" y1="7" x2="12" y2="7"/>
-              </svg>
-            ),
-            onClick: undefined as (() => void) | undefined,
-          },
-          {
-            title: 'Split Terminal',
-            icon: (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="1" y="1" width="12" height="12" rx="1"/>
-                <line x1="7" y1="1" x2="7" y2="13"/>
-              </svg>
-            ),
-            onClick: undefined as (() => void) | undefined,
-          },
-          {
-            title: 'Collapse Panel',
-            icon: (
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <polyline points="3,9 7,5 11,9"/>
-              </svg>
-            ),
-            onClick: toggleTerminal,
-          },
-        ] as const).map(({ title, icon, onClick }, i) => (
-          <button
-            key={i}
-            title={title}
-            onClick={onClick}
-            style={{
-              color: '#4A4A65',
-              background: 'none',
-              border: 'none',
-              cursor: onClick ? 'pointer' : 'default',
-              padding: 4,
-              lineHeight: 1,
-              borderRadius: 3,
-            }}
-            className={onClick ? 'hover:!text-[#8888A8] hover:!bg-[#18181F] transition-colors' : ''}
-          >
-            {icon}
-          </button>
-        ))}
+        {/* Collapse */}
+        <button onClick={toggleTerminal} title="Collapse terminal"
+          style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', flexShrink: 0 }}
+          className="hover:!text-[#8888A8] hover:!bg-[#18181F] transition-colors">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <polyline points="2,8 6,4 10,8"/>
+          </svg>
+        </button>
       </div>
 
-      {/* ── xterm.js content ──────────────────────────────────────────────── */}
-      <XtermTerminal />
+      {/* ── Terminal panes (all mounted, show/hide with CSS) ───────────────── */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {tabs.map(tab => (
+          <XtermPane
+            key={tab.id}
+            visible={tab.id === activeTabId}
+            workspacePath={workspacePath}
+          />
+        ))}
+      </div>
     </div>
   );
 }

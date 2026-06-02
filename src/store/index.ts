@@ -75,6 +75,14 @@ interface AppState {
   gitBranch: string;
   setGitBranch: (branch: string) => void;
 
+  // Left panel view (which tab is shown)
+  leftPanelView: 'explorer' | 'git' | 'search';
+  setLeftPanelView: (view: 'explorer' | 'git' | 'search') => void;
+
+  // Settings dialog
+  settingsOpen: boolean;
+  setSettingsOpen: (open: boolean) => void;
+
   // Command palette
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
@@ -214,6 +222,14 @@ export const useAppStore = create<AppState>()(
       gitBranch: 'main',
       setGitBranch: (branch) => set({ gitBranch: branch }),
 
+      // Left panel view
+      leftPanelView: 'explorer' as 'explorer' | 'git' | 'search',
+      setLeftPanelView: (view) => set({ leftPanelView: view }),
+
+      // Settings dialog
+      settingsOpen: false,
+      setSettingsOpen: (open) => set({ settingsOpen: open }),
+
       // Command palette
       commandPaletteOpen: false,
       setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
@@ -251,6 +267,7 @@ export const useAppStore = create<AppState>()(
         openFiles: s.openFiles,
         activeFile: s.activeFile,
         leftPanelOpen: s.leftPanelOpen,
+        leftPanelView: s.leftPanelView,
         leftPanelWidth: s.leftPanelWidth,
         intelPanelOpen: s.intelPanelOpen,
         intelPanelWidth: s.intelPanelWidth,
