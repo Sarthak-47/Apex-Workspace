@@ -18,8 +18,10 @@ import { Toaster } from "@/components/ui/Toaster";
 export default function App() {
   const {
     leftPanelOpen, leftPanelWidth,
+    leftPanelView, setLeftPanelView,
+    toggleLeftPanel,
     intelPanelOpen, intelPanelWidth,
-    terminalOpen, terminalHeight,
+    terminalOpen, terminalHeight, toggleTerminal,
     setOllamaStatus, ollamaOnline, ollamaModels,
     ollamaSelectedModel, setOllamaSelectedModel,
     setGitBranch, workspacePath,
@@ -57,8 +59,14 @@ export default function App() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
-      // Ctrl+K or Ctrl+P or Ctrl+Shift+P → command palette
-      if (ctrl && (e.key === 'k' || e.key === 'p')) {
+      // Ctrl+K or Ctrl+P → command palette
+      if (ctrl && !e.shiftKey && (e.key === 'k' || e.key === 'p')) {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+        return;
+      }
+      // Ctrl+Shift+P → command palette
+      if (ctrl && e.shiftKey && e.key === 'P') {
         e.preventDefault();
         setCommandPaletteOpen(true);
         return;
@@ -70,10 +78,36 @@ export default function App() {
         return;
       }
       // Ctrl+` → toggle terminal
+      if (ctrl && e.key === '`') {
+        e.preventDefault();
+        toggleTerminal();
+        return;
+      }
+      // Ctrl+Shift+E → Explorer
+      if (ctrl && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        if (leftPanelView === 'explorer' && leftPanelOpen) toggleLeftPanel();
+        else { setLeftPanelView('explorer'); if (!leftPanelOpen) toggleLeftPanel(); }
+        return;
+      }
+      // Ctrl+Shift+G → Source Control
+      if (ctrl && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        if (leftPanelView === 'git' && leftPanelOpen) toggleLeftPanel();
+        else { setLeftPanelView('git'); if (!leftPanelOpen) toggleLeftPanel(); }
+        return;
+      }
+      // Ctrl+Shift+F → Search
+      if (ctrl && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        if (leftPanelView === 'search' && leftPanelOpen) toggleLeftPanel();
+        else { setLeftPanelView('search'); if (!leftPanelOpen) toggleLeftPanel(); }
+        return;
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [setCommandPaletteOpen, setSettingsOpen]);
+  }, [setCommandPaletteOpen, setSettingsOpen, toggleTerminal, toggleLeftPanel, leftPanelOpen, leftPanelView, setLeftPanelView]);
 
   // Keep CSS vars in sync with store (for future drag-to-resize)
   useEffect(() => {

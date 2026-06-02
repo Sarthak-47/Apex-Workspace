@@ -37,6 +37,7 @@ export function StatusBar() {
     mode, activeFile, terminalOpen, toggleTerminal,
     ollamaOnline, ollamaModels, gitBranch,
     cursorLine, cursorCol, editorFileSize,
+    vimMode,
   } = useAppStore();
 
   const fmtSize = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`;
@@ -95,6 +96,16 @@ export function StatusBar() {
         <>
           <SbItem title="Cursor position">
             Ln {cursorLine}, Col {cursorCol}
+          </SbItem>
+          <Divider />
+        </>
+      )}
+
+      {/* Vim mode indicator */}
+      {vimMode && (
+        <>
+          <SbItem title="Vim mode active">
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.05em' }}>VIM</span>
           </SbItem>
           <Divider />
         </>
