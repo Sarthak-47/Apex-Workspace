@@ -192,6 +192,33 @@ export async function listAllFiles(rootPath: string): Promise<DirEntry[]> {
   return result;
 }
 
+/** Open a native file picker for individual files. */
+export async function openFileDialog(): Promise<string | null> {
+  if (isTauri()) {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const result = await open({ directory: false, multiple: false, title: 'Open File' });
+      return typeof result === 'string' ? result : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Grep for a pattern across the workspace. Returns file:line:content strings. */
+export async function grepFiles(workspace: string, pattern: string, dir?: string): Promise<string[]> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return invoke<string[]>('grep_files', { workspace, pattern, dir: dir ?? null });
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 /** Read the current git branch from .git/HEAD (falls back to 'main'). */
 export async function getGitBranch(workspacePath: string): Promise<string> {
   if (isTauri()) {

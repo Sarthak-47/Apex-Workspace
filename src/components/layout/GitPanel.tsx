@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store";
-import { isTauri } from "@/lib/tauri";
+import { isTauri, readFile } from "@/lib/tauri";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,27 +77,46 @@ function FileRow({
   workspace: string;
   onRefresh: () => void;
 }) {
-  const { addToast } = useAppStore();
+  const { addToast, setPendingDiffReview } = useAppStore();
   const isStaged   = file.staged   !== ' ' && file.staged   !== '?';
   const isUnstaged = file.unstaged !== ' ';
   const filename   = file.path.split('/').pop() ?? file.path;
   const dir        = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
 
-  const handleStage = async () => {
+  // Path separator: git always uses /, Rust read_file needs OS path
+  const sep = workspace.includes('\\') ? '\\' : '/';
+  const absolutePath = `${workspace}${sep}${file.path.replace(/\//g, sep)}`;
+
+  const handleViewDiff = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isTauri()) { addToast('Diff viewer requires Tauri mode', 'info'); return; }
+    try {
+      const [original, current] = await Promise.all([
+        gitInvoke<string>('git_file_at_head', { workspace, path: file.path }),
+        readFile(absolutePath).catch(() => ''),
+      ]);
+      setPendingDiffReview({ path: absolutePath, original, proposed: current });
+    } catch (e) { addToast(`Diff failed: ${e}`, 'error'); }
+  };
+
+  const handleStage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await gitInvoke('git_stage_file', { workspace, path: file.path });
       onRefresh();
     } catch (e) { addToast(`Stage failed: ${e}`, 'error'); }
   };
 
-  const handleUnstage = async () => {
+  const handleUnstage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await gitInvoke('git_unstage_file', { workspace, path: file.path });
       onRefresh();
     } catch (e) { addToast(`Unstage failed: ${e}`, 'error'); }
   };
 
-  const handleDiscard = async () => {
+  const handleDiscard = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     try {
       await gitInvoke('git_discard_file', { workspace, path: file.path });
       onRefresh();
@@ -105,8 +124,12 @@ function FileRow({
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', height: 28, padding: '0 8px', gap: 6, flexShrink: 0 }}
-      className="hover:bg-[#18181F] transition-colors group">
+    <div
+      onClick={handleViewDiff}
+      style={{ display: 'flex', alignItems: 'center', height: 28, padding: '0 8px', gap: 6, flexShrink: 0, cursor: 'pointer' }}
+      className="hover:bg-[#18181F] transition-colors group"
+      title={`Click to view diff: ${file.path}`}
+    >
       {isStaged
         ? <StatusBadge code={file.staged} />
         : <StatusBadge code={file.unstaged !== ' ' ? file.unstaged : '?'} />

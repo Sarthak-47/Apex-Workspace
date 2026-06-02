@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppStore } from "@/store";
 import {
-  listDir, openFolderDialog, deletePath, renamePath,
+  listDir, openFolderDialog, openFileDialog, deletePath, renamePath,
   createFile, createDir, revealInExplorer,
   type DirEntry,
 } from "@/lib/tauri";
@@ -812,6 +812,11 @@ export function LeftPanel() {
     if (path) setWorkspacePath(path);
   };
 
+  const handleOpenFile = async () => {
+    const path = await openFileDialog();
+    if (path) openFile(path);
+  };
+
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -864,6 +869,14 @@ export function LeftPanel() {
               className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M11 6.5A4.5 4.5 0 0 1 2 6.5"/><polyline points="2,4 2,6.5 4.5,6.5"/>
+              </svg>
+            </button>
+            <button onClick={handleOpenFile} title="Open File"
+              style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+              className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7.5 1H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4.5z"/>
+                <polyline points="7.5,1 7.5,4.5 11,4.5"/>
               </svg>
             </button>
             <button onClick={handleOpenFolder} title="Open Folder"
