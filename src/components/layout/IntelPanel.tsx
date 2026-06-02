@@ -3,6 +3,7 @@ import { useAppStore, useToast } from "@/store";
 import { streamChat, type ChatMessage } from "@/lib/ollama";
 import { readFile } from "@/lib/tauri";
 import { getLang } from "@/components/editor/MonacoEditor";
+import { createAgentStream, type ToolCallBlock, type PendingEdit } from "@/lib/agent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@ interface Message {
   content: string;
   streaming?: boolean;
   isPlan?: boolean;
+  toolCalls?: ToolCallBlock[];
 }
 
 type ContentBlock =
@@ -275,23 +277,37 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
     );
   }
 
+  // Tool calls (rendered before text content)
+  const hasCalls = msg.toolCalls && msg.toolCalls.length > 0;
+
   // Assistant streaming — show raw text
   if (msg.streaming) {
     const looksLikePlan = hasPlanStructure(msg.content);
-    if (looksLikePlan) {
-      return <PlanResponse content={msg.content} streaming />;
-    }
     return (
       <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
-        <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</span>
-        <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom', marginLeft: 2 }} />
+        {hasCalls && msg.toolCalls!.map(tc => <ToolCallView key={tc.id} call={tc} />)}
+        {msg.content && (looksLikePlan
+          ? <PlanResponse content={msg.content} streaming />
+          : <>
+              <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</span>
+              <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom', marginLeft: 2 }} />
+            </>
+        )}
+        {!msg.content && msg.streaming && !hasCalls && (
+          <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom' }} />
+        )}
       </div>
     );
   }
 
   // Completed plan response
   if (msg.isPlan || hasPlanStructure(msg.content)) {
-    return <PlanResponse content={msg.content} />;
+    return (
+      <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+        {hasCalls && msg.toolCalls!.map(tc => <ToolCallView key={tc.id} call={tc} />)}
+        <PlanResponse content={msg.content} />
+      </div>
+    );
   }
 
   const activeLang = activeFile ? normLang(getLang(activeFile)) : null;
@@ -299,6 +315,7 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
 
   return (
     <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+      {hasCalls && msg.toolCalls!.map(tc => <ToolCallView key={tc.id} call={tc} />)}
       {blocks.map((block, i) => {
         if (block.type === 'code') {
           const blockLang = normLang(block.lang);
@@ -320,6 +337,85 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
           </p>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Tool call block ──────────────────────────────────────────────────────────
+
+const TOOL_ICONS: Record<string, string> = {
+  read_file: '📄', list_directory: '📁', search_files: '🔍',
+  edit_file: '✏️', write_file: '💾',
+};
+
+function ToolCallView({ call }: { call: ToolCallBlock }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const argSummary = (() => {
+    const { path, pattern } = call.args as { path?: string; pattern?: string };
+    return path ?? pattern ?? Object.values(call.args)[0] as string ?? '';
+  })();
+
+  return (
+    <div style={{
+      margin: '4px 0', borderRadius: 5, overflow: 'hidden',
+      border: `1px solid ${call.status === 'error' ? '#EF444430' : '#252535'}`,
+      background: '#0D0D16',
+    }}>
+      <div
+        onClick={() => call.result && setExpanded(e => !e)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 7,
+          padding: '5px 10px', cursor: call.result ? 'pointer' : 'default',
+        }}
+        className={call.result ? 'hover:bg-white/5 transition-colors' : ''}
+      >
+        {/* Status indicator */}
+        {call.status === 'calling' ? (
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+            border: '2px solid #6366F1', borderTopColor: 'transparent',
+            animation: 'spin 0.6s linear infinite',
+          }} />
+        ) : call.status === 'error' ? (
+          <span style={{ fontSize: 10, color: '#EF4444' }}>✕</span>
+        ) : (
+          <span style={{ fontSize: 10, color: '#22C55E' }}>✓</span>
+        )}
+
+        <span style={{ fontSize: 12 }}>{TOOL_ICONS[call.toolName] ?? '🔧'}</span>
+
+        <span style={{ fontSize: 11, color: '#8888A8', fontFamily: '"JetBrains Mono",monospace' }}>
+          {call.toolName}
+        </span>
+        {argSummary && (
+          <span style={{
+            fontSize: 11, color: '#6366F1',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+            fontFamily: '"JetBrains Mono",monospace',
+          }}>
+            {String(argSummary).replace(/\\/g, '/')}
+          </span>
+        )}
+        {call.result && (
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#4A4A65" strokeWidth="1.5"
+            style={{ flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.12s' }}>
+            <polyline points="2,1 6,4 2,7"/>
+          </svg>
+        )}
+      </div>
+      {expanded && call.result && (
+        <pre style={{
+          margin: 0, padding: '6px 10px 8px',
+          borderTop: '1px solid #1A1A28',
+          fontSize: 10.5, fontFamily: '"JetBrains Mono",monospace',
+          color: '#6C6C8A', lineHeight: 1.55, overflowX: 'auto',
+          whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+          maxHeight: 200, overflowY: 'auto',
+        }}>
+          {String(call.result).slice(0, 3000)}
+        </pre>
+      )}
     </div>
   );
 }
@@ -401,6 +497,8 @@ export function IntelPanel() {
   const [isStreaming, setStreaming] = useState(false);
   const [attachedFile, setAttachedFile] = useState<{ name: string; path: string } | null>(null);
   const [planMode, setPlanMode]   = useState(false);
+  const [toolsMode, setToolsMode] = useState(false);
+  const pendingEditsRef = useRef<PendingEdit[]>([]);
 
   const abortRef   = useRef<AbortController | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
@@ -441,53 +539,141 @@ export function IntelPanel() {
     }
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
-    // (We show only the display text in the UI; the file content is in the API payload)
 
     const sysPrompt = buildSystemPrompt(workspacePath, activeFile)
       + (planMode
         ? '\n\nPLAN MODE: Respond with a numbered step-by-step plan. Format each step as:\n1. Step title — Brief description of what this step does\n2. ...\nUse at least 3 steps. Be specific and actionable.'
         : '');
 
-    const historyForApi: ChatMessage[] = [
-      { role: 'system', content: sysPrompt },
-      ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-      { role: 'user', content: userContent },
-    ];
-
     setInput('');
     setMessages(prev => [...prev, userMsg]);
     setStreaming(true);
 
     const assistantId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true, isPlan: planMode }]);
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true, isPlan: planMode, toolCalls: [] }]);
 
     abortRef.current = new AbortController();
     const model = ollamaSelectedModel || ollamaModels[0] || 'llama3.2';
 
-    try {
-      for await (const token of streamChat(model, historyForApi, abortRef.current.signal)) {
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId ? { ...m, content: m.content + token } : m
-        ));
+    if (toolsMode && workspacePath) {
+      // ── Tools mode: Vercel AI SDK with tool calling ────────────────────
+      pendingEditsRef.current = [];
+
+      const coreMessages: import('ai').CoreMessage[] = [
+        { role: 'user' as const, content: `System: ${sysPrompt}\n\n${userContent}` },
+        ...messages.slice(-20).map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content || '…',
+        })),
+        { role: 'user' as const, content: userContent },
+      ];
+      // Remove the first fake-system message if there's history
+      const apiMessages: import('ai').CoreMessage[] = messages.length === 0
+        ? [{ role: 'user' as const, content: `${sysPrompt}\n\n${userContent}` }]
+        : [
+            { role: 'user' as const, content: sysPrompt },
+            { role: 'assistant' as const, content: 'Understood. How can I help?' },
+            ...messages.slice(-16).map(m => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content || '…',
+            })),
+            { role: 'user' as const, content: userContent },
+          ];
+      void coreMessages; // suppress unused warning
+
+      try {
+        const stream = createAgentStream({
+          model,
+          messages: apiMessages,
+          workspacePath,
+          signal: abortRef.current.signal,
+          onPendingEdit: (edit: PendingEdit) => {
+            pendingEditsRef.current.push(edit);
+          },
+        });
+
+        for await (const event of stream) {
+          if (event.type === 'text-delta') {
+            setMessages(prev => prev.map(m =>
+              m.id === assistantId ? { ...m, content: m.content + event.textDelta } : m
+            ));
+          } else if (event.type === 'tool-call') {
+            const newCall: ToolCallBlock = {
+              id: event.toolCallId,
+              toolName: event.toolName,
+              args: event.args,
+              status: 'calling',
+            };
+            setMessages(prev => prev.map(m =>
+              m.id === assistantId
+                ? { ...m, toolCalls: [...(m.toolCalls ?? []), newCall] }
+                : m
+            ));
+          } else if (event.type === 'tool-result') {
+            setMessages(prev => prev.map(m =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    toolCalls: (m.toolCalls ?? []).map(tc =>
+                      tc.id === event.toolCallId
+                        ? { ...tc, result: String(event.result), status: 'done' as const }
+                        : tc
+                    ),
+                  }
+                : m
+            ));
+          }
+        }
+
+        // After stream: show first pending edit in DiffReview
+        if (pendingEditsRef.current.length > 0) {
+          const first = pendingEditsRef.current[0];
+          setPendingDiffReview({ path: first.path, original: first.original, proposed: first.proposed });
+        }
+      } catch (e: unknown) {
+        const err = e as Error;
+        if (err.name !== 'AbortError') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId
+              ? { ...m, content: (m.content || '') + `\n\n⚠️ Tools error: ${err.message}\n\nFallback: try disabling the Tools toggle.` }
+              : m
+          ));
+        }
       }
-    } catch (e: unknown) {
-      const err = e as Error;
-      if (err.name !== 'AbortError') {
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId
-            ? { ...m, content: (m.content || '') + `\n\n⚠️ ${err.message}` }
-            : m
-        ));
+    } else {
+      // ── Standard mode: raw Ollama streaming ────────────────────────────
+      const historyForApi: ChatMessage[] = [
+        { role: 'system', content: sysPrompt },
+        ...messages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        { role: 'user', content: userContent },
+      ];
+
+      try {
+        for await (const token of streamChat(model, historyForApi, abortRef.current.signal)) {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, content: m.content + token } : m
+          ));
+        }
+      } catch (e: unknown) {
+        const err = e as Error;
+        if (err.name !== 'AbortError') {
+          setMessages(prev => prev.map(m =>
+            m.id === assistantId
+              ? { ...m, content: (m.content || '') + `\n\n⚠️ ${err.message}` }
+              : m
+          ));
+        }
       }
-    } finally {
-      setMessages(prev => prev.map(m =>
-        m.id === assistantId ? { ...m, streaming: false } : m
-      ));
-      setStreaming(false);
-      abortRef.current = null;
-      inputRef.current?.focus();
     }
-  }, [input, isStreaming, ollamaOnline, attachedFile, messages, workspacePath, activeFile, ollamaSelectedModel, ollamaModels]);
+
+    setMessages(prev => prev.map(m =>
+      m.id === assistantId ? { ...m, streaming: false } : m
+    ));
+    setStreaming(false);
+    abortRef.current = null;
+    inputRef.current?.focus();
+  }, [input, isStreaming, ollamaOnline, attachedFile, messages, workspacePath, activeFile,
+      ollamaSelectedModel, ollamaModels, planMode, toolsMode, setPendingDiffReview]);
 
   const handleStop = () => {
     abortRef.current?.abort();
@@ -714,6 +900,32 @@ export function IntelPanel() {
             </svg>
             Plan
           </button>
+
+          {/* Tools mode toggle */}
+          {workspacePath && (
+            <button
+              onClick={() => setToolsMode(t => !t)}
+              title={toolsMode
+                ? 'Tools active — AI can read/edit files (requires tool-capable model like qwen2.5-coder)'
+                : 'Enable tools — AI can read files, search, and edit code'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px',
+                borderRadius: 3, border: `1px solid ${toolsMode ? '#22C55E30' : 'transparent'}`,
+                background: toolsMode ? '#0A1A0A' : 'none',
+                color: toolsMode ? '#22C55E' : '#4A4A65',
+                cursor: 'pointer', fontSize: 10, fontWeight: toolsMode ? 600 : 400,
+                transition: 'all 0.15s',
+              }}
+              className={!toolsMode ? 'hover:!text-[#8888A8]' : ''}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 3L3 9M3.5 3.5L8.5 3.5L8.5 8.5"/>
+                <circle cx="3" cy="9" r="1.5"/>
+                <circle cx="9" cy="3" r="1.5"/>
+              </svg>
+              Tools
+            </button>
+          )}
 
           {/* Voice (placeholder) */}
           <button style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'default', padding: 2, lineHeight: 1, opacity: 0.4 }}>
