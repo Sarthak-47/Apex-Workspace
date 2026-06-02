@@ -3,6 +3,7 @@ mod git;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::Path;
 use tauri::command;
 
 // ─── File System Types ───────────────────────────────────────────────────────
@@ -81,6 +82,58 @@ async fn rename_path(old_path: String, new_path: String) -> Result<(), String> {
     fs::rename(&old_path, &new_path).map_err(|e| format!("rename_path error: {e}"))
 }
 
+// ─── Grep (agent tool) ───────────────────────────────────────────────────────
+
+const SKIP_DIRS: &[&str] = &[
+    "node_modules", "target", "dist", "build", ".git",
+    "__pycache__", ".next", ".nuxt", "out", "coverage",
+];
+
+const TEXT_EXTS: &[&str] = &[
+    "ts", "tsx", "js", "jsx", "rs", "py", "go", "java", "rb",
+    "c", "cpp", "h", "hpp", "cs", "swift", "kt", "json", "md",
+    "toml", "yaml", "yml", "css", "scss", "html", "txt", "sh",
+    "bash", "zsh", "fish", "env", "gitignore", "lock", "xml",
+];
+
+fn grep_walk(dir: &Path, pattern: &str, workspace: &str, results: &mut Vec<String>) {
+    if results.len() >= 100 { return; }
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        if results.len() >= 100 { return; }
+        let path = entry.path();
+        let name = entry.file_name();
+        let name_s = name.to_string_lossy();
+        if name_s.starts_with('.') && name_s != ".env" { continue; }
+        if SKIP_DIRS.contains(&name_s.as_ref()) { continue; }
+        if path.is_dir() {
+            grep_walk(&path, pattern, workspace, results);
+        } else {
+            let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+            if !TEXT_EXTS.contains(&ext.as_str()) { continue; }
+            let Ok(content) = fs::read_to_string(&path) else { continue };
+            let rel = path.strip_prefix(workspace).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+            for (i, line) in content.lines().enumerate() {
+                if line.to_lowercase().contains(pattern) {
+                    results.push(format!("{}:{}:{}", rel, i + 1, line.trim()));
+                    if results.len() >= 100 { return; }
+                }
+            }
+        }
+    }
+}
+
+#[command]
+async fn grep_files(workspace: String, pattern: String, dir: Option<String>) -> Result<Vec<String>, String> {
+    let search_dir = dir
+        .map(|d| Path::new(&workspace).join(d).to_string_lossy().to_string())
+        .unwrap_or_else(|| workspace.clone());
+    let pattern_lower = pattern.to_lowercase();
+    let mut results = Vec::new();
+    grep_walk(Path::new(&search_dir), &pattern_lower, &workspace, &mut results);
+    Ok(results)
+}
+
 // ─── App Entry ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -99,6 +152,7 @@ pub fn run() {
             create_dir,
             delete_path,
             rename_path,
+            grep_files,
             // Terminal (PTY)
             terminal::create_pty,
             terminal::write_pty,
@@ -107,6 +161,7 @@ pub fn run() {
             // Git
             git::git_status,
             git::git_diff_file,
+            git::git_file_at_head,
             git::git_stage_file,
             git::git_unstage_file,
             git::git_stage_all,
@@ -117,6 +172,9 @@ pub fn run() {
             git::git_log,
             git::git_current_branch,
             git::git_discard_file,
+            git::git_list_branches,
+            git::git_switch_branch,
+            git::git_create_branch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running APEX");

@@ -144,3 +144,39 @@ pub async fn git_discard_file(workspace: String, path: String) -> Result<(), Str
     run_git(&workspace, &["checkout", "--", &path])?;
     Ok(())
 }
+
+#[tauri::command]
+pub async fn git_file_at_head(workspace: String, path: String) -> Result<String, String> {
+    match run_git(&workspace, &["show", &format!("HEAD:{}", path)]) {
+        Ok(content) => Ok(content),
+        Err(e) => {
+            // New files don't exist at HEAD — return empty string so DiffEditor shows full addition
+            if e.contains("does not exist") || e.contains("exists on disk")
+                || e.contains("unknown revision") || e.contains("fatal: Path")
+                || e.contains("pathspec")
+            {
+                Ok(String::new())
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn git_list_branches(workspace: String) -> Result<Vec<String>, String> {
+    let raw = run_git(&workspace, &["branch", "--format=%(refname:short)"])?;
+    Ok(raw.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
+}
+
+#[tauri::command]
+pub async fn git_switch_branch(workspace: String, branch: String) -> Result<(), String> {
+    run_git(&workspace, &["checkout", &branch])?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_create_branch(workspace: String, branch: String) -> Result<(), String> {
+    run_git(&workspace, &["checkout", "-b", &branch])?;
+    Ok(())
+}
