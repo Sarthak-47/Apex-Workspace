@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store";
 import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
+import { BUILTIN_AGENTS, ALL_TOOLS, type AgentDef, type ToolName } from "@/lib/agents";
 
-type Tab = 'general' | 'editor' | 'terminal' | 'themes' | 'about';
+type Tab = 'general' | 'editor' | 'terminal' | 'ai' | 'themes' | 'about';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'general',  label: 'General'  },
   { id: 'editor',   label: 'Editor'   },
   { id: 'terminal', label: 'Terminal' },
+  { id: 'ai',       label: 'AI'       },
   { id: 'themes',   label: 'Themes'   },
   { id: 'about',    label: 'About'    },
 ];
@@ -217,6 +219,177 @@ function AboutTab() {
   );
 }
 
+// ─── AI Tab (custom agents + bash whitelist) ─────────────────────────────────
+
+const EMPTY_AGENT = (): AgentDef => ({
+  id: `agent-${Date.now()}`,
+  name: '',
+  description: '',
+  color: '#6366F1',
+  icon: '🤖',
+  systemPrompt: '',
+  tools: [...ALL_TOOLS],
+  temperature: 0.2,
+  builtin: false,
+});
+
+function AgentForm({ draft, onChange }: { draft: AgentDef; onChange: (a: AgentDef) => void }) {
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: '#18181F', border: '1px solid #252535', borderRadius: 5,
+    color: '#C0C0D0', fontSize: 12, padding: '6px 8px', outline: 'none',
+  };
+  const toggleTool = (t: ToolName) => {
+    const has = draft.tools.includes(t);
+    onChange({ ...draft, tools: has ? draft.tools.filter(x => x !== t) : [...draft.tools, t] });
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input style={{ ...inputStyle, width: 54, textAlign: 'center' }} value={draft.icon}
+          onChange={e => onChange({ ...draft, icon: e.target.value })} placeholder="🤖" />
+        <input style={inputStyle} value={draft.name}
+          onChange={e => onChange({ ...draft, name: e.target.value })} placeholder="Agent name" />
+      </div>
+      <input style={inputStyle} value={draft.description}
+        onChange={e => onChange({ ...draft, description: e.target.value })} placeholder="Short description" />
+      <textarea style={{ ...inputStyle, minHeight: 80, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
+        value={draft.systemPrompt}
+        onChange={e => onChange({ ...draft, systemPrompt: e.target.value })}
+        placeholder="System prompt — define this agent's role and behavior" />
+      <div>
+        <div style={{ fontSize: 11, color: '#8888A8', marginBottom: 6 }}>Allowed tools</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {ALL_TOOLS.map(t => {
+            const on = draft.tools.includes(t);
+            return (
+              <button key={t} onClick={() => toggleTool(t)}
+                style={{
+                  fontSize: 10, padding: '3px 8px', borderRadius: 4, cursor: 'pointer',
+                  background: on ? '#1A1A3A' : 'transparent',
+                  border: `1px solid ${on ? '#6366F140' : '#252535'}`,
+                  color: on ? '#6366F1' : '#4A4A65', fontFamily: 'JetBrains Mono,monospace',
+                }}>
+                {t}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <Field label="Temperature">
+        <NumberInput value={draft.temperature ?? 0.2} min={0} max={2}
+          onChange={v => onChange({ ...draft, temperature: v })} />
+      </Field>
+      <Field label="Model override (optional)">
+        <input style={{ ...inputStyle, width: 180 }} value={draft.model ?? ''}
+          onChange={e => onChange({ ...draft, model: e.target.value || undefined })}
+          placeholder="e.g. qwen2.5-coder:7b" />
+      </Field>
+    </div>
+  );
+}
+
+function AITab() {
+  const { userAgents, addUserAgent, updateUserAgent, deleteUserAgent, bashAllowAlways } = useAppStore();
+  const setState = useAppStore.setState;
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<AgentDef | null>(null);
+
+  const startNew = () => { const a = EMPTY_AGENT(); setDraft(a); setEditingId(a.id); };
+  const startEdit = (a: AgentDef) => { setDraft({ ...a }); setEditingId(a.id); };
+  const save = () => {
+    if (!draft || !draft.name.trim()) return;
+    const exists = userAgents.some(a => a.id === draft.id);
+    if (exists) updateUserAgent(draft.id, draft);
+    else addUserAgent(draft);
+    setDraft(null); setEditingId(null);
+  };
+  const cancel = () => { setDraft(null); setEditingId(null); };
+
+  const btn = (bg: string, border: string, color: string): React.CSSProperties => ({
+    height: 26, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600,
+    cursor: 'pointer', background: bg, border: `1px solid ${border}`, color,
+  });
+
+  return (
+    <div>
+      <Section title="Custom Agents">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {BUILTIN_AGENTS.map(a => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#0F0F16', borderRadius: 6, border: '1px solid #1A1A28' }}>
+              <span style={{ fontSize: 14 }}>{a.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: a.color, fontWeight: 600 }}>{a.name}</div>
+                <div style={{ fontSize: 10, color: '#4A4A65' }}>{a.description}</div>
+              </div>
+              <span style={{ fontSize: 9, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '0.08em' }}>built-in</span>
+            </div>
+          ))}
+          {userAgents.map(a => (
+            <div key={a.id}>
+              {editingId === a.id && draft ? (
+                <div style={{ padding: 10, background: '#0F0F16', borderRadius: 6, border: '1px solid #6366F130' }}>
+                  <AgentForm draft={draft} onChange={setDraft} />
+                  <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
+                    <button onClick={cancel} style={btn('transparent', '#252535', '#8888A8')}>Cancel</button>
+                    <button onClick={save} style={btn('#6366F1', '#6366F1', '#fff')}>Save</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#0F0F16', borderRadius: 6, border: '1px solid #1A1A28' }}>
+                  <span style={{ fontSize: 14 }}>{a.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, color: a.color, fontWeight: 600 }}>{a.name || '(unnamed)'}</div>
+                    <div style={{ fontSize: 10, color: '#4A4A65' }}>{a.description}</div>
+                  </div>
+                  <button onClick={() => startEdit(a)} style={btn('transparent', '#252535', '#8888A8')}>Edit</button>
+                  <button onClick={() => deleteUserAgent(a.id)} style={btn('#2D1515', '#EF444440', '#EF4444')}>Delete</button>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* New agent form (when creating) */}
+          {editingId && draft && !userAgents.some(a => a.id === editingId) && (
+            <div style={{ padding: 10, background: '#0F0F16', borderRadius: 6, border: '1px solid #6366F130' }}>
+              <AgentForm draft={draft} onChange={setDraft} />
+              <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
+                <button onClick={cancel} style={btn('transparent', '#252535', '#8888A8')}>Cancel</button>
+                <button onClick={save} style={btn('#6366F1', '#6366F1', '#fff')}>Create Agent</button>
+              </div>
+            </div>
+          )}
+
+          {!editingId && (
+            <button onClick={startNew} style={{ ...btn('#1A1A3A', '#6366F140', '#6366F1'), height: 30, marginTop: 4 }}>
+              + New Agent
+            </button>
+          )}
+        </div>
+      </Section>
+
+      <Section title="Bash — Always-Allowed Commands">
+        {bashAllowAlways.length === 0 ? (
+          <div style={{ fontSize: 11, color: '#4A4A65' }}>
+            No commands whitelisted. Use "Allow Always" when the agent asks to run a command.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {bashAllowAlways.map(p => (
+              <span key={p} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, padding: '3px 8px', background: '#0A1A0A', border: '1px solid #22C55E30', borderRadius: 4, color: '#22C55E', fontFamily: 'JetBrains Mono,monospace' }}>
+                {p}
+                <button
+                  onClick={() => setState(s => ({ bashAllowAlways: s.bashAllowAlways.filter(x => x !== p) }))}
+                  style={{ background: 'none', border: 'none', color: '#22C55E', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0 }}
+                  title="Remove">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </Section>
+    </div>
+  );
+}
+
 // ─── SettingsDialog ───────────────────────────────────────────────────────────
 
 export function SettingsDialog() {
@@ -284,6 +457,7 @@ export function SettingsDialog() {
             {activeTab === 'general'  && <GeneralTab />}
             {activeTab === 'editor'   && <EditorTab />}
             {activeTab === 'terminal' && <TerminalTab />}
+            {activeTab === 'ai'       && <AITab />}
             {activeTab === 'themes'   && <ThemesTab />}
             {activeTab === 'about'    && <AboutTab />}
           </div>
