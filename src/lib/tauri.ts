@@ -37,6 +37,8 @@ export async function readFile(path: string): Promise<string> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('read_file', { path });
   }
+  const mock = MOCK_VAULT_FILES[path.replace(/\\/g, '/')];
+  if (mock !== undefined) return mock;
   throw new Error('File system not available in browser preview');
 }
 
@@ -163,8 +165,33 @@ export async function listDir(path: string): Promise<DirEntry[]> {
   }
   // Browser mock: simulate realistic project tree
   await new Promise(r => setTimeout(r, 60)); // tiny latency to test loading states
-  return MOCK_TREE[path] ?? [];
+  return MOCK_TREE[path] ?? MOCK_VAULT_TREE[path] ?? [];
 }
+
+// ─── Browser mock vault (demoable Knowledge view + graph) ─────────────────────
+
+const VR = '/demo-workspace/.apex/vault';
+function vfile(cat: string, file: string, body: string): [string, string] {
+  return [`${VR}/${cat}/${file}`, body];
+}
+const MOCK_VAULT_FILES: Record<string, string> = Object.fromEntries([
+  vfile('people', 'Alex-Chen.md', `---\nname: Alex Chen\ntype: person\nrole: Backend Lead\nupdated: 2026-06-05\n---\n\n# Alex Chen\n\nBackend lead. Leads [[Auth v2 Project]] and attends [[Sprint 23 Standup]]. Dislikes over-engineered abstractions.`),
+  vfile('people', 'Bob-Smith.md', `---\nname: Bob Smith\ntype: person\nrole: Frontend\nupdated: 2026-06-03\n---\n\n# Bob Smith\n\nFrontend engineer. Works with [[Alex Chen]] on [[Auth v2 Project]].`),
+  vfile('projects', 'Auth-v2-Project.md', `---\nname: Auth v2 Project\ntype: project\nstatus: active\nupdated: 2026-06-06\n---\n\n# Auth v2 Project\n\nNew auth system. Owned by [[Alex Chen]]. Driven by [[Auth Decision]].`),
+  vfile('decisions', 'Auth-Decision.md', `---\nname: Auth Decision\ntype: decision\nupdated: 2026-06-02\n---\n\n# Auth Decision\n\nChose Postgres over Mongo for [[Auth v2 Project]]. Made by [[Alex Chen]].`),
+  vfile('meetings', 'Sprint-23-Standup.md', `---\nname: Sprint 23 Standup\ntype: meeting\nupdated: 2026-06-04\n---\n\n# Sprint 23 Standup\n\nAttendees: [[Alex Chen]], [[Bob Smith]]. Discussed [[Auth v2 Project]] progress.`),
+]);
+function ventry(cat: string, file: string): DirEntry {
+  return { name: file, path: `${VR}/${cat}/${file}`, is_dir: false, size: 400, ext: 'md' };
+}
+const MOCK_VAULT_TREE: Record<string, DirEntry[]> = {
+  [`${VR}/people`]: [ventry('people', 'Alex-Chen.md'), ventry('people', 'Bob-Smith.md')],
+  [`${VR}/projects`]: [ventry('projects', 'Auth-v2-Project.md')],
+  [`${VR}/decisions`]: [ventry('decisions', 'Auth-Decision.md')],
+  [`${VR}/meetings`]: [ventry('meetings', 'Sprint-23-Standup.md')],
+  [`${VR}/organizations`]: [],
+  [`${VR}/topics`]: [],
+};
 
 /** Recursively collect every file under rootPath (max 8 levels). */
 export async function listAllFiles(rootPath: string): Promise<DirEntry[]> {

@@ -6,6 +6,7 @@ import { suggestMentions, buildCandidates, expandMentions, type MentionItem } fr
 import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
 import { listVault, createNote, buildBacklinkIndex, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
+import { GraphView } from "@/components/knowledge/GraphView";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
@@ -584,6 +585,11 @@ function KnowledgePanel() {
   const [newName, setNewName] = useState('');
   const [picker, setPicker] = useState(false);
 
+  // View mode + filters (Day 22)
+  const [kview, setKview] = useState<'list' | 'graph'>('list');
+  const [catFilter, setCatFilter] = useState<NoteCategory | 'all'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
+
   // Entity extraction (Day 20)
   const [strictness, setStrictness] = useState<Strictness>('medium');
   const [recommended, setRecommended] = useState<{ level: Strictness; humanSenders: number } | null>(null);
@@ -626,8 +632,12 @@ function KnowledgePanel() {
 
   const backlinks = buildBacklinkIndex(notes);
 
-  const filtered = notes.filter(n =>
-    !query || n.title.toLowerCase().includes(query.toLowerCase()) || n.body.toLowerCase().includes(query.toLowerCase()));
+  const filtered = notes
+    .filter(n => catFilter === 'all' || n.category === catFilter)
+    .filter(n => !query || n.title.toLowerCase().includes(query.toLowerCase()) || n.body.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => sortBy === 'name'
+      ? a.title.localeCompare(b.title)
+      : (b.frontmatter.updated ?? '').localeCompare(a.frontmatter.updated ?? ''));
 
   const grouped = CATEGORIES.map(c => ({ cat: c, items: filtered.filter(n => n.category === c.id) }))
     .filter(g => g.items.length > 0);
@@ -664,11 +674,42 @@ function KnowledgePanel() {
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search vault…"
             style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 12, color: '#E2E2EC', fontFamily: 'inherit' }} />
         </div>
+        {/* List / Graph toggle */}
+        <div style={{ display: 'flex', borderRadius: 5, overflow: 'hidden', border: '1px solid #252535', flexShrink: 0 }}>
+          {(['list', 'graph'] as const).map(v => (
+            <button key={v} onClick={() => setKview(v)} title={v === 'list' ? 'List view' : 'Graph view'}
+              style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                background: kview === v ? '#1A1A3A' : 'transparent', border: 'none', color: kview === v ? '#6366F1' : '#4A4A65' }}>
+              {v === 'list'
+                ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="2" y1="3" x2="11" y2="3"/><line x1="2" y1="6.5" x2="11" y2="6.5"/><line x1="2" y1="10" x2="11" y2="10"/></svg>
+                : <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="3" cy="3.5" r="1.8"/><circle cx="10" cy="4" r="1.8"/><circle cx="6" cy="10" r="1.8"/><line x1="3.6" y1="4.8" x2="5.4" y2="8.7"/><line x1="4.6" y1="3.6" x2="8.4" y2="3.9"/><line x1="9.3" y1="5.5" x2="6.6" y2="8.6"/></svg>}
+            </button>
+          ))}
+        </div>
         <button onClick={() => setPicker(p => !p)} title="New note"
           style={{ width: 28, height: 28, borderRadius: 5, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><line x1="6.5" y1="2" x2="6.5" y2="11"/><line x1="2" y1="6.5" x2="11" y2="6.5"/></svg>
         </button>
       </div>
+
+      {/* Category tabs + sort (list view) */}
+      {kview === 'list' && (
+        <div style={{ display: 'flex', gap: 4, padding: '0 12px 8px', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+          {(['all', ...CATEGORIES.map(c => c.id)] as const).map(c => (
+            <button key={c} onClick={() => setCatFilter(c as NoteCategory | 'all')}
+              style={{ height: 20, padding: '0 8px', borderRadius: 10, fontSize: 9, cursor: 'pointer', textTransform: 'capitalize',
+                background: catFilter === c ? '#1A1A3A' : 'transparent', border: `1px solid ${catFilter === c ? '#6366F140' : '#252535'}`, color: catFilter === c ? '#6366F1' : '#8888A8' }}>
+              {c}
+            </button>
+          ))}
+          <div style={{ flex: 1 }} />
+          <select value={sortBy} onChange={e => setSortBy(e.target.value as 'name' | 'date')}
+            title="Sort" style={{ height: 20, background: '#18181F', border: '1px solid #252535', borderRadius: 4, color: '#8888A8', fontSize: 9, padding: '0 4px', outline: 'none', cursor: 'pointer' }}>
+            <option value="name">By name</option>
+            <option value="date">By date</option>
+          </select>
+        </div>
+      )}
 
       {/* Template picker */}
       {picker && (
@@ -694,8 +735,11 @@ function KnowledgePanel() {
         </div>
       )}
 
+      {/* Graph view */}
+      {kview === 'graph' && <GraphView notes={filtered} onOpen={openFile} />}
+
       {/* Entity extraction bar */}
-      <div style={{ margin: '0 12px 8px', padding: 8, background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 8 }}>
+      {kview === 'list' && <div style={{ margin: '0 12px 8px', padding: 8, background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 10, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '0.08em', flex: 1 }}>Extract from Gmail</span>
           <select value={strictness} onChange={e => setStrictness(e.target.value as Strictness)} disabled={extracting}
@@ -727,10 +771,10 @@ function KnowledgePanel() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Note list */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0 8px 12px' }}>
+      {kview === 'list' && <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0 8px 12px' }}>
         {loading ? (
           <div style={{ padding: 16, fontSize: 11, color: '#4A4A65' }}>Loading vault…</div>
         ) : grouped.length === 0 ? (
@@ -749,6 +793,7 @@ function KnowledgePanel() {
               const active = activeFile === n.path;
               return (
                 <div key={n.path} onClick={() => openFile(n.path)}
+                  title={n.body.replace(/^#.*$/m, '').replace(/[#*`>[\]]/g, '').trim().slice(0, 200)}
                   style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: 5, cursor: 'pointer',
                     background: active ? '#1A1A3A' : 'transparent', borderLeft: `2px solid ${active ? g.cat.color : 'transparent'}` }}
                   className={!active ? 'hover:bg-[#18181F] transition-colors' : ''}>
@@ -765,7 +810,7 @@ function KnowledgePanel() {
             })}
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }
