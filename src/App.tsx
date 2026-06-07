@@ -4,6 +4,7 @@ import { checkOllama } from "@/lib/ollama";
 import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync, calendarStatus, calendarSync, notify } from "@/lib/tauri";
 import { indexFile } from "@/lib/codeindex";
 import { JOB_DEFS, nextRunFor, registerRunner, jobDef, type JobId } from "@/lib/jobs";
+import { runAllLiveNotes } from "@/lib/livenotes";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { DiffReview } from "@/components/ui/DiffReview";
 import { SettingsDialog } from "@/components/ui/SettingsDialog";
@@ -118,7 +119,12 @@ export default function App() {
         return `Synced ${r.thread_count} events`;
       },
       'index-workspace': async () => 'Indexing runs automatically on file changes',
-      'live-notes': async () => 'No live notes due',
+      'live-notes': async () => {
+        const model = useAppStore.getState().ollamaSelectedModel || 'llama3.1';
+        if (!useAppStore.getState().ollamaOnline) return 'Ollama offline — skipped';
+        const n = await runAllLiveNotes(workspacePath, model);
+        return n > 0 ? `Updated ${n} live note${n === 1 ? '' : 's'}` : 'No live notes to update';
+      },
       'meeting-prep': async () => 'No meetings starting soon',
       'weekly-briefing': async () => 'Briefing runs Monday 8 AM',
     };

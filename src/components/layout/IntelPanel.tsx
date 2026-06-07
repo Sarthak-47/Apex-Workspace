@@ -8,6 +8,7 @@ import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
 import { GraphView } from "@/components/knowledge/GraphView";
 import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
+import { createLiveNote, runLiveNote, parseLiveConfig, SCHEDULE_PRESETS, type LiveSource } from "@/lib/livenotes";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
@@ -674,7 +675,7 @@ function BackgroundTasksPanel() {
 // ─── Knowledge tab — markdown vault browser ──────────────────────────────────
 
 function KnowledgePanel() {
-  const { workspacePath, activeFile, openFile, ollamaOnline, ollamaSelectedModel, ollamaModels } = useAppStore();
+  const { workspacePath, activeFile, openFile, ollamaOnline, ollamaSelectedModel, ollamaModels, setPendingDiffReview } = useAppStore();
   const { info, error, success } = useToast();
   const [notes, setNotes] = useState<VaultNote[]>([]);
   const [loading, setLoading] = useState(false);
@@ -692,6 +693,10 @@ function KnowledgePanel() {
   const [manage, setManage] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [busyMgmt, setBusyMgmt] = useState(false);
+
+  // Live notes (Day 29)
+  const [liveForm, setLiveForm] = useState<{ title: string; objective: string; schedule: string; sources: LiveSource[] } | null>(null);
+  const [runningLive, setRunningLive] = useState<string | null>(null);
 
   // Entity extraction (Day 20)
   const [strictness, setStrictness] = useState<Strictness>('medium');
@@ -753,6 +758,28 @@ function KnowledgePanel() {
     try { await clearVault(workspacePath); info('Vault cleared'); refresh(); }
     catch (e) { error(`Clear failed: ${(e as Error).message}`); }
     setConfirmClear(false); setManage(false);
+  };
+
+  // Live notes
+  const submitLiveNote = async () => {
+    if (!workspacePath || !liveForm || !liveForm.title.trim() || !liveForm.objective.trim()) { setLiveForm(null); return; }
+    try {
+      const path = await createLiveNote(workspacePath, liveForm.title.trim(), liveForm.objective.trim(), liveForm.schedule, liveForm.sources);
+      openFile(path); success('Live note created');
+    } catch { info('Live note creation requires the desktop app'); }
+    setLiveForm(null); setPicker(false); setTimeout(refresh, 200);
+  };
+  const runLive = async (note: VaultNote) => {
+    if (!ollamaOnline) { error('Ollama must be running'); return; }
+    const model = ollamaSelectedModel || ollamaModels[0] || 'llama3.1';
+    setRunningLive(note.path);
+    try {
+      const r = await runLiveNote(workspacePath!, note, model);
+      if (r.updated) { setPendingDiffReview({ path: note.path, original: r.before, proposed: r.after }); success('Live note updated — review the diff'); }
+      else info('No changes from this run');
+      refresh();
+    } catch (e) { error(`Live run failed: ${(e as Error).message}`); }
+    setRunningLive(null);
   };
 
   const backlinks = buildBacklinkIndex(notes);
@@ -885,6 +912,33 @@ function KnowledgePanel() {
                 style={{ flex: 1, height: 28, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#E2E2EC', fontSize: 12, padding: '0 8px', outline: 'none' }} />
               <button onClick={submitNew} style={{ height: 28, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>Create</button>
             </div>
+          ) : liveForm ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: 10, color: '#F59E0B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>⚡ New Live Note</div>
+              <input autoFocus value={liveForm.title} onChange={e => setLiveForm({ ...liveForm, title: e.target.value })} placeholder="Title (e.g. Open PRs blocking v2)"
+                style={{ height: 28, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#E2E2EC', fontSize: 12, padding: '0 8px', outline: 'none' }} />
+              <textarea value={liveForm.objective} onChange={e => setLiveForm({ ...liveForm, objective: e.target.value })} placeholder="Objective — what should this note always reflect?"
+                style={{ minHeight: 48, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#E2E2EC', fontSize: 12, padding: '6px 8px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.4 }} />
+              <select value={liveForm.schedule} onChange={e => setLiveForm({ ...liveForm, schedule: e.target.value })}
+                style={{ height: 26, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#C0C0D0', fontSize: 11, padding: '0 6px', outline: 'none', cursor: 'pointer' }}>
+                {SCHEDULE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {(['vault', 'codebase', 'gmail', 'github', 'exa'] as LiveSource[]).map(src => {
+                  const on = liveForm.sources.includes(src);
+                  return (
+                    <button key={src} onClick={() => setLiveForm({ ...liveForm, sources: on ? liveForm.sources.filter(s => s !== src) : [...liveForm.sources, src] })}
+                      style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, cursor: 'pointer', background: on ? '#1A1A3A' : 'transparent', border: `1px solid ${on ? '#6366F140' : '#252535'}`, color: on ? '#6366F1' : '#4A4A65' }}>
+                      {src}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                <button onClick={() => setLiveForm(null)} style={{ height: 26, padding: '0 10px', borderRadius: 5, fontSize: 11, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>Cancel</button>
+                <button onClick={submitLiveNote} style={{ height: 26, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#F59E0B', border: 'none', color: '#0A0A0F' }}>Create live note</button>
+              </div>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {CATEGORIES.map(c => (
@@ -893,6 +947,10 @@ function KnowledgePanel() {
                   <span>{c.icon}</span>{c.label}
                 </button>
               ))}
+              <button onClick={() => setLiveForm({ title: '', objective: '', schedule: 'morning', sources: ['vault', 'codebase'] })}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '4px 9px', borderRadius: 5, cursor: 'pointer', background: '#1A140A', border: '1px solid #F59E0B40', color: '#F59E0B' }}>
+                <span>⚡</span>Live Note
+              </button>
             </div>
           )}
         </div>
@@ -960,8 +1018,14 @@ function KnowledgePanel() {
                   style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: 5, cursor: 'pointer',
                     background: active ? '#1A1A3A' : 'transparent', borderLeft: `2px solid ${active ? g.cat.color : 'transparent'}` }}
                   className={!active ? 'hover:bg-[#18181F] transition-colors' : ''}>
-                  <span style={{ fontSize: 12, flexShrink: 0 }}>{g.cat.icon}</span>
+                  <span style={{ fontSize: 12, flexShrink: 0 }}>{parseLiveConfig(n) ? '⚡' : g.cat.icon}</span>
                   <span style={{ fontSize: 12, color: active ? '#E2E2EC' : '#C0C0D0', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
+                  {parseLiveConfig(n) && (
+                    <button onClick={e => { e.stopPropagation(); runLive(n); }} disabled={runningLive === n.path} title="Run live note now"
+                      style={{ flexShrink: 0, fontSize: 9, color: '#F59E0B', background: '#1A140A', border: '1px solid #F59E0B40', borderRadius: 8, padding: '1px 7px', cursor: 'pointer' }}>
+                      {runningLive === n.path ? '…' : 'run'}
+                    </button>
+                  )}
                   {bl > 0 && (
                     <span title={`${bl} backlink${bl > 1 ? 's' : ''}`}
                       style={{ fontSize: 9, color: '#6366F1', background: '#1A1A3A', borderRadius: 8, padding: '1px 6px', flexShrink: 0, fontFamily: '"JetBrains Mono",monospace' }}>
