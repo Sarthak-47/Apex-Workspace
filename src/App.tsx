@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
-import { getGitBranch, startWatching, stopWatching, onFsChange } from "@/lib/tauri";
+import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync } from "@/lib/tauri";
 import { indexFile } from "@/lib/codeindex";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { DiffReview } from "@/components/ui/DiffReview";
@@ -88,6 +88,20 @@ export default function App() {
       stopWatching();
     };
   }, [workspacePath, embedModel]);
+
+  // ── Gmail auto-sync every 6 hours while connected + workspace open ─────────
+  useEffect(() => {
+    if (!workspacePath) return;
+    let stopped = false;
+    const tick = async () => {
+      try {
+        const s = await gmailStatus(workspacePath);
+        if (!stopped && s.connected) await gmailSync(workspacePath, 30);
+      } catch { /* offline / not connected */ }
+    };
+    const id = setInterval(tick, 6 * 60 * 60 * 1000); // 6h
+    return () => { stopped = true; clearInterval(id); };
+  }, [workspacePath]);
 
   // ── Global keyboard shortcuts ──────────────────────────────────────────────
   useEffect(() => {

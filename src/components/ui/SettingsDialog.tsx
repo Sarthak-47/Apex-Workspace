@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { useAppStore } from "@/store";
+import { useAppStore, useToast } from "@/store";
 import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { BUILTIN_AGENTS, ALL_TOOLS, type AgentDef, type ToolName } from "@/lib/agents";
+import { gmailStatus, gmailStartAuth, gmailSync, gmailDisconnect, onGmailConnected, type GmailStatus } from "@/lib/tauri";
 
-type Tab = 'general' | 'editor' | 'terminal' | 'ai' | 'themes' | 'about';
+type Tab = 'general' | 'editor' | 'terminal' | 'ai' | 'connections' | 'themes' | 'about';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'general',  label: 'General'  },
-  { id: 'editor',   label: 'Editor'   },
-  { id: 'terminal', label: 'Terminal' },
-  { id: 'ai',       label: 'AI'       },
-  { id: 'themes',   label: 'Themes'   },
-  { id: 'about',    label: 'About'    },
+  { id: 'general',     label: 'General'     },
+  { id: 'editor',      label: 'Editor'      },
+  { id: 'terminal',    label: 'Terminal'    },
+  { id: 'ai',          label: 'AI'          },
+  { id: 'connections', label: 'Connections' },
+  { id: 'themes',      label: 'Themes'      },
+  { id: 'about',       label: 'About'       },
 ];
 
 // ─── Field helpers ────────────────────────────────────────────────────────────
@@ -390,6 +392,133 @@ function AITab() {
   );
 }
 
+// ─── Connections Tab (Gmail) ──────────────────────────────────────────────────
+
+const SYNC_SCOPES = [
+  { value: 7,   label: 'Last 7 days'  },
+  { value: 30,  label: 'Last 30 days' },
+  { value: 90,  label: 'Last 90 days' },
+  { value: 0,   label: 'All mail'     },
+];
+
+function ConnectionsTab() {
+  const { workspacePath } = useAppStore();
+  const { info, error, success } = useToast();
+  const [status, setStatus] = useState<GmailStatus>({ connected: false, email: null, last_synced: null, thread_count: null });
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [scope, setScope] = useState(30);
+  const [guide, setGuide] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => { gmailStatus(workspacePath ?? undefined).then(setStatus).catch(() => {}); };
+  useEffect(() => {
+    refresh();
+    let unlisten: (() => void) | undefined;
+    onGmailConnected(() => { refresh(); success('Gmail connected'); }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const connect = async () => {
+    if (!clientId.trim() || !clientSecret.trim()) { error('Enter your Google OAuth Client ID and Secret'); return; }
+    setBusy(true);
+    try {
+      await gmailStartAuth(clientId.trim(), clientSecret.trim());
+      info('Complete the consent in your browser…');
+      setTimeout(refresh, 400); // browser mock connects immediately
+    } catch (e) { error(`Auth failed: ${(e as Error).message}`); }
+    setBusy(false);
+  };
+
+  const sync = async () => {
+    if (!workspacePath) { error('Open a workspace first — threads are written into its vault'); return; }
+    setBusy(true);
+    try {
+      const r = await gmailSync(workspacePath, scope);
+      success(`Synced ${r.thread_count} threads (${r.new_or_changed} new/changed)`);
+      refresh();
+    } catch (e) { error(`Sync failed: ${(e as Error).message}`); }
+    setBusy(false);
+  };
+
+  const disconnect = async () => { await gmailDisconnect(); refresh(); info('Gmail disconnected'); };
+
+  const fmtDate = (t: number | null) => t ? new Date(t * 1000).toLocaleString() : 'never';
+  const inputStyle: React.CSSProperties = {
+    width: '100%', height: 30, background: '#18181F', border: '1px solid #252535', borderRadius: 5,
+    color: '#C0C0D0', fontSize: 12, padding: '0 8px', outline: 'none', fontFamily: '"JetBrains Mono",monospace',
+  };
+
+  return (
+    <div>
+      <Section title="Gmail">
+        {/* Status card */}
+        <div style={{ background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: status.connected ? 10 : 0 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: status.connected ? '#22C55E' : '#4A4A65', boxShadow: status.connected ? '0 0 6px #22C55E88' : 'none' }} />
+            <span style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 600 }}>
+              {status.connected ? (status.email ?? 'Connected') : 'Not connected'}
+            </span>
+          </div>
+          {status.connected && (
+            <div style={{ fontSize: 11, color: '#8888A8', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4A4A65' }}>Last synced</span><span>{fmtDate(status.last_synced)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4A4A65' }}>Threads</span><span>{status.thread_count ?? 0}</span></div>
+            </div>
+          )}
+        </div>
+
+        {!status.connected ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button onClick={() => setGuide(g => !g)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#6366F1', fontSize: 11, cursor: 'pointer', padding: 0 }}>
+              {guide ? '▾' : '▸'} How to get a Google OAuth Client ID
+            </button>
+            {guide && (
+              <ol style={{ fontSize: 11, color: '#8888A8', lineHeight: 1.7, paddingLeft: 18, margin: 0 }}>
+                <li>Open <code style={{ color: '#93C5FD' }}>console.cloud.google.com</code> → create a project</li>
+                <li>Enable the <b>Gmail API</b> (APIs &amp; Services → Library)</li>
+                <li>OAuth consent screen → External → add your email as a test user</li>
+                <li>Credentials → Create OAuth client ID → <b>Desktop app</b> (allows loopback redirect)</li>
+                <li>Copy the Client ID and Client Secret below</li>
+              </ol>
+            )}
+            <Field label="Client ID"><input style={inputStyle} value={clientId} onChange={e => setClientId(e.target.value)} placeholder="xxxx.apps.googleusercontent.com" /></Field>
+            <Field label="Client Secret"><input style={inputStyle} type="password" value={clientSecret} onChange={e => setClientSecret(e.target.value)} placeholder="GOCSPX-…" /></Field>
+            <button onClick={connect} disabled={busy}
+              style={{ height: 32, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff', marginTop: 4 }}>
+              {busy ? 'Connecting…' : 'Connect Gmail'}
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Field label="Sync window">
+              <Select value={String(scope)} options={SYNC_SCOPES.map(s => ({ value: String(s.value), label: s.label }))} onChange={v => setScope(Number(v))} />
+            </Field>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={sync} disabled={busy}
+                style={{ flex: 1, height: 32, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>
+                {busy ? 'Syncing…' : 'Sync Now'}
+              </button>
+              <button onClick={disconnect}
+                style={{ height: 32, padding: '0 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}>
+                Disconnect
+              </button>
+            </div>
+            <p style={{ fontSize: 10, color: '#4A4A65', lineHeight: 1.5, margin: 0 }}>
+              Threads are written as Markdown to <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>.apex/vault/raw/gmail/</code>. Auto-syncs every 6 hours while the app is open.
+            </p>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Calendar · Fireflies">
+        <p style={{ fontSize: 11, color: '#4A4A65', lineHeight: 1.6 }}>Coming in a later sprint day (Calendar + Fireflies sync).</p>
+      </Section>
+    </div>
+  );
+}
+
 // ─── SettingsDialog ───────────────────────────────────────────────────────────
 
 export function SettingsDialog() {
@@ -442,7 +571,8 @@ export function SettingsDialog() {
                   width: '100%', height: 32, display: 'flex', alignItems: 'center', padding: '0 14px',
                   background: activeTab === tab.id ? '#18181F' : 'none',
                   borderLeft: `2px solid ${activeTab === tab.id ? '#6366F1' : 'transparent'}`,
-                  border: 'none', cursor: 'pointer', color: activeTab === tab.id ? '#E2E2EC' : '#8888A8',
+                  borderTop: 'none', borderRight: 'none', borderBottom: 'none',
+                  cursor: 'pointer', color: activeTab === tab.id ? '#E2E2EC' : '#8888A8',
                   fontSize: 12, textAlign: 'left', transition: 'all 100ms',
                 }}
                 className={activeTab !== tab.id ? 'hover:!text-[#C0C0D0] hover:!bg-[#18181F]/50 transition-colors' : ''}
@@ -458,6 +588,7 @@ export function SettingsDialog() {
             {activeTab === 'editor'   && <EditorTab />}
             {activeTab === 'terminal' && <TerminalTab />}
             {activeTab === 'ai'       && <AITab />}
+            {activeTab === 'connections' && <ConnectionsTab />}
             {activeTab === 'themes'   && <ThemesTab />}
             {activeTab === 'about'    && <AboutTab />}
           </div>

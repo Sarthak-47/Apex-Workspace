@@ -296,6 +296,90 @@ export async function onFsChange(handler: (change: FsChange) => void): Promise<(
   return () => {};
 }
 
+// ─── Gmail (OAuth + sync) ─────────────────────────────────────────────────────
+
+export interface GmailStatus {
+  connected: boolean;
+  email: string | null;
+  last_synced: number | null;
+  thread_count: number | null;
+}
+
+export interface GmailSyncResult {
+  thread_count: number;
+  new_or_changed: number;
+}
+
+const GMAIL_MOCK_KEY = 'apex-gmail-mock';
+
+function readGmailMock(): GmailStatus {
+  try {
+    const raw = localStorage.getItem(GMAIL_MOCK_KEY);
+    if (raw) return JSON.parse(raw) as GmailStatus;
+  } catch { /* ignore */ }
+  return { connected: false, email: null, last_synced: null, thread_count: null };
+}
+
+export async function gmailStatus(workspace?: string): Promise<GmailStatus> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<GmailStatus>('gmail_status', { workspace: workspace ?? null });
+  }
+  return readGmailMock();
+}
+
+/** Begin OAuth. In Tauri: returns the consent URL and opens it in the browser. */
+export async function gmailStartAuth(clientId: string, clientSecret: string): Promise<string> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const url = await invoke<string>('gmail_start_auth', { clientId, clientSecret });
+    try {
+      const { openUrl } = await import('@tauri-apps/plugin-opener');
+      await openUrl(url);
+    } catch { /* user can open manually */ }
+    return url;
+  }
+  // Browser mock: simulate a successful connection
+  const mock: GmailStatus = { connected: true, email: 'you@gmail.com', last_synced: null, thread_count: null };
+  localStorage.setItem(GMAIL_MOCK_KEY, JSON.stringify(mock));
+  return 'mock://connected';
+}
+
+export async function gmailSync(workspace: string, days: number): Promise<GmailSyncResult> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<GmailSyncResult>('gmail_sync', { workspace, days });
+  }
+  // Browser mock: pretend we synced a handful of threads
+  const cur = readGmailMock();
+  const count = 42;
+  localStorage.setItem(GMAIL_MOCK_KEY, JSON.stringify({ ...cur, last_synced: Math.floor(Date.now() / 1000), thread_count: count }));
+  return { thread_count: count, new_or_changed: count };
+}
+
+export async function gmailDisconnect(): Promise<void> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('gmail_disconnect');
+    return;
+  }
+  localStorage.removeItem(GMAIL_MOCK_KEY);
+}
+
+/** Listen for the OAuth callback completing (Tauri only). */
+export async function onGmailConnected(handler: (email: string) => void): Promise<() => void> {
+  if (isTauri()) {
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      const unlisten = await listen<string>('gmail-connected', e => handler(e.payload));
+      return unlisten;
+    } catch {
+      return () => {};
+    }
+  }
+  return () => {};
+}
+
 /** Read the current git branch from .git/HEAD (falls back to 'main'). */
 export async function getGitBranch(workspacePath: string): Promise<string> {
   if (isTauri()) {

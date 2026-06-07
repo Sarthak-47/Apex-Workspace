@@ -2,6 +2,7 @@ mod terminal;
 mod git;
 mod bash;
 mod watcher;
+mod gmail;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -183,6 +184,11 @@ pub fn run() {
             // File watcher
             watcher::start_watching,
             watcher::stop_watching,
+            // Gmail
+            gmail::gmail_status,
+            gmail::gmail_start_auth,
+            gmail::gmail_sync,
+            gmail::gmail_disconnect,
         ])
         .run(tauri::generate_context!())
         .expect("error while running APEX");
