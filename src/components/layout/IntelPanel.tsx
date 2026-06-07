@@ -9,6 +9,7 @@ import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgre
 import { GraphView } from "@/components/knowledge/GraphView";
 import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
 import { createLiveNote, runLiveNote, parseLiveConfig, SCHEDULE_PRESETS, type LiveSource } from "@/lib/livenotes";
+import { listThreads, draftReply, saveDraft, type EmailThread } from "@/lib/emaildraft";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
@@ -575,6 +576,96 @@ function ContextPanel() {
   );
 }
 
+// ─── Email panel (COMMS mode) ─────────────────────────────────────────────────
+
+function EmailPanel() {
+  const { workspacePath, ollamaOnline, ollamaSelectedModel, ollamaModels } = useAppStore();
+  const { info, error, success } = useToast();
+  const [threads, setThreads] = useState<EmailThread[]>([]);
+  const [selected, setSelected] = useState<EmailThread | null>(null);
+  const [draft, setDraft] = useState('');
+  const [drafting, setDrafting] = useState(false);
+
+  useEffect(() => {
+    if (!workspacePath) { setThreads([]); return; }
+    listThreads(workspacePath).then(setThreads).catch(() => setThreads([]));
+  }, [workspacePath]);
+
+  const doDraft = async () => {
+    if (!selected || !workspacePath) return;
+    if (!ollamaOnline) { error('Ollama must be running'); return; }
+    setDrafting(true);
+    try {
+      const text = await draftReply(workspacePath, selected, ollamaSelectedModel || ollamaModels[0] || 'llama3.1');
+      setDraft(text);
+    } catch (e) { error(`Draft failed: ${(e as Error).message}`); }
+    setDrafting(false);
+  };
+  const copyDraft = () => { navigator.clipboard?.writeText(draft).catch(() => {}); info('Draft copied'); };
+  const saveDraftNote = async () => {
+    if (!selected || !workspacePath || !draft.trim()) return;
+    try { await saveDraft(workspacePath, selected, draft); success('Draft saved to vault/drafts/'); }
+    catch { info('Saving requires the desktop app'); }
+  };
+
+  if (!workspacePath) {
+    return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <p style={{ fontSize: 12, color: '#4A4A65', textAlign: 'center' }}>Open a workspace and sync Gmail to draft replies.</p>
+    </div>;
+  }
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '10px 12px 6px', flexShrink: 0 }}>Email · {threads.length} threads</div>
+      {threads.length === 0 ? (
+        <div style={{ padding: '16px', fontSize: 12, color: '#4A4A65', lineHeight: 1.6 }}>No synced threads. Connect Gmail in Settings → Connections.</div>
+      ) : !selected ? (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 12px' }}>
+          {threads.map(t => (
+            <div key={t.path} onClick={() => { setSelected(t); setDraft(''); }}
+              style={{ padding: '8px 10px', borderRadius: 6, cursor: 'pointer', marginBottom: 4, background: '#0F0F16', border: '1px solid #1A1A28' }}
+              className="hover:!bg-[#18181F] transition-colors">
+              <div style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</div>
+              <div style={{ fontSize: 10, color: '#4A4A65', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {t.participants.map(p => p.replace(/<[^>]+>/, '').trim()).join(', ')} · {t.dateRange}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+          <button onClick={() => { setSelected(null); setDraft(''); }}
+            style={{ alignSelf: 'flex-start', margin: '4px 12px', background: 'none', border: 'none', color: '#6366F1', fontSize: 11, cursor: 'pointer', padding: 0 }}>← All threads</button>
+          <div style={{ padding: '0 12px', flexShrink: 0 }}>
+            <div style={{ fontSize: 13, color: '#E2E2EC', fontWeight: 600 }}>{selected.subject}</div>
+            <div style={{ fontSize: 10, color: '#4A4A65', margin: '2px 0 8px' }}>{selected.participants.join(', ')}</div>
+          </div>
+          <div style={{ flex: '0 0 auto', maxHeight: 160, overflowY: 'auto', margin: '0 12px 8px', padding: 8, background: '#0A0A0F', border: '1px solid #1A1A28', borderRadius: 6, fontSize: 11, color: '#8888A8', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            {selected.body.replace(/^#.*$/m, '').trim().slice(0, 1200)}
+          </div>
+          <div style={{ padding: '0 12px 6px', flexShrink: 0 }}>
+            <button onClick={doDraft} disabled={drafting || !ollamaOnline}
+              style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: drafting || !ollamaOnline ? 'default' : 'pointer', background: ollamaOnline ? '#6366F1' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>
+              {drafting ? 'Drafting…' : '✎ Draft Reply'}
+            </button>
+          </div>
+          {draft && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, padding: '0 12px 12px' }}>
+              <textarea value={draft} onChange={e => setDraft(e.target.value)}
+                style={{ flex: 1, minHeight: 100, background: '#18181F', border: '1px solid #252535', borderRadius: 6, color: '#E2E2EC', fontSize: 12, padding: 8, outline: 'none', resize: 'none', fontFamily: 'inherit', lineHeight: 1.5 }} />
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <button onClick={copyDraft} style={{ flex: 1, height: 26, borderRadius: 5, fontSize: 11, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1' }}>Copy</button>
+                <button onClick={saveDraftNote} style={{ flex: 1, height: 26, borderRadius: 5, fontSize: 11, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>Save draft</button>
+              </div>
+              <p style={{ fontSize: 9, color: '#4A4A65', marginTop: 6 }}>Sending is not automated — copy into Gmail to send.</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Tasks tab — background jobs ──────────────────────────────────────────────
 
 const JOB_STATUS_COLOR: Record<string, string> = {
@@ -1114,6 +1205,7 @@ export function IntelPanel() {
     selectedAgentId, setSelectedAgentId, userAgents,
     bashAllowAlways, addBashAllowAlways,
     contextInjectionEnabled, embedModel,
+    mode,
   } = useAppStore();
   const { info } = useToast();
 
@@ -1491,6 +1583,13 @@ export function IntelPanel() {
           </svg>
         </button>
       </div>
+
+      {/* ── COMMS mode → Email panel (overlays the tab content) ──────────── */}
+      {mode === 'COMMS' && (
+        <div style={{ position: 'absolute', top: 40, left: 0, right: 0, bottom: 0, background: '#111118', zIndex: 30, display: 'flex', flexDirection: 'column' }}>
+          <EmailPanel />
+        </div>
+      )}
 
       {/* ── Web Preview tab ──────────────────────────────────────────────── */}
       {intelTab === 'preview' && <WebPreviewPanel />}

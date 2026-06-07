@@ -180,6 +180,8 @@ const MOCK_VAULT_FILES: Record<string, string> = Object.fromEntries([
   vfile('projects', 'Auth-v2-Project.md', `---\nname: Auth v2 Project\ntype: project\nstatus: active\nupdated: 2026-06-06\n---\n\n# Auth v2 Project\n\nNew auth system. Owned by [[Alex Chen]]. Driven by [[Auth Decision]].`),
   vfile('decisions', 'Auth-Decision.md', `---\nname: Auth Decision\ntype: decision\nupdated: 2026-06-02\n---\n\n# Auth Decision\n\nChose Postgres over Mongo for [[Auth v2 Project]]. Made by [[Alex Chen]].`),
   vfile('meetings', 'Sprint-23-Standup.md', `---\nname: Sprint 23 Standup\ntype: meeting\nupdated: 2026-06-04\n---\n\n# Sprint 23 Standup\n\nAttendees: [[Alex Chen]], [[Bob Smith]]. Discussed [[Auth v2 Project]] progress.`),
+  [`${VR}/raw/gmail/thread-001.md`, `---\nthread_id: 001\nsubject: Auth v2 timeline\nparticipants: Alex Chen <alex@x.com>, You <you@gmail.com>\ndate_range: 2026-06-05 — 2026-06-06\n---\n\n## Email 1 — From: Alex Chen <alex@x.com>\n\nCan we lock the Auth v2 ship date? I think end of month is realistic if we cut scope on SSO.`],
+  [`${VR}/raw/gmail/thread-002.md`, `---\nthread_id: 002\nsubject: Postgres migration\nparticipants: Bob Smith <bob@x.com>, You <you@gmail.com>\ndate_range: 2026-06-04 — 2026-06-04\n---\n\n## Email 1 — From: Bob Smith <bob@x.com>\n\nThe Postgres migration script is ready for review. Want me to run it on staging?`],
 ]);
 function ventry(cat: string, file: string): DirEntry {
   return { name: file, path: `${VR}/${cat}/${file}`, is_dir: false, size: 400, ext: 'md' };
@@ -191,6 +193,10 @@ const MOCK_VAULT_TREE: Record<string, DirEntry[]> = {
   [`${VR}/meetings`]: [ventry('meetings', 'Sprint-23-Standup.md')],
   [`${VR}/organizations`]: [],
   [`${VR}/topics`]: [],
+  [`${VR}/raw/gmail`]: [
+    { name: 'thread-001.md', path: `${VR}/raw/gmail/thread-001.md`, is_dir: false, size: 300, ext: 'md' },
+    { name: 'thread-002.md', path: `${VR}/raw/gmail/thread-002.md`, is_dir: false, size: 300, ext: 'md' },
+  ],
 };
 
 /** Recursively collect every file under rootPath (max 8 levels). */
