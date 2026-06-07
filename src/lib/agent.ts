@@ -6,7 +6,10 @@ import { streamText, tool } from 'ai';
 import { createOllama } from 'ollama-ai-provider';
 import { z } from 'zod';
 import type { CoreMessage } from 'ai';
-import { readFile, listDir, grepFiles } from './tauri';
+import { readFile, listDir, grepFiles, runBash } from './tauri';
+import type { ToolName } from './agents';
+
+export type BashDecision = 'once' | 'always' | 'deny';
 
 export interface PendingEdit {
   path: string;
@@ -54,6 +57,12 @@ export interface AgentStreamOptions {
   workspacePath: string;
   signal?: AbortSignal;
   onPendingEdit?: (edit: PendingEdit) => void;
+  /** Which tools to expose. Defaults to all. */
+  tools?: ToolName[];
+  /** Sampling temperature. */
+  temperature?: number;
+  /** Called before run_bash executes; resolve with the user's decision. */
+  onRequestBash?: (command: string) => Promise<BashDecision>;
 }
 
 export type { CoreMessage };
@@ -76,7 +85,15 @@ function relPath(workspacePath: string, p: string): string {
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
 
-function buildTools(workspacePath: string, onPendingEdit?: (e: PendingEdit) => void) {
+interface BuildToolsOpts {
+  onRequestBash?: (command: string) => Promise<BashDecision>;
+}
+
+function buildTools(
+  workspacePath: string,
+  onPendingEdit?: (e: PendingEdit) => void,
+  opts: BuildToolsOpts = {},
+) {
   return {
     read_file: tool({
       description: 'Read the full contents of a file. Use paths relative to the workspace root.',
@@ -175,22 +192,53 @@ function buildTools(workspacePath: string, onPendingEdit?: (e: PendingEdit) => v
         return `File ${path} queued for your review. The user will accept or reject the change.`;
       },
     }),
+
+    run_bash: tool({
+      description: 'Run a shell command in the workspace. The user must approve before it executes. Use for builds, tests, git, etc. Avoid destructive commands.',
+      parameters: z.object({
+        command: z.string().describe('The shell command to run'),
+        timeout: z.number().optional().describe('Timeout in seconds (default 30, max 300)'),
+      }),
+      execute: async ({ command, timeout }) => {
+        const decide = opts.onRequestBash;
+        if (decide) {
+          const decision = await decide(command);
+          if (decision === 'deny') {
+            return `Command denied by user: ${command}`;
+          }
+        }
+        try {
+          const res = await runBash(command, workspacePath, timeout);
+          const out = [
+            res.stdout && `stdout:\n${res.stdout}`,
+            res.stderr && `stderr:\n${res.stderr}`,
+            `exit code: ${res.exit_code}${res.timed_out ? ' (timed out)' : ''}`,
+          ].filter(Boolean).join('\n');
+          return out.length > 8000 ? out.slice(0, 8000) + '\n…(truncated)' : out;
+        } catch (e) {
+          return `Error running command: ${e}`;
+        }
+      },
+    }),
   };
 }
 
 // ─── Stream factory ───────────────────────────────────────────────────────────
 
 export async function* createAgentStream(opts: AgentStreamOptions): AsyncGenerator<AgentEvent> {
-  const { model, messages, workspacePath, signal, onPendingEdit } = opts;
+  const { model, messages, workspacePath, signal, onPendingEdit, tools: allowed, temperature, onRequestBash } = opts;
 
   const ollama = createOllama({ baseURL: 'http://localhost:11434/api' });
-  const tools = buildTools(workspacePath, onPendingEdit);
+  const tools = buildTools(workspacePath, onPendingEdit, { onRequestBash });
 
   const result = streamText({
     model: ollama(model),
     messages,
     tools,
+    // Restrict which tools the model may call (keeps full typing intact).
+    experimental_activeTools: allowed as (keyof typeof tools)[] | undefined,
     maxSteps: 8,
+    temperature,
     abortSignal: signal,
   });
 

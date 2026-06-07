@@ -3,7 +3,8 @@ import { useAppStore, useToast } from "@/store";
 import { streamChat, type ChatMessage } from "@/lib/ollama";
 import { readFile } from "@/lib/tauri";
 import { getLang } from "@/components/editor/MonacoEditor";
-import { createAgentStream, type ToolCallBlock, type PendingEdit } from "@/lib/agent";
+import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
+import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -345,7 +346,7 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
 
 const TOOL_ICONS: Record<string, string> = {
   read_file: '📄', list_directory: '📁', search_files: '🔍',
-  edit_file: '✏️', write_file: '💾',
+  edit_file: '✏️', write_file: '💾', run_bash: '▶️',
 };
 
 function ToolCallView({ call }: { call: ToolCallBlock }) {
@@ -489,6 +490,8 @@ export function IntelPanel() {
     workspacePath, activeFile,
     setPendingDiffReview,
     terminalOpen, toggleTerminal,
+    selectedAgentId, setSelectedAgentId, userAgents,
+    bashAllowAlways, addBashAllowAlways,
   } = useAppStore();
   const { info } = useToast();
 
@@ -499,6 +502,34 @@ export function IntelPanel() {
   const [planMode, setPlanMode]   = useState(false);
   const [toolsMode, setToolsMode] = useState(false);
   const pendingEditsRef = useRef<PendingEdit[]>([]);
+
+  // Bash approval gating
+  const [pendingBash, setPendingBash] = useState<{ command: string } | null>(null);
+  const bashResolverRef = useRef<((d: BashDecision) => void) | null>(null);
+
+  const activeAgent = getAgentById(selectedAgentId, userAgents);
+  const allAgents = [...BUILTIN_AGENTS, ...userAgents];
+
+  // Called by the agent before run_bash executes
+  const requestBash = useCallback((command: string): Promise<BashDecision> => {
+    const prefix = command.trim().split(/\s+/)[0];
+    if (bashAllowAlways.some(p => command.startsWith(p) || prefix === p)) {
+      return Promise.resolve('once');
+    }
+    return new Promise<BashDecision>(resolve => {
+      bashResolverRef.current = resolve;
+      setPendingBash({ command });
+    });
+  }, [bashAllowAlways]);
+
+  const resolveBash = useCallback((decision: BashDecision) => {
+    if (decision === 'always' && pendingBash) {
+      addBashAllowAlways(pendingBash.command.trim().split(/\s+/)[0]);
+    }
+    bashResolverRef.current?.(decision);
+    bashResolverRef.current = null;
+    setPendingBash(null);
+  }, [pendingBash, addBashAllowAlways]);
 
   const abortRef   = useRef<AbortController | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
@@ -540,7 +571,10 @@ export function IntelPanel() {
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
 
-    const sysPrompt = buildSystemPrompt(workspacePath, activeFile)
+    const agentForRun = getAgentById(selectedAgentId, userAgents);
+    const sysPrompt = (toolsMode
+        ? `${agentForRun.systemPrompt}\n\n${buildSystemPrompt(workspacePath, activeFile)}`
+        : buildSystemPrompt(workspacePath, activeFile))
       + (planMode
         ? '\n\nPLAN MODE: Respond with a numbered step-by-step plan. Format each step as:\n1. Step title — Brief description of what this step does\n2. ...\nUse at least 3 steps. Be specific and actionable.'
         : '');
@@ -553,7 +587,7 @@ export function IntelPanel() {
     setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true, isPlan: planMode, toolCalls: [] }]);
 
     abortRef.current = new AbortController();
-    const model = ollamaSelectedModel || ollamaModels[0] || 'llama3.2';
+    const model = agentForRun.model || ollamaSelectedModel || ollamaModels[0] || 'llama3.2';
 
     if (toolsMode && workspacePath) {
       // ── Tools mode: Vercel AI SDK with tool calling ────────────────────
@@ -586,10 +620,13 @@ export function IntelPanel() {
           model,
           messages: apiMessages,
           workspacePath,
+          tools: agentForRun.tools,
+          temperature: agentForRun.temperature,
           signal: abortRef.current.signal,
           onPendingEdit: (edit: PendingEdit) => {
             pendingEditsRef.current.push(edit);
           },
+          onRequestBash: requestBash,
         });
 
         for await (const event of stream) {
@@ -673,7 +710,8 @@ export function IntelPanel() {
     abortRef.current = null;
     inputRef.current?.focus();
   }, [input, isStreaming, ollamaOnline, attachedFile, messages, workspacePath, activeFile,
-      ollamaSelectedModel, ollamaModels, planMode, toolsMode, setPendingDiffReview]);
+      ollamaSelectedModel, ollamaModels, planMode, toolsMode, setPendingDiffReview,
+      selectedAgentId, userAgents, requestBash]);
 
   const handleStop = () => {
     abortRef.current?.abort();
@@ -788,6 +826,29 @@ export function IntelPanel() {
               {ollamaSelectedModel || ollamaModels[0] || 'Ollama'}
             </span>
           )}
+
+          {/* Agent selector — only relevant in tools mode */}
+          {toolsMode && (
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 11 }}>{activeAgent.icon}</span>
+              <select
+                value={selectedAgentId}
+                onChange={e => setSelectedAgentId(e.target.value)}
+                title={activeAgent.description}
+                style={{
+                  background: 'transparent', border: 'none', outline: 'none',
+                  color: activeAgent.color, fontSize: 10, cursor: 'pointer', fontWeight: 600,
+                  fontFamily: '"JetBrains Mono",monospace',
+                }}
+              >
+                {allAgents.map(a => (
+                  <option key={a.id} value={a.id} style={{ background: '#18181F', color: '#E2E2EC' }}>
+                    {a.name}{a.builtin ? '' : ' (custom)'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
 
@@ -813,6 +874,44 @@ export function IntelPanel() {
       {intelTab === 'chat' && <div style={{ borderTop: '1px solid #252535', background: '#0F0F16', padding: '10px 12px', flexShrink: 0 }}>
         {/* Offline banner (inline, only when no messages) */}
         {!ollamaOnline && messages.length === 0 && <OfflineBanner />}
+
+        {/* Bash approval gate */}
+        {pendingBash && (
+          <div style={{ marginBottom: 8, padding: '9px 10px', borderRadius: 6, background: '#15110A', border: '1px solid #F59E0B40' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M7 2l5.5 10H1.5z"/><line x1="7" y1="6" x2="7" y2="9"/><circle cx="7" cy="11" r="0.5" fill="#F59E0B"/>
+              </svg>
+              <span style={{ fontSize: 11, color: '#F59E0B', fontWeight: 600 }}>Agent wants to run a command</span>
+            </div>
+            <pre style={{
+              margin: '0 0 8px', padding: '6px 8px', borderRadius: 4,
+              background: '#090910', border: '1px solid #252535',
+              fontSize: 11, fontFamily: '"JetBrains Mono",monospace', color: '#E2E2EC',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 90, overflowY: 'auto',
+            }}>
+              $ {pendingBash.command}
+            </pre>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => resolveBash('once')}
+                style={{ flex: 1, height: 26, borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#0A1A0A', border: '1px solid #22C55E40', color: '#22C55E' }}
+                className="hover:!bg-[#0D2A0D] transition-colors">
+                Allow Once
+              </button>
+              <button onClick={() => resolveBash('always')}
+                style={{ flex: 1, height: 26, borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#0A140A', border: '1px solid #22C55E25', color: '#7FCD8E' }}
+                className="hover:!bg-[#0D2A0D] transition-colors"
+                title={`Always allow "${pendingBash.command.trim().split(/\s+/)[0]}" commands`}>
+                Allow Always
+              </button>
+              <button onClick={() => resolveBash('deny')}
+                style={{ flex: 1, height: 26, borderRadius: 4, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}
+                className="hover:!bg-[#3D1515] transition-colors">
+                Deny
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Attached file badge */}
         {attachedFile && (

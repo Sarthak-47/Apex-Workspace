@@ -219,6 +219,83 @@ export async function grepFiles(workspace: string, pattern: string, dir?: string
   return [];
 }
 
+// ─── Bash (approval-gated agent tool) ─────────────────────────────────────────
+
+export interface BashResult {
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  timed_out: boolean;
+}
+
+/** Run a shell command. The UI handles approval gating before this is called. */
+export async function runBash(command: string, cwd?: string, timeout?: number): Promise<BashResult> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<BashResult>('run_bash', { command, cwd: cwd ?? null, timeout: timeout ?? null });
+  }
+  // Browser mock — simulate a few common commands for web-first testing
+  await new Promise(r => setTimeout(r, 250));
+  const c = command.trim();
+  if (/^echo\s+/.test(c)) {
+    return { stdout: c.replace(/^echo\s+/, '').replace(/^["']|["']$/g, '') + '\n', stderr: '', exit_code: 0, timed_out: false };
+  }
+  if (/^(ls|dir)\b/.test(c)) {
+    return { stdout: 'src/\npublic/\npackage.json\nREADME.md\nvite.config.ts\n', stderr: '', exit_code: 0, timed_out: false };
+  }
+  if (/^pwd\b/.test(c)) {
+    return { stdout: '/demo-workspace\n', stderr: '', exit_code: 0, timed_out: false };
+  }
+  if (/^node\s+-v/.test(c) || /^node\s+--version/.test(c)) {
+    return { stdout: 'v20.11.0\n', stderr: '', exit_code: 0, timed_out: false };
+  }
+  if (/^git\s+status/.test(c)) {
+    return { stdout: 'On branch main\nnothing to commit, working tree clean\n', stderr: '', exit_code: 0, timed_out: false };
+  }
+  return { stdout: `[browser preview] would run: ${c}\n`, stderr: '', exit_code: 0, timed_out: false };
+}
+
+// ─── File watcher ─────────────────────────────────────────────────────────────
+
+export interface FsChange {
+  kind: string;
+  paths: string[];
+}
+
+/** Start watching a workspace for external file changes. */
+export async function startWatching(workspace: string): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('start_watching', { workspace });
+    } catch { /* watcher optional */ }
+  }
+}
+
+/** Stop the active file watcher. */
+export async function stopWatching(): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('stop_watching');
+    } catch { /* no-op */ }
+  }
+}
+
+/** Subscribe to `fs-changed` events. Returns an unsubscribe function. */
+export async function onFsChange(handler: (change: FsChange) => void): Promise<() => void> {
+  if (isTauri()) {
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      const unlisten = await listen<FsChange>('fs-changed', e => handler(e.payload));
+      return unlisten;
+    } catch {
+      return () => {};
+    }
+  }
+  return () => {};
+}
+
 /** Read the current git branch from .git/HEAD (falls back to 'main'). */
 export async function getGitBranch(workspacePath: string): Promise<string> {
   if (isTauri()) {

@@ -1,5 +1,7 @@
 mod terminal;
 mod git;
+mod bash;
+mod watcher;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -144,6 +146,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(terminal::PtyRegistry::new())
+        .manage(watcher::WatcherState::new())
         .invoke_handler(tauri::generate_handler![
             // File system
             read_file,
@@ -175,6 +178,11 @@ pub fn run() {
             git::git_list_branches,
             git::git_switch_branch,
             git::git_create_branch,
+            // Bash (approval-gated)
+            bash::run_bash,
+            // File watcher
+            watcher::start_watching,
+            watcher::stop_watching,
         ])
         .run(tauri::generate_context!())
         .expect("error while running APEX");

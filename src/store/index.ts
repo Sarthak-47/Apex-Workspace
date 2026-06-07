@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { AgentDef } from "@/lib/agents";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,6 +115,18 @@ interface AppState {
 
   // Recent workspaces (persisted, max 10)
   recentWorkspaces: string[];
+
+  // Custom agents (persisted)
+  selectedAgentId: string;
+  setSelectedAgentId: (id: string) => void;
+  userAgents: AgentDef[];
+  addUserAgent: (agent: AgentDef) => void;
+  updateUserAgent: (id: string, patch: Partial<AgentDef>) => void;
+  deleteUserAgent: (id: string) => void;
+
+  // Bash "Allow Always" command-prefix whitelist (persisted)
+  bashAllowAlways: string[];
+  addBashAllowAlways: (prefix: string) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -265,6 +278,24 @@ export const useAppStore = create<AppState>()(
 
       // Recent workspaces
       recentWorkspaces: [],
+
+      // Custom agents
+      selectedAgentId: 'coder',
+      setSelectedAgentId: (id) => set({ selectedAgentId: id }),
+      userAgents: [],
+      addUserAgent: (agent) => set((s) => ({ userAgents: [...s.userAgents, agent] })),
+      updateUserAgent: (id, patch) =>
+        set((s) => ({ userAgents: s.userAgents.map((a) => (a.id === id ? { ...a, ...patch } : a)) })),
+      deleteUserAgent: (id) =>
+        set((s) => ({
+          userAgents: s.userAgents.filter((a) => a.id !== id),
+          selectedAgentId: s.selectedAgentId === id ? 'coder' : s.selectedAgentId,
+        })),
+
+      // Bash allow-always whitelist
+      bashAllowAlways: [],
+      addBashAllowAlways: (prefix) =>
+        set((s) => (s.bashAllowAlways.includes(prefix) ? s : { bashAllowAlways: [...s.bashAllowAlways, prefix] })),
     }),
     {
       name: "apex-app-state",
@@ -286,6 +317,9 @@ export const useAppStore = create<AppState>()(
         autoSave: s.autoSave,
         vimMode: s.vimMode,
         recentWorkspaces: s.recentWorkspaces,
+        selectedAgentId: s.selectedAgentId,
+        userAgents: s.userAgents,
+        bashAllowAlways: s.bashAllowAlways,
       }),
     }
   )
