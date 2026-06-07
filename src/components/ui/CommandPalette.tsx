@@ -1,6 +1,17 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useAppStore } from "@/store";
-import { listAllFiles, type DirEntry } from "@/lib/tauri";
+import { useAppStore, useToast } from "@/store";
+import { listAllFiles, gitLog, type DirEntry, type GitCommit } from "@/lib/tauri";
+import { listVault, type VaultNote } from "@/lib/vault";
+
+type Source = 'Files' | 'Knowledge' | 'Git';
+interface UResult {
+  source: Source;
+  id: string;
+  title: string;
+  detail: string;
+  ext?: string | null;
+  action: () => void;
+}
 
 // ─── File icon (compact badge) ────────────────────────────────────────────────
 
@@ -50,38 +61,52 @@ interface Props { onClose: () => void }
 
 export function CommandPalette({ onClose }: Props) {
   const { workspacePath, openFile } = useAppStore();
+  const { info } = useToast();
   const [query, setQuery]         = useState('');
   const [files, setFiles]         = useState<DirEntry[]>([]);
+  const [notes, setNotes]         = useState<VaultNote[]>([]);
+  const [commits, setCommits]     = useState<GitCommit[]>([]);
+  const [enabled, setEnabled]     = useState<Record<Source, boolean>>({ Files: true, Knowledge: true, Git: true });
   const [selectedIdx, setSelected] = useState(0);
   const inputRef  = useRef<HTMLInputElement>(null);
   const listRef   = useRef<HTMLDivElement>(null);
 
-  // Load file list once
+  // Load all sources once
   useEffect(() => {
     const root = workspacePath ?? '/demo-workspace';
     listAllFiles(root).then(setFiles);
+    listVault(root).then(setNotes).catch(() => {});
+    gitLog(root).then(setCommits).catch(() => {});
   }, [workspacePath]);
 
   // Focus input on open
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  // Filter + score results
-  const results = useMemo(() => {
+  const relPath = (path: string) => {
+    const root = workspacePath ?? '/demo-workspace';
+    return path.startsWith(root + '/') ? path.slice(root.length + 1) : path;
+  };
+
+  // Unified, grouped results
+  const results = useMemo<UResult[]>(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return files.slice(0, 30);
-    return files
-      .filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q))
-      .sort((a, b) => {
-        // Prefer name matches over path-only matches
-        const an = a.name.toLowerCase().includes(q);
-        const bn = b.name.toLowerCase().includes(q);
-        if (an && !bn) return -1;
-        if (!an && bn) return  1;
-        // Prefer matches closer to the start of the name
-        return a.name.toLowerCase().indexOf(q) - b.name.toLowerCase().indexOf(q);
-      })
-      .slice(0, 30);
-  }, [query, files]);
+    const out: UResult[] = [];
+
+    if (enabled.Files) {
+      const f = (q ? files.filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)) : files)
+        .slice(0, q ? 15 : 25);
+      for (const e of f) out.push({ source: 'Files', id: 'f:' + e.path, title: e.name, detail: relPath(e.path), ext: e.ext, action: () => { openFile(e.path); onClose(); } });
+    }
+    if (enabled.Knowledge && q) {
+      const n = notes.filter(n => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)).slice(0, 10);
+      for (const e of n) out.push({ source: 'Knowledge', id: 'k:' + e.path, title: e.title, detail: e.category, action: () => { openFile(e.path); onClose(); } });
+    }
+    if (enabled.Git && q) {
+      const c = commits.filter(c => c.message.toLowerCase().includes(q) || c.hash.startsWith(q)).slice(0, 8);
+      for (const e of c) out.push({ source: 'Git', id: 'g:' + e.hash, title: e.message, detail: `${e.hash} · ${e.author}`, action: () => { navigator.clipboard?.writeText(e.hash).catch(() => {}); info(`Copied ${e.hash}`); onClose(); } });
+    }
+    return out;
+  }, [query, files, notes, commits, enabled, workspacePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset selection when results change
   useEffect(() => { setSelected(0); }, [results]);
@@ -109,8 +134,7 @@ export function CommandPalette({ onClose }: Props) {
           break;
         case 'Enter': {
           e.preventDefault();
-          const entry = results[selectedIdx];
-          if (entry) { openFile(entry.path); onClose(); }
+          results[selectedIdx]?.action();
           break;
         }
       }
@@ -118,11 +142,6 @@ export function CommandPalette({ onClose }: Props) {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [results, selectedIdx, onClose, openFile]);
-
-  const relPath = (path: string) => {
-    const root = workspacePath ?? '/demo-workspace';
-    return path.startsWith(root + '/') ? path.slice(root.length + 1) : path;
-  };
 
   return (
     <div
@@ -155,7 +174,7 @@ export function CommandPalette({ onClose }: Props) {
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Go to file…"
+            placeholder="Search files, notes, commits…"
             style={{
               flex: 1, height: 44, background: 'transparent', border: 'none',
               outline: 'none', fontSize: 14, color: '#E2E2EC',
@@ -167,44 +186,63 @@ export function CommandPalette({ onClose }: Props) {
           </kbd>
         </div>
 
+        {/* Source toggles */}
+        <div style={{ display: 'flex', gap: 6, padding: '6px 14px', borderBottom: '1px solid #1A1A28' }}>
+          {(['Files', 'Knowledge', 'Git'] as Source[]).map(s => (
+            <button key={s} onClick={() => setEnabled(e => ({ ...e, [s]: !e[s] }))}
+              style={{ height: 20, padding: '0 9px', borderRadius: 10, fontSize: 10, cursor: 'pointer',
+                background: enabled[s] ? '#1A1A3A' : 'transparent', border: `1px solid ${enabled[s] ? '#6366F140' : '#252535'}`,
+                color: enabled[s] ? '#6366F1' : '#4A4A65' }}>
+              {s}
+            </button>
+          ))}
+        </div>
+
         {/* Results */}
         <div ref={listRef} style={{ overflowY: 'auto', flex: 1 }}>
           {results.length === 0 && (
             <div style={{ padding: '20px 16px', textAlign: 'center', fontSize: 12, color: '#4A4A65' }}>
-              No files match <span style={{ color: '#8888A8' }}>"{query}"</span>
+              {query ? <>No results for <span style={{ color: '#8888A8' }}>"{query}"</span></> : 'Type to search files, notes and commits'}
             </div>
           )}
           {results.map((entry, i) => {
-            const rel = relPath(entry.path);
             const isSelected = i === selectedIdx;
+            const showHeader = i === 0 || results[i - 1].source !== entry.source;
+            const srcIcon: Record<Source, string> = { Files: '', Knowledge: '🔗', Git: '⎇' };
             return (
-              <div
-                key={entry.path}
-                data-idx={i}
-                onMouseEnter={() => setSelected(i)}
-                onClick={() => { openFile(entry.path); onClose(); }}
-                style={{
-                  height: 44, display: 'flex', alignItems: 'center',
-                  padding: '0 14px', gap: 10, cursor: 'pointer',
-                  background: isSelected ? '#1A1A3A' : 'transparent',
-                  borderLeft: isSelected ? '2px solid #6366F1' : '2px solid transparent',
-                  transition: 'background 60ms',
-                }}
-              >
-                <FileIcon ext={entry.ext} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <Highlight text={entry.name} query={query} />
-                  </div>
-                  <div style={{ fontSize: 10, color: '#4A4A65', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
-                    {rel}
-                  </div>
-                </div>
-                {isSelected && (
-                  <kbd style={{ fontSize: 10, color: '#6366F1', background: '#1A1A3A', padding: '2px 6px', borderRadius: 3, flexShrink: 0, border: '1px solid #6366F130', fontFamily: 'JetBrains Mono,monospace' }}>
-                    ↵
-                  </kbd>
+              <div key={entry.id}>
+                {showHeader && (
+                  <div style={{ fontSize: 9, fontWeight: 700, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '8px 14px 3px' }}>{entry.source}</div>
                 )}
+                <div
+                  data-idx={i}
+                  onMouseEnter={() => setSelected(i)}
+                  onClick={() => entry.action()}
+                  style={{
+                    height: 42, display: 'flex', alignItems: 'center',
+                    padding: '0 14px', gap: 10, cursor: 'pointer',
+                    background: isSelected ? '#1A1A3A' : 'transparent',
+                    borderLeft: isSelected ? '2px solid #6366F1' : '2px solid transparent',
+                    transition: 'background 60ms',
+                  }}
+                >
+                  {entry.source === 'Files'
+                    ? <FileIcon ext={entry.ext ?? null} />
+                    : <span style={{ width: 15, textAlign: 'center', fontSize: 12, flexShrink: 0 }}>{srcIcon[entry.source]}</span>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Highlight text={entry.title} query={query} />
+                    </div>
+                    <div style={{ fontSize: 10, color: '#4A4A65', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                      {entry.detail}
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <kbd style={{ fontSize: 10, color: '#6366F1', background: '#1A1A3A', padding: '2px 6px', borderRadius: 3, flexShrink: 0, border: '1px solid #6366F130', fontFamily: 'JetBrains Mono,monospace' }}>
+                      ↵
+                    </kbd>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -223,7 +261,7 @@ export function CommandPalette({ onClose }: Props) {
             </span>
           ))}
           <span style={{ marginLeft: 'auto', fontSize: 10, color: '#4A4A65' }}>
-            {results.length} {results.length === 1 ? 'file' : 'files'}
+            {results.length} {results.length === 1 ? 'result' : 'results'}
           </span>
         </div>
       </div>

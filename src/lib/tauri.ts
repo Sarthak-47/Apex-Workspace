@@ -479,6 +479,24 @@ export async function onGmailConnected(handler: (email: string) => void): Promis
   return () => {};
 }
 
+export interface GitCommit { hash: string; author: string; message: string; date: string }
+
+/** Recent git commits for unified search (browser returns a small mock). */
+export async function gitLog(workspace: string, limit = 50): Promise<GitCommit[]> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      return await invoke<GitCommit[]>('git_log', { workspace, limit });
+    } catch { return []; }
+  }
+  return [
+    { hash: '6575fd7', author: 'Sarthak-47', message: 'knowledge graph visualizer + vault browser', date: '2026-06-08' },
+    { hash: 'd03e777', author: 'Sarthak-47', message: 'Google Calendar + Fireflies sync', date: '2026-06-08' },
+    { hash: '4852cfb', author: 'Sarthak-47', message: 'entity extraction pipeline', date: '2026-06-08' },
+    { hash: 'bf7ba66', author: 'Sarthak-47', message: 'Gmail OAuth + raw thread sync', date: '2026-06-07' },
+  ];
+}
+
 /** Read the current git branch from .git/HEAD (falls back to 'main'). */
 export async function getGitBranch(workspacePath: string): Promise<string> {
   if (isTauri()) {

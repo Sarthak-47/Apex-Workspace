@@ -934,15 +934,19 @@ export function IntelPanel() {
   const [mention, setMention] = useState<{ items: MentionItem[]; index: number; start: number; queryLen: number } | null>(null);
   const candidatesRef = useRef<{ rel: string; isDir: boolean }[]>([]);
   const workspaceMdRef = useRef<string>('');
+  const vaultNotesRef = useRef<VaultNote[]>([]);
 
-  // Load mention candidates + WORKSPACE.md when workspace changes
+  // Load mention candidates + WORKSPACE.md + vault notes when workspace changes
   useEffect(() => {
-    if (!workspacePath) { candidatesRef.current = []; workspaceMdRef.current = ''; return; }
+    if (!workspacePath) { candidatesRef.current = []; workspaceMdRef.current = ''; vaultNotesRef.current = []; return; }
     listAllFiles(workspacePath)
       .then(files => { candidatesRef.current = buildCandidates(workspacePath, files); })
       .catch(() => {});
     loadWorkspaceMd(workspacePath)
       .then(md => { if (md) workspaceMdRef.current = md; })
+      .catch(() => {});
+    listVault(workspacePath)
+      .then(notes => { vaultNotesRef.current = notes; })
       .catch(() => {});
   }, [workspacePath]);
 
@@ -950,7 +954,7 @@ export function IntelPanel() {
     const upto = value.slice(0, caret);
     const m = upto.match(/@([\w./:-]*)$/);
     if (m && workspacePath) {
-      const items = suggestMentions(m[1], candidatesRef.current);
+      const items = suggestMentions(m[1], candidatesRef.current, vaultNotesRef.current);
       setMention(items.length ? { items, index: 0, start: caret - m[0].length, queryLen: m[1].length } : null);
     } else {
       setMention(null);
@@ -1003,7 +1007,7 @@ export function IntelPanel() {
     // Expand @file/@folder/@symbol mentions into context
     if (workspacePath && /@(file|folder|symbol):/.test(userContent)) {
       try {
-        const { contextBlock } = await expandMentions(userContent, workspacePath);
+        const { contextBlock } = await expandMentions(userContent, workspacePath, vaultNotesRef.current);
         if (contextBlock) userContent = userContent + contextBlock;
       } catch { /* expansion best-effort */ }
     }
@@ -1401,19 +1405,28 @@ export function IntelPanel() {
             background: '#15151E', border: '1px solid #2A2A3D', borderRadius: 8,
             boxShadow: '0 12px 32px rgba(0,0,0,0.6)', overflow: 'hidden', maxHeight: 240, overflowY: 'auto',
           }}>
-            {mention.items.map((it, i) => (
-              <div key={it.insert}
-                onMouseDown={e => { e.preventDefault(); applyMention(it); }}
-                onMouseEnter={() => setMention(mm => mm && ({ ...mm, index: i }))}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer',
-                  background: i === mention.index ? '#1A1A3A' : 'transparent',
-                }}>
-                <span style={{ fontSize: 12 }}>{it.kind === 'folder' ? '📁' : it.kind === 'symbol' ? '🔣' : '📄'}</span>
-                <span style={{ fontSize: 12, color: '#E2E2EC', fontFamily: '"JetBrains Mono",monospace' }}>{it.label}</span>
-                <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{it.detail}</span>
-              </div>
-            ))}
+            {mention.items.map((it, i) => {
+              const ICON: Record<string, string> = { folder: '📁', symbol: '🔣', file: '📄', person: '👤', project: '📦', decision: '⚖️', meeting: '📅' };
+              const showHeader = i === 0 || mention.items[i - 1].group !== it.group;
+              return (
+                <div key={it.insert}>
+                  {showHeader && (
+                    <div style={{ fontSize: 8, fontWeight: 700, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '5px 10px 2px' }}>{it.group}</div>
+                  )}
+                  <div
+                    onMouseDown={e => { e.preventDefault(); applyMention(it); }}
+                    onMouseEnter={() => setMention(mm => mm && ({ ...mm, index: i }))}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer',
+                      background: i === mention.index ? '#1A1A3A' : 'transparent',
+                    }}>
+                    <span style={{ fontSize: 12 }}>{ICON[it.kind] ?? '📄'}</span>
+                    <span style={{ fontSize: 12, color: '#E2E2EC', fontFamily: it.group === 'Knowledge' ? 'inherit' : '"JetBrains Mono",monospace' }}>{it.label}</span>
+                    <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{it.detail}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
