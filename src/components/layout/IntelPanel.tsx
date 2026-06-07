@@ -5,6 +5,7 @@ import { readFile } from "@/lib/tauri";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
+import { searchIndex, indexWorkspace, getStats, clearIndex, type SearchResult, type IndexStats } from "@/lib/codeindex";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,7 @@ interface Message {
   streaming?: boolean;
   isPlan?: boolean;
   toolCalls?: ToolCallBlock[];
+  contextSources?: SearchResult[];
 }
 
 type ContentBlock =
@@ -316,6 +318,7 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
 
   return (
     <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+      {msg.contextSources && msg.contextSources.length > 0 && <ContextSources sources={msg.contextSources} />}
       {hasCalls && msg.toolCalls!.map(tc => <ToolCallView key={tc.id} call={tc} />)}
       {blocks.map((block, i) => {
         if (block.type === 'code') {
@@ -421,6 +424,148 @@ function ToolCallView({ call }: { call: ToolCallBlock }) {
   );
 }
 
+// ─── Context sources (injected codebase chunks) ──────────────────────────────
+
+function ContextSources({ sources }: { sources: SearchResult[] }) {
+  const [open, setOpen] = useState(false);
+  const rel = (p: string) => p.split(/[\\/]/).slice(-2).join('/');
+  return (
+    <div style={{ margin: '2px 0 6px' }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', fontSize: 10, padding: 0 }}>
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5"
+          style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.12s' }}>
+          <polyline points="2,1 6,4 2,7"/>
+        </svg>
+        <span style={{ fontFamily: '"JetBrains Mono",monospace' }}>{sources.length} context source{sources.length > 1 ? 's' : ''}</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {sources.map((s, i) => (
+            <div key={i} style={{ fontSize: 10, color: '#6C6C8A', fontFamily: '"JetBrains Mono",monospace', display: 'flex', justifyContent: 'space-between', gap: 8, padding: '2px 6px', background: '#0D0D16', borderRadius: 3 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rel(s.filePath)}:{s.startLine}-{s.endLine}</span>
+              <span style={{ color: '#4A4A65', flexShrink: 0 }}>{(s.score * 100).toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Context tab — codebase index management ──────────────────────────────────
+
+function ContextPanel() {
+  const {
+    workspacePath, ollamaOnline, embedModel, setEmbedModel,
+    indexProgress, setIndexProgress,
+    contextInjectionEnabled, setContextInjectionEnabled,
+  } = useAppStore();
+  const { info, error, success } = useToast();
+  const [stats, setStats] = useState<IndexStats | null>(null);
+  const indexAbort = useRef<AbortController | null>(null);
+
+  const refresh = useCallback(() => { getStats().then(setStats).catch(() => {}); }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const runIndex = async () => {
+    if (!workspacePath) { info('Open a workspace first'); return; }
+    if (!ollamaOnline) { error('Ollama must be running to build the index'); return; }
+    indexAbort.current = new AbortController();
+    try {
+      await indexWorkspace(workspacePath, embedModel,
+        (done, total, file) => setIndexProgress({ done, total, file }),
+        indexAbort.current.signal);
+      success('Codebase index built');
+    } catch (e) {
+      error(`Index failed: ${(e as Error).message}`);
+    } finally {
+      setTimeout(() => setIndexProgress(null), 1500);
+      refresh();
+    }
+  };
+
+  const cancelIndex = () => { indexAbort.current?.abort(); setIndexProgress(null); };
+
+  const wipe = async () => { await clearIndex(); refresh(); info('Index cleared'); };
+
+  const fmtDate = (t: number | null) => t ? new Date(t).toLocaleString() : 'never';
+  const busy = !!indexProgress && indexProgress.done < indexProgress.total;
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', minHeight: 0 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>
+        Codebase Memory
+      </div>
+
+      {/* Stats card */}
+      <div style={{ background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+        {[
+          ['Indexed files', stats ? String(stats.files) : '—'],
+          ['Chunks', stats ? String(stats.chunks) : '—'],
+          ['Last indexed', stats ? fmtDate(stats.lastIndexed) : '—'],
+        ].map(([k, v]) => (
+          <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0' }}>
+            <span style={{ color: '#4A4A65' }}>{k}</span>
+            <span style={{ color: '#C0C0D0' }}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Progress */}
+      {indexProgress && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ height: 4, background: '#252535', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: '#6366F1', borderRadius: 2, transition: 'width 0.2s', width: `${indexProgress.total ? (indexProgress.done / indexProgress.total) * 100 : 0}%` }} />
+          </div>
+          <div style={{ fontSize: 10, color: '#6C6C8A', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {indexProgress.file || 'Finalizing…'} ({indexProgress.done}/{indexProgress.total})
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        {busy ? (
+          <button onClick={cancelIndex}
+            style={{ flex: 1, height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}>
+            Cancel
+          </button>
+        ) : (
+          <button onClick={runIndex} disabled={!ollamaOnline}
+            style={{ flex: 1, height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: ollamaOnline ? 'pointer' : 'not-allowed', background: ollamaOnline ? '#6366F1' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>
+            {stats && stats.chunks > 0 ? 'Re-index' : 'Build Index'}
+          </button>
+        )}
+        <button onClick={wipe}
+          style={{ height: 30, padding: '0 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>
+          Clear
+        </button>
+      </div>
+
+      {/* Settings */}
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+        Settings
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 12, color: '#C0C0D0' }}>Inject context into chat</span>
+        <button onClick={() => setContextInjectionEnabled(!contextInjectionEnabled)}
+          style={{ width: 36, height: 20, borderRadius: 10, position: 'relative', background: contextInjectionEnabled ? '#6366F1' : '#252535', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+          <span style={{ position: 'absolute', top: 2, left: contextInjectionEnabled ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#E2E2EC', transition: 'left 150ms' }} />
+        </button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 12, color: '#C0C0D0', flexShrink: 0 }}>Embedding model</span>
+        <input value={embedModel} onChange={e => setEmbedModel(e.target.value)}
+          style={{ flex: 1, maxWidth: 170, height: 26, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#C0C0D0', fontSize: 11, padding: '0 8px', outline: 'none', fontFamily: '"JetBrains Mono",monospace' }} />
+      </div>
+      <p style={{ fontSize: 10, color: '#4A4A65', marginTop: 10, lineHeight: 1.5 }}>
+        Pull the embedding model first: <code style={{ fontFamily: '"JetBrains Mono",monospace', color: '#6C6C8A' }}>ollama pull {embedModel}</code>. The index is stored locally and never leaves your machine.
+      </p>
+    </div>
+  );
+}
+
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 function EmptyState({ ollamaOnline }: { ollamaOnline: boolean }) {
@@ -492,6 +637,7 @@ export function IntelPanel() {
     terminalOpen, toggleTerminal,
     selectedAgentId, setSelectedAgentId, userAgents,
     bashAllowAlways, addBashAllowAlways,
+    contextInjectionEnabled, embedModel,
   } = useAppStore();
   const { info } = useToast();
 
@@ -571,20 +717,39 @@ export function IntelPanel() {
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
 
+    // Codebase context injection — semantic search over the local index
+    let contextBlock = '';
+    let contextSources: SearchResult[] = [];
+    if (contextInjectionEnabled && workspacePath) {
+      try {
+        contextSources = await searchIndex(text, 6, embedModel);
+        if (contextSources.length > 0) {
+          contextBlock = '\n\nRelevant code from the workspace (retrieved automatically — cite file paths when you use it):\n'
+            + contextSources.map(s => {
+                const rel = s.filePath.startsWith(workspacePath)
+                  ? s.filePath.slice(workspacePath.length).replace(/^[\\/]/, '')
+                  : s.filePath;
+                return `// ${rel}:${s.startLine}-${s.endLine}\n${s.text}`;
+              }).join('\n\n');
+        }
+      } catch { /* index not built or embeddings unavailable */ }
+    }
+
     const agentForRun = getAgentById(selectedAgentId, userAgents);
     const sysPrompt = (toolsMode
         ? `${agentForRun.systemPrompt}\n\n${buildSystemPrompt(workspacePath, activeFile)}`
         : buildSystemPrompt(workspacePath, activeFile))
       + (planMode
         ? '\n\nPLAN MODE: Respond with a numbered step-by-step plan. Format each step as:\n1. Step title — Brief description of what this step does\n2. ...\nUse at least 3 steps. Be specific and actionable.'
-        : '');
+        : '')
+      + contextBlock;
 
     setInput('');
     setMessages(prev => [...prev, userMsg]);
     setStreaming(true);
 
     const assistantId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true, isPlan: planMode, toolCalls: [] }]);
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', streaming: true, isPlan: planMode, toolCalls: [], contextSources }]);
 
     abortRef.current = new AbortController();
     const model = agentForRun.model || ollamaSelectedModel || ollamaModels[0] || 'llama3.2';
@@ -711,7 +876,7 @@ export function IntelPanel() {
     inputRef.current?.focus();
   }, [input, isStreaming, ollamaOnline, attachedFile, messages, workspacePath, activeFile,
       ollamaSelectedModel, ollamaModels, planMode, toolsMode, setPendingDiffReview,
-      selectedAgentId, userAgents, requestBash]);
+      selectedAgentId, userAgents, requestBash, contextInjectionEnabled, embedModel]);
 
   const handleStop = () => {
     abortRef.current?.abort();
@@ -804,6 +969,9 @@ export function IntelPanel() {
 
       {/* ── Web Preview tab ──────────────────────────────────────────────── */}
       {intelTab === 'preview' && <WebPreviewPanel />}
+
+      {/* ── Context tab (codebase index) ─────────────────────────────────── */}
+      {intelTab === 'context' && <ContextPanel />}
 
       {/* ── Chat tab content ─────────────────────────────────────────────── */}
       {intelTab === 'chat' && ollamaOnline && (

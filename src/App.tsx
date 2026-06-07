@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
-import { getGitBranch } from "@/lib/tauri";
+import { getGitBranch, startWatching, stopWatching, onFsChange } from "@/lib/tauri";
+import { indexFile } from "@/lib/codeindex";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { DiffReview } from "@/components/ui/DiffReview";
 import { SettingsDialog } from "@/components/ui/SettingsDialog";
@@ -27,6 +28,7 @@ export default function App() {
     setGitBranch, workspacePath,
     commandPaletteOpen, setCommandPaletteOpen,
     settingsOpen, setSettingsOpen,
+    embedModel,
   } = useAppStore();
 
   // ── Ollama health polling (every 5 s) ──────────────────────────────────────
@@ -54,6 +56,38 @@ export default function App() {
     if (!workspacePath) { setGitBranch(''); return; }
     getGitBranch(workspacePath).then(setGitBranch);
   }, [workspacePath, setGitBranch]);
+
+  // ── File watcher: start on workspace open, re-index changed files (Tauri) ──
+  useEffect(() => {
+    if (!workspacePath) return;
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const pending = new Set<string>();
+
+    const flush = () => {
+      const files = [...pending];
+      pending.clear();
+      // Re-index changed files incrementally (no-op without Ollama / index)
+      for (const f of files) indexFile(f, embedModel).catch(() => {});
+    };
+
+    startWatching(workspacePath);
+    onFsChange((change) => {
+      for (const p of change.paths) {
+        if (/\.(ts|tsx|js|jsx|rs|py|go|java|md|json|css|scss|html|toml|yaml|yml)$/i.test(p)) pending.add(p);
+      }
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(flush, 2000);
+    }).then(fn => { if (cancelled) fn(); else unlisten = fn; });
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      unlisten?.();
+      stopWatching();
+    };
+  }, [workspacePath, embedModel]);
 
   // ── Global keyboard shortcuts ──────────────────────────────────────────────
   useEffect(() => {

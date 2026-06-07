@@ -4,6 +4,7 @@ import type * as MonacoType from 'monaco-editor';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store';
 import { readFile, writeFile } from '@/lib/tauri';
+import { generateCompletion } from '@/lib/ollama';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { initVimMode } from 'monaco-vim';
@@ -29,6 +30,47 @@ const EXT_LANG: Record<string, string> = {
 export function getLang(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() ?? '';
   return EXT_LANG[ext] ?? 'plaintext';
+}
+
+// ─── Inline AI autocomplete (ghost text) ──────────────────────────────────────
+// Registered once per Monaco instance. Reads live state from the store so the
+// toggle takes effect without re-registering.
+
+let inlineProviderRegistered = false;
+
+function registerInlineCompletions(monaco: typeof MonacoType) {
+  if (inlineProviderRegistered) return;
+  inlineProviderRegistered = true;
+
+  monaco.languages.registerInlineCompletionsProvider({ pattern: '**' }, {
+    provideInlineCompletions: async (model, position, _ctx, token) => {
+      const state = useAppStore.getState();
+      if (!state.autocompleteEnabled || !state.ollamaOnline) return { items: [] };
+
+      // 500ms idle debounce
+      await new Promise(r => setTimeout(r, 500));
+      if (token.isCancellationRequested) return { items: [] };
+
+      const offset = model.getOffsetAt(position);
+      const full = model.getValue();
+      // ±50 lines of surrounding context
+      const prefix = full.slice(0, offset).split('\n').slice(-50).join('\n');
+      const suffix = full.slice(offset).split('\n').slice(0, 50).join('\n');
+      if (prefix.trim().length === 0) return { items: [] };
+
+      const modelName = state.ollamaSelectedModel || state.ollamaModels[0] || 'qwen2.5-coder';
+      const completion = await generateCompletion(modelName, prefix, suffix);
+      if (!completion || token.isCancellationRequested) return { items: [] };
+
+      return {
+        items: [{
+          insertText: completion,
+          range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+        }],
+      };
+    },
+    disposeInlineCompletions: () => { /* nothing to dispose */ },
+  });
 }
 
 // ─── Browser-mode placeholder content ────────────────────────────────────────
@@ -465,6 +507,8 @@ interface ToolbarProps {
   editorTheme: string;
   autoSave: boolean;
   vimMode: boolean;
+  autocomplete: boolean;
+  ollamaOnline: boolean;
   onWordWrapToggle: () => void;
   onMinimapToggle: () => void;
   onFontIncrease: () => void;
@@ -472,12 +516,14 @@ interface ToolbarProps {
   onThemeChange: (t: string) => void;
   onAutoSaveToggle: () => void;
   onVimToggle: () => void;
+  onAutocompleteToggle: () => void;
 }
 
 function EditorToolbar({
   language, wordWrap, minimap, fontSize, editorTheme, autoSave, vimMode,
+  autocomplete, ollamaOnline,
   onWordWrapToggle, onMinimapToggle, onFontIncrease, onFontDecrease,
-  onThemeChange, onAutoSaveToggle, onVimToggle,
+  onThemeChange, onAutoSaveToggle, onVimToggle, onAutocompleteToggle,
 }: ToolbarProps) {
   const btn = (active: boolean, onClick: () => void, children: React.ReactNode, title: string) => (
     <button
@@ -546,6 +592,18 @@ function EditorToolbar({
 
       {/* Vim mode */}
       {btn(vimMode, onVimToggle, 'VIM', 'Toggle Vim mode')}
+
+      <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 3px' }} />
+
+      {/* Inline AI autocomplete */}
+      {btn(autocomplete, onAutocompleteToggle, (
+        <>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 1l1.3 3.2L10.5 5l-2.5 2 .8 3.3L6 8.5 3.2 10.3 4 7 1.5 5l3.2-.8z"/>
+          </svg>
+          Suggest
+        </>
+      ), ollamaOnline ? 'Toggle inline AI autocomplete (ghost text)' : 'Start Ollama to enable autocomplete')}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
@@ -620,6 +678,7 @@ export function MonacoEditor({ path }: Props) {
     autoSave, setAutoSave,
     vimMode, setVimMode,
     setEditorCursor, setEditorFileSize,
+    autocompleteEnabled, setAutocompleteEnabled, ollamaOnline,
   } = useAppStore();
 
   const editorRef       = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
@@ -690,6 +749,7 @@ export function MonacoEditor({ path }: Props) {
   // ── Monaco lifecycle ──────────────────────────────────────────────────────
   const handleBeforeMount: BeforeMount = useCallback((monaco) => {
     registerAllThemes(monaco);
+    registerInlineCompletions(monaco as unknown as typeof MonacoType);
   }, []);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
@@ -771,6 +831,8 @@ export function MonacoEditor({ path }: Props) {
         editorTheme={editorTheme}
         autoSave={autoSave}
         vimMode={vimMode}
+        autocomplete={autocompleteEnabled}
+        ollamaOnline={ollamaOnline}
         onWordWrapToggle={() => setWordWrap(w => !w)}
         onMinimapToggle={() => setMinimap(m => !m)}
         onFontIncrease={() => setFontSize(f => Math.min(f + 1, 24))}
@@ -778,6 +840,7 @@ export function MonacoEditor({ path }: Props) {
         onThemeChange={setEditorTheme}
         onAutoSaveToggle={() => setAutoSave(!autoSave)}
         onVimToggle={() => setVimMode(!vimMode)}
+        onAutocompleteToggle={() => setAutocompleteEnabled(!autocompleteEnabled)}
       />
 
       {loading ? (
@@ -823,6 +886,7 @@ export function MonacoEditor({ path }: Props) {
               insertSpaces: true,
               bracketPairColorization: { enabled: true },
               guides: { bracketPairs: true, indentation: true },
+              inlineSuggest: { enabled: true, showToolbar: 'onHover' },
               suggestOnTriggerCharacters: true,
               acceptSuggestionOnEnter: 'on',
               snippetSuggestions: 'top',

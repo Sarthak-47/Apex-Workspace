@@ -37,7 +37,7 @@ export function StatusBar() {
     mode, activeFile, terminalOpen, toggleTerminal,
     ollamaOnline, ollamaModels, gitBranch,
     cursorLine, cursorCol, editorFileSize,
-    vimMode,
+    vimMode, indexProgress, autocompleteEnabled,
   } = useAppStore();
 
   const fmtSize = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`;
@@ -88,6 +88,32 @@ export function StatusBar() {
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
+
+      {/* Indexing progress */}
+      {indexProgress && indexProgress.total > 0 && (
+        <>
+          <SbItem title={indexProgress.file ? `Indexing ${indexProgress.file}` : 'Indexing codebase'}>
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round"
+              style={{ opacity: 0.85, animation: indexProgress.done < indexProgress.total ? 'spin 0.8s linear infinite' : 'none' }}>
+              <path d="M11 6A5 5 0 1 1 6 1"/>
+            </svg>
+            {indexProgress.done < indexProgress.total
+              ? `Indexing ${indexProgress.done}/${indexProgress.total}`
+              : 'Index ready'}
+          </SbItem>
+          <Divider />
+        </>
+      )}
+
+      {/* Autocomplete indicator */}
+      {autocompleteEnabled && (
+        <>
+          <SbItem title="Inline AI autocomplete is on">
+            <span style={{ fontSize: 10, letterSpacing: '0.03em' }}>✨ Suggest</span>
+          </SbItem>
+          <Divider />
+        </>
+      )}
 
       {/* ── Right ─────────────────────────────────────────────────────── */}
 

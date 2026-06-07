@@ -36,6 +36,61 @@ export interface ChatMessage {
 }
 
 /**
+ * Fill-in-the-middle code completion via Ollama /api/generate.
+ * Returns the predicted continuation (ghost text). Never throws.
+ */
+export async function generateCompletion(
+  model: string,
+  prefix: string,
+  suffix: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  try {
+    const res = await fetch(`${OLLAMA_BASE}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        prompt: prefix,
+        suffix,
+        stream: false,
+        options: { temperature: 0.1, num_predict: 96, stop: ['\n\n', '```'] },
+      }),
+      signal,
+    });
+    if (!res.ok) return '';
+    const data = await res.json() as { response?: string };
+    return data.response ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Get an embedding vector for a text input via Ollama /api/embeddings.
+ * Returns [] on failure. Default model: nomic-embed-text.
+ */
+export async function embed(
+  text: string,
+  model = 'nomic-embed-text',
+  signal?: AbortSignal,
+): Promise<number[]> {
+  try {
+    const res = await fetch(`${OLLAMA_BASE}/api/embeddings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt: text }),
+      signal,
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as { embedding?: number[] };
+    return data.embedding ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Stream a chat completion from Ollama token by token.
  * Yields each content fragment as it arrives.
  * Caller must handle AbortError when the signal fires.

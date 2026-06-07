@@ -127,6 +127,22 @@ interface AppState {
   // Bash "Allow Always" command-prefix whitelist (persisted)
   bashAllowAlways: string[];
   addBashAllowAlways: (prefix: string) => void;
+
+  // Inline autocomplete (persisted)
+  autocompleteEnabled: boolean;
+  setAutocompleteEnabled: (v: boolean) => void;
+
+  // Embedding model for codebase index (persisted)
+  embedModel: string;
+  setEmbedModel: (m: string) => void;
+
+  // Codebase index progress (not persisted)
+  indexProgress: { done: number; total: number; file: string } | null;
+  setIndexProgress: (p: { done: number; total: number; file: string } | null) => void;
+
+  // Context injection toggle (persisted)
+  contextInjectionEnabled: boolean;
+  setContextInjectionEnabled: (v: boolean) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -296,6 +312,22 @@ export const useAppStore = create<AppState>()(
       bashAllowAlways: [],
       addBashAllowAlways: (prefix) =>
         set((s) => (s.bashAllowAlways.includes(prefix) ? s : { bashAllowAlways: [...s.bashAllowAlways, prefix] })),
+
+      // Inline autocomplete
+      autocompleteEnabled: false,
+      setAutocompleteEnabled: (v) => set({ autocompleteEnabled: v }),
+
+      // Embedding model
+      embedModel: 'nomic-embed-text',
+      setEmbedModel: (m) => set({ embedModel: m }),
+
+      // Index progress
+      indexProgress: null,
+      setIndexProgress: (p) => set({ indexProgress: p }),
+
+      // Context injection
+      contextInjectionEnabled: true,
+      setContextInjectionEnabled: (v) => set({ contextInjectionEnabled: v }),
     }),
     {
       name: "apex-app-state",
@@ -320,6 +352,9 @@ export const useAppStore = create<AppState>()(
         selectedAgentId: s.selectedAgentId,
         userAgents: s.userAgents,
         bashAllowAlways: s.bashAllowAlways,
+        autocompleteEnabled: s.autocompleteEnabled,
+        embedModel: s.embedModel,
+        contextInjectionEnabled: s.contextInjectionEnabled,
       }),
     }
   )
