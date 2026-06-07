@@ -5,6 +5,7 @@ import { readFile, listAllFiles } from "@/lib/tauri";
 import { suggestMentions, buildCandidates, expandMentions, type MentionItem } from "@/lib/mentions";
 import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
 import { listVault, createNote, buildBacklinkIndex, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
+import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
@@ -574,8 +575,8 @@ function ContextPanel() {
 // ─── Knowledge tab — markdown vault browser ──────────────────────────────────
 
 function KnowledgePanel() {
-  const { workspacePath, activeFile, openFile } = useAppStore();
-  const { info } = useToast();
+  const { workspacePath, activeFile, openFile, ollamaOnline, ollamaSelectedModel, ollamaModels } = useAppStore();
+  const { info, error, success } = useToast();
   const [notes, setNotes] = useState<VaultNote[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -583,12 +584,45 @@ function KnowledgePanel() {
   const [newName, setNewName] = useState('');
   const [picker, setPicker] = useState(false);
 
+  // Entity extraction (Day 20)
+  const [strictness, setStrictness] = useState<Strictness>('medium');
+  const [recommended, setRecommended] = useState<{ level: Strictness; humanSenders: number } | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [exProgress, setExProgress] = useState<ExtractProgress | null>(null);
+  const extractAbort = useRef<AbortController | null>(null);
+
   const refresh = useCallback(() => {
     if (!workspacePath) { setNotes([]); return; }
     setLoading(true);
     listVault(workspacePath).then(setNotes).catch(() => setNotes([])).finally(() => setLoading(false));
   }, [workspacePath]);
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Auto-detect strictness from synced raw threads (first open)
+  useEffect(() => {
+    if (!workspacePath) return;
+    detectStrictness(workspacePath).then(r => {
+      if (r.humanSenders > 0) { setRecommended(r); setStrictness(r.level); }
+    }).catch(() => {});
+  }, [workspacePath]);
+
+  const runExtract = async () => {
+    if (!workspacePath) { info('Open a workspace first'); return; }
+    if (!ollamaOnline) { error('Ollama must be running for extraction'); return; }
+    const model = ollamaSelectedModel || ollamaModels[0] || 'llama3.1';
+    extractAbort.current = new AbortController();
+    setExtracting(true);
+    try {
+      const sum = await extractFromGmail(workspacePath, strictness, model,
+        p => setExProgress(p), extractAbort.current.signal);
+      success(`Extracted: ${sum.created} new, ${sum.updated} updated from ${sum.threads} threads${sum.errors ? ` (${sum.errors} errors)` : ''}`);
+      refresh();
+    } catch (e) { error(`Extraction failed: ${(e as Error).message}`); }
+    setExtracting(false);
+    setTimeout(() => setExProgress(null), 1500);
+  };
+
+  const cancelExtract = () => { extractAbort.current?.abort(); setExtracting(false); setExProgress(null); };
 
   const backlinks = buildBacklinkIndex(notes);
 
@@ -659,6 +693,41 @@ function KnowledgePanel() {
           )}
         </div>
       )}
+
+      {/* Entity extraction bar */}
+      <div style={{ margin: '0 12px 8px', padding: 8, background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '0.08em', flex: 1 }}>Extract from Gmail</span>
+          <select value={strictness} onChange={e => setStrictness(e.target.value as Strictness)} disabled={extracting}
+            title="Note-creation strictness"
+            style={{ height: 24, background: '#18181F', border: '1px solid #252535', borderRadius: 4, color: '#C0C0D0', fontSize: 10, padding: '0 4px', outline: 'none', cursor: 'pointer' }}>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          {extracting ? (
+            <button onClick={cancelExtract} style={{ height: 24, padding: '0 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}>Stop</button>
+          ) : (
+            <button onClick={runExtract} disabled={!ollamaOnline}
+              style={{ height: 24, padding: '0 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: ollamaOnline ? 'pointer' : 'not-allowed', background: ollamaOnline ? '#6366F1' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>Extract</button>
+          )}
+        </div>
+        {recommended && !extracting && (
+          <div style={{ fontSize: 9, color: '#4A4A65', marginTop: 5 }}>
+            Recommended <b style={{ color: '#6366F1' }}>{recommended.level}</b> ({recommended.humanSenders} human senders detected)
+          </div>
+        )}
+        {exProgress && (
+          <div style={{ marginTop: 6 }}>
+            <div style={{ height: 3, background: '#252535', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: '#6366F1', borderRadius: 2, transition: 'width 0.2s', width: `${exProgress.totalBatches ? (exProgress.batch / exProgress.totalBatches) * 100 : 0}%` }} />
+            </div>
+            <div style={{ fontSize: 9, color: '#6C6C8A', marginTop: 3 }}>
+              {exProgress.phase} · batch {exProgress.batch}/{exProgress.totalBatches}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Note list */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0 8px 12px' }}>
