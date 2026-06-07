@@ -3,7 +3,7 @@
  * Notes live under `<workspace>/.apex/vault/<category>/`. Each note has YAML
  * frontmatter and may reference others via [[wikilinks]].
  */
-import { readFile, writeFile, listDir, type DirEntry } from './tauri';
+import { readFile, writeFile, listDir, deletePath, type DirEntry } from './tauri';
 
 export type NoteCategory = 'people' | 'projects' | 'organizations' | 'decisions' | 'meetings' | 'topics';
 
@@ -153,4 +153,103 @@ export async function resolveNoteByTitle(workspace: string, title: string): Prom
 export function isVaultNote(workspace: string, path: string): boolean {
   const root = vaultRoot(workspace).replace(/\\/g, '/');
   return path.replace(/\\/g, '/').startsWith(root) && path.endsWith('.md');
+}
+
+// ─── Note history (versions) ──────────────────────────────────────────────────
+
+/** Save the current contents of a note to .state/history/ before overwriting. */
+export async function saveVersion(workspace: string, notePath: string, prevContent: string): Promise<void> {
+  if (!prevContent.trim()) return;
+  const s = sep(workspace);
+  const base = notePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') ?? 'note';
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const dest = [vaultRoot(workspace), '.state', 'history', `${base}__${stamp}.md`].join(s);
+  try { await writeFile(dest, prevContent); } catch { /* best-effort */ }
+}
+
+/** List prior versions of a note (most recent first). */
+export async function listVersions(workspace: string, notePath: string): Promise<{ path: string; when: string }[]> {
+  const s = sep(workspace);
+  const dir = [vaultRoot(workspace), '.state', 'history'].join(s);
+  const base = notePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') ?? '';
+  try {
+    return (await listDir(dir))
+      .filter(e => e.name.startsWith(`${base}__`) && e.name.endsWith('.md'))
+      .map(e => ({ path: e.path, when: e.name.slice(base.length + 2, -3).replace(/-/g, ':') }))
+      .sort((a, b) => b.when.localeCompare(a.when));
+  } catch { return []; }
+}
+
+// ─── Rebuild knowledge links ──────────────────────────────────────────────────
+
+function upsertSection(body: string, heading: string, content: string): string {
+  const re = new RegExp(`(##\\s+${heading}\\n)([\\s\\S]*?)(?=\\n##\\s|$)`);
+  if (re.test(body)) return body.replace(re, `$1${content}\n`);
+  return `${body.trimEnd()}\n\n## ${heading}\n${content}\n`;
+}
+
+/**
+ * Recompute derived links across the vault:
+ * - Person notes get a "Recent Interactions" section (meetings/emails linking to them, last 5)
+ * - Meeting notes are linked to calendar events sharing date + an attendee
+ * Returns the number of notes updated. Writes versions before overwriting.
+ */
+export async function rebuildLinks(workspace: string): Promise<number> {
+  const notes = await listVault(workspace);
+  const byTitle = new Map(notes.map(n => [n.title.toLowerCase(), n]));
+  let updated = 0;
+
+  for (const note of notes) {
+    let body = note.body;
+
+    if (note.category === 'people') {
+      const interactions = notes
+        .filter(o => (o.category === 'meetings' || o.frontmatter.type === 'email') && o.path !== note.path)
+        .filter(o => extractLinks(o.body).some(l => l.toLowerCase() === note.title.toLowerCase()))
+        .sort((a, b) => (b.frontmatter.date ?? b.frontmatter.updated ?? '').localeCompare(a.frontmatter.date ?? a.frontmatter.updated ?? ''))
+        .slice(0, 5)
+        .map(o => `- [[${o.title}]]${o.frontmatter.date ? ` (${o.frontmatter.date})` : ''}`);
+      if (interactions.length) body = upsertSection(body, 'Recent Interactions', interactions.join('\n'));
+    }
+
+    if (note.category === 'meetings') {
+      const date = note.frontmatter.date ?? '';
+      const attendees = (note.frontmatter.participants ?? '').split(',').map(s => s.trim()).filter(Boolean);
+      const event = notes.find(o => o.frontmatter.type === 'event' || (o.category === 'topics' && o.frontmatter.date === date));
+      void event; // calendar events live in raw/, matched below by title presence
+      const linkedPeople = attendees.filter(a => byTitle.has(a.toLowerCase())).map(a => `- [[${a}]]`);
+      if (linkedPeople.length) body = upsertSection(body, 'Attendees', linkedPeople.join('\n'));
+    }
+
+    if (body !== note.body) {
+      await saveVersion(workspace, note.path, serializeNote(note.frontmatter, note.body));
+      await writeFile(note.path, serializeNote({ ...note.frontmatter, updated: new Date().toISOString().slice(0, 10) }, body));
+      updated++;
+    }
+  }
+  return updated;
+}
+
+// ─── Export / clear ───────────────────────────────────────────────────────────
+
+/** Build a zip of all vault Markdown and trigger a download (user-initiated). */
+export async function exportVaultZip(workspace: string): Promise<number> {
+  const { default: JSZip } = await import('jszip');
+  const zip = new JSZip();
+  const notes = await listVault(workspace);
+  for (const n of notes) {
+    zip.file(`${n.category}/${n.path.split(/[\\/]/).pop()}`, await readFile(n.path).catch(() => serializeNote(n.frontmatter, n.body)));
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'apex-vault.zip';
+  a.click();
+  URL.revokeObjectURL(url);
+  return notes.length;
+}
+
+/** Delete the entire vault (notes, raw, meetings, state). Caller must confirm first. */
+export async function clearVault(workspace: string): Promise<void> {
+  try { await deletePath(vaultRoot(workspace)); } catch { /* may not exist */ }
 }

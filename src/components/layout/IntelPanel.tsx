@@ -4,7 +4,7 @@ import { streamChat, type ChatMessage } from "@/lib/ollama";
 import { readFile, listAllFiles } from "@/lib/tauri";
 import { suggestMentions, buildCandidates, expandMentions, type MentionItem } from "@/lib/mentions";
 import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
-import { listVault, createNote, buildBacklinkIndex, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
+import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip, clearVault, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
 import { GraphView } from "@/components/knowledge/GraphView";
 import { getLang } from "@/components/editor/MonacoEditor";
@@ -590,6 +590,11 @@ function KnowledgePanel() {
   const [catFilter, setCatFilter] = useState<NoteCategory | 'all'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'date'>('name');
 
+  // Vault management (Day 24)
+  const [manage, setManage] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [busyMgmt, setBusyMgmt] = useState(false);
+
   // Entity extraction (Day 20)
   const [strictness, setStrictness] = useState<Strictness>('medium');
   const [recommended, setRecommended] = useState<{ level: Strictness; humanSenders: number } | null>(null);
@@ -630,6 +635,28 @@ function KnowledgePanel() {
 
   const cancelExtract = () => { extractAbort.current?.abort(); setExtracting(false); setExProgress(null); };
 
+  // Vault management
+  const doRebuild = async () => {
+    if (!workspacePath) return;
+    setBusyMgmt(true);
+    try { const n = await rebuildLinks(workspacePath); success(`Rebuilt links — ${n} note${n === 1 ? '' : 's'} updated`); refresh(); }
+    catch (e) { error(`Rebuild failed: ${(e as Error).message}`); }
+    setBusyMgmt(false); setManage(false);
+  };
+  const doExport = async () => {
+    if (!workspacePath) return;
+    setBusyMgmt(true);
+    try { const n = await exportVaultZip(workspacePath); success(`Exported ${n} notes to apex-vault.zip`); }
+    catch (e) { error(`Export failed: ${(e as Error).message}`); }
+    setBusyMgmt(false); setManage(false);
+  };
+  const doClear = async () => {
+    if (!workspacePath) return;
+    try { await clearVault(workspacePath); info('Vault cleared'); refresh(); }
+    catch (e) { error(`Clear failed: ${(e as Error).message}`); }
+    setConfirmClear(false); setManage(false);
+  };
+
   const backlinks = buildBacklinkIndex(notes);
 
   const filtered = notes
@@ -664,7 +691,24 @@ function KnowledgePanel() {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
+      {/* Clear-vault confirm */}
+      {confirmClear && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}
+          onClick={() => setConfirmClear(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 260, background: '#15151E', border: '1px solid #EF444440', borderRadius: 10, padding: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#E2E2EC', marginBottom: 6 }}>Clear the entire vault?</div>
+            <p style={{ fontSize: 11, color: '#8888A8', lineHeight: 1.5, marginBottom: 12 }}>
+              Deletes all notes, raw syncs and meetings under <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>.apex/vault</code>. This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setConfirmClear(false)} style={{ height: 28, padding: '0 12px', borderRadius: 5, fontSize: 12, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>Cancel</button>
+              <button onClick={doClear} style={{ height: 28, padding: '0 12px', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}>Clear vault</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div style={{ padding: '8px 12px', display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '0 8px', height: 28 }}>
@@ -690,6 +734,27 @@ function KnowledgePanel() {
           style={{ width: 28, height: 28, borderRadius: 5, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><line x1="6.5" y1="2" x2="6.5" y2="11"/><line x1="2" y1="6.5" x2="11" y2="6.5"/></svg>
         </button>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button onClick={() => setManage(m => !m)} title="Vault management"
+            style={{ width: 28, height: 28, borderRadius: 5, cursor: 'pointer', background: manage ? '#1A1A3A' : 'transparent', border: '1px solid #252535', color: manage ? '#6366F1' : '#4A4A65', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="7" cy="7" r="2"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.8 2.8l1.4 1.4M9.8 9.8l1.4 1.4M11.2 2.8l-1.4 1.4M4.2 9.8l-1.4 1.4"/></svg>
+          </button>
+          {manage && (
+            <div style={{ position: 'absolute', top: 32, right: 0, zIndex: 60, width: 180, background: '#15151E', border: '1px solid #2A2A3D', borderRadius: 8, boxShadow: '0 12px 32px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
+              {[
+                { label: 'Rebuild links', fn: doRebuild, color: '#C0C0D0' },
+                { label: 'Export vault (.zip)', fn: doExport, color: '#C0C0D0' },
+                { label: 'Clear vault…', fn: () => { setConfirmClear(true); setManage(false); }, color: '#EF4444' },
+              ].map(item => (
+                <button key={item.label} onClick={item.fn} disabled={busyMgmt}
+                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: 12, cursor: busyMgmt ? 'default' : 'pointer', background: 'transparent', border: 'none', color: item.color }}
+                  className="hover:!bg-[#1A1A3A] transition-colors">
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Category tabs + sort (list view) */}

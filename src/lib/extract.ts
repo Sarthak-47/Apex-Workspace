@@ -11,7 +11,7 @@ import { createOllama } from 'ollama-ai-provider';
 import { z } from 'zod';
 import { readFile, writeFile, listDir } from './tauri';
 import {
-  vaultRoot, parseFrontmatter, serializeNote, listVault,
+  vaultRoot, parseFrontmatter, serializeNote, listVault, saveVersion,
   type VaultNote, type NoteCategory,
 } from './vault';
 
@@ -175,6 +175,8 @@ async function upsertNote(
     sources.add(sourceFile);
     fm.sources = [...sources].join(', ');
     const body = `${match.body.trimEnd()}\n\n## Update ${today()}\n${appendSection}\n`;
+    // Save the prior version before overwriting (note history)
+    await saveVersion(workspace, match.path, serializeNote(match.frontmatter, match.body));
     await writeFile(match.path, serializeNote(fm, body));
     stats.updated++;
   } else {
