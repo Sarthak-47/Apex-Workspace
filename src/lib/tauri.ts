@@ -366,6 +366,78 @@ export async function gmailDisconnect(): Promise<void> {
   localStorage.removeItem(GMAIL_MOCK_KEY);
 }
 
+// ─── Google Calendar (shares the Gmail Google account) ────────────────────────
+
+export async function calendarStatus(workspace?: string): Promise<GmailStatus> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<GmailStatus>('calendar_status', { workspace: workspace ?? null });
+  }
+  // Browser mock: connected iff Gmail mock connected
+  const g = readGmailMock();
+  try {
+    const raw = localStorage.getItem('apex-calendar-mock');
+    if (raw) return JSON.parse(raw) as GmailStatus;
+  } catch { /* ignore */ }
+  return { connected: g.connected, email: g.email, last_synced: null, thread_count: null };
+}
+
+export async function calendarSync(workspace: string): Promise<GmailSyncResult> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<GmailSyncResult>('calendar_sync', { workspace });
+  }
+  const g = readGmailMock();
+  localStorage.setItem('apex-calendar-mock', JSON.stringify({ connected: g.connected, email: g.email, last_synced: Math.floor(Date.now() / 1000), thread_count: 18 }));
+  return { thread_count: 18, new_or_changed: 18 };
+}
+
+// ─── Fireflies ────────────────────────────────────────────────────────────────
+
+export interface FirefliesStatus {
+  connected: boolean;
+  last_synced: number | null;
+  meeting_count: number | null;
+}
+
+const FF_MOCK_KEY = 'apex-fireflies-mock';
+
+export async function firefliesStatus(workspace?: string): Promise<FirefliesStatus> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<FirefliesStatus>('fireflies_status', { workspace: workspace ?? null });
+  }
+  try { const raw = localStorage.getItem(FF_MOCK_KEY); if (raw) return JSON.parse(raw) as FirefliesStatus; } catch { /* ignore */ }
+  return { connected: false, last_synced: null, meeting_count: null };
+}
+
+export async function firefliesSetKey(key: string): Promise<void> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('fireflies_set_key', { key });
+    return;
+  }
+  localStorage.setItem(FF_MOCK_KEY, JSON.stringify({ connected: true, last_synced: null, meeting_count: null }));
+}
+
+export async function firefliesSync(workspace: string): Promise<{ meeting_count: number }> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<{ meeting_count: number }>('fireflies_sync', { workspace });
+  }
+  localStorage.setItem(FF_MOCK_KEY, JSON.stringify({ connected: true, last_synced: Math.floor(Date.now() / 1000), meeting_count: 7 }));
+  return { meeting_count: 7 };
+}
+
+export async function firefliesDisconnect(): Promise<void> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('fireflies_disconnect');
+    return;
+  }
+  localStorage.removeItem(FF_MOCK_KEY);
+}
+
 /** Listen for the OAuth callback completing (Tauri only). */
 export async function onGmailConnected(handler: (email: string) => void): Promise<() => void> {
   if (isTauri()) {

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore, useToast } from "@/store";
 import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { BUILTIN_AGENTS, ALL_TOOLS, type AgentDef, type ToolName } from "@/lib/agents";
-import { gmailStatus, gmailStartAuth, gmailSync, gmailDisconnect, onGmailConnected, type GmailStatus } from "@/lib/tauri";
+import { gmailStatus, gmailStartAuth, gmailSync, gmailDisconnect, onGmailConnected, type GmailStatus,
+  calendarStatus, calendarSync, firefliesStatus, firefliesSetKey, firefliesSync, firefliesDisconnect, type FirefliesStatus } from "@/lib/tauri";
 
 type Tab = 'general' | 'editor' | 'terminal' | 'ai' | 'connections' | 'themes' | 'about';
 
@@ -512,10 +513,114 @@ function ConnectionsTab() {
         )}
       </Section>
 
-      <Section title="Calendar · Fireflies">
-        <p style={{ fontSize: 11, color: '#4A4A65', lineHeight: 1.6 }}>Coming in a later sprint day (Calendar + Fireflies sync).</p>
-      </Section>
+      <CalendarPanel />
+      <FirefliesPanel />
     </div>
+  );
+}
+
+function CalendarPanel() {
+  const { workspacePath } = useAppStore();
+  const { error, success } = useToast();
+  const [status, setStatus] = useState<GmailStatus>({ connected: false, email: null, last_synced: null, thread_count: null });
+  const [busy, setBusy] = useState(false);
+  const refresh = () => { calendarStatus(workspacePath ?? undefined).then(setStatus).catch(() => {}); };
+  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, []);
+  const sync = async () => {
+    if (!workspacePath) { error('Open a workspace first'); return; }
+    setBusy(true);
+    try { const r = await calendarSync(workspacePath); success(`Synced ${r.thread_count} calendar events`); refresh(); }
+    catch (e) { error(`Calendar sync failed: ${(e as Error).message}`); }
+    setBusy(false);
+  };
+  const fmtDate = (t: number | null) => t ? new Date(t * 1000).toLocaleString() : 'never';
+  return (
+    <Section title="Google Calendar">
+      <div style={{ background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: status.connected ? 10 : 0 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: status.connected ? '#22C55E' : '#4A4A65' }} />
+          <span style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 600 }}>{status.connected ? 'Connected (Google account)' : 'Connect Gmail first'}</span>
+        </div>
+        {status.connected && (
+          <div style={{ fontSize: 11, color: '#8888A8', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4A4A65' }}>Last synced</span><span>{fmtDate(status.last_synced)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4A4A65' }}>Events</span><span>{status.thread_count ?? 0}</span></div>
+          </div>
+        )}
+      </div>
+      {status.connected && (
+        <button onClick={sync} disabled={busy} style={{ height: 30, width: '100%', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>
+          {busy ? 'Syncing…' : 'Sync Calendar'}
+        </button>
+      )}
+      <p style={{ fontSize: 10, color: '#4A4A65', marginTop: 8, lineHeight: 1.5 }}>
+        Pulls events (−60d to +14d) into <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>.apex/vault/raw/calendar/</code>. Attendees link to people notes. Auto-syncs every 30 min.
+      </p>
+    </Section>
+  );
+}
+
+function FirefliesPanel() {
+  const { workspacePath } = useAppStore();
+  const { error, success, info } = useToast();
+  const [status, setStatus] = useState<FirefliesStatus>({ connected: false, last_synced: null, meeting_count: null });
+  const [apiKey, setApiKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const refresh = () => { firefliesStatus(workspacePath ?? undefined).then(setStatus).catch(() => {}); };
+  useEffect(() => { refresh(); /* eslint-disable-next-line */ }, []);
+  const connect = async () => {
+    if (!apiKey.trim()) { error('Enter your Fireflies API key'); return; }
+    setBusy(true);
+    try { await firefliesSetKey(apiKey.trim()); success('Fireflies key saved'); setApiKey(''); refresh(); }
+    catch (e) { error(`Failed: ${(e as Error).message}`); }
+    setBusy(false);
+  };
+  const sync = async () => {
+    if (!workspacePath) { error('Open a workspace first'); return; }
+    setBusy(true);
+    try { const r = await firefliesSync(workspacePath); success(`Synced ${r.meeting_count} meetings`); refresh(); }
+    catch (e) { error(`Sync failed: ${(e as Error).message}`); }
+    setBusy(false);
+  };
+  const disconnect = async () => { await firefliesDisconnect(); refresh(); info('Fireflies disconnected'); };
+  const fmtDate = (t: number | null) => t ? new Date(t * 1000).toLocaleString() : 'never';
+  const inputStyle: React.CSSProperties = {
+    width: '100%', height: 30, background: '#18181F', border: '1px solid #252535', borderRadius: 5,
+    color: '#C0C0D0', fontSize: 12, padding: '0 8px', outline: 'none', fontFamily: '"JetBrains Mono",monospace',
+  };
+  return (
+    <Section title="Fireflies">
+      <div style={{ background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: status.connected ? 10 : 0 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: status.connected ? '#22C55E' : '#4A4A65' }} />
+          <span style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 600 }}>{status.connected ? 'Connected' : 'Not connected'}</span>
+        </div>
+        {status.connected && (
+          <div style={{ fontSize: 11, color: '#8888A8', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4A4A65' }}>Last synced</span><span>{fmtDate(status.last_synced)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#4A4A65' }}>Meetings</span><span>{status.meeting_count ?? 0}</span></div>
+          </div>
+        )}
+      </div>
+      {!status.connected ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Field label="API key"><input style={inputStyle} type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Fireflies API key (fireflies.ai → Settings)" /></Field>
+          <button onClick={connect} disabled={busy} style={{ height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>
+            {busy ? 'Saving…' : 'Save Key'}
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={sync} disabled={busy} style={{ flex: 1, height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>
+            {busy ? 'Syncing…' : 'Sync Meetings'}
+          </button>
+          <button onClick={disconnect} style={{ height: 30, padding: '0 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}>Disconnect</button>
+        </div>
+      )}
+      <p style={{ fontSize: 10, color: '#4A4A65', marginTop: 8, lineHeight: 1.5 }}>
+        Meeting transcripts saved to <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>.apex/vault/meetings/</code>. Entity extraction runs on meetings too.
+      </p>
+    </Section>
   );
 }
 

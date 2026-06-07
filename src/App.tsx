@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
-import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync } from "@/lib/tauri";
+import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync, calendarStatus, calendarSync } from "@/lib/tauri";
 import { indexFile } from "@/lib/codeindex";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { DiffReview } from "@/components/ui/DiffReview";
@@ -100,6 +100,20 @@ export default function App() {
       } catch { /* offline / not connected */ }
     };
     const id = setInterval(tick, 6 * 60 * 60 * 1000); // 6h
+    return () => { stopped = true; clearInterval(id); };
+  }, [workspacePath]);
+
+  // ── Calendar auto-sync every 30 minutes ────────────────────────────────────
+  useEffect(() => {
+    if (!workspacePath) return;
+    let stopped = false;
+    const tick = async () => {
+      try {
+        const s = await calendarStatus(workspacePath);
+        if (!stopped && s.connected) await calendarSync(workspacePath);
+      } catch { /* not connected */ }
+    };
+    const id = setInterval(tick, 30 * 60 * 1000); // 30 min
     return () => { stopped = true; clearInterval(id); };
   }, [workspacePath]);
 

@@ -210,10 +210,13 @@ export async function extractFromGmail(
   signal?: AbortSignal,
 ): Promise<ExtractSummary> {
   const sep = workspace.includes('\\') ? '\\' : '/';
-  const dir = [vaultRoot(workspace), 'raw', 'gmail'].join(sep);
+  const gmailDir = [vaultRoot(workspace), 'raw', 'gmail'].join(sep);
+  const meetingsDir = [vaultRoot(workspace), 'meetings'].join(sep);
   let files: { path: string }[] = [];
-  try { files = (await listDir(dir)).filter(e => e.name.endsWith('.md')).map(e => ({ path: e.path })); }
-  catch { return { threads: 0, created: 0, updated: 0, errors: 0 }; }
+  // Meetings first — they always carry high-signal entities, regardless of strictness.
+  try { files.push(...(await listDir(meetingsDir)).filter(e => e.name.endsWith('.md')).map(e => ({ path: e.path }))); } catch { /* none */ }
+  try { files.push(...(await listDir(gmailDir)).filter(e => e.name.endsWith('.md')).map(e => ({ path: e.path }))); } catch { /* none */ }
+  if (files.length === 0) return { threads: 0, created: 0, updated: 0, errors: 0 };
 
   const ollama = createOllama({ baseURL: 'http://localhost:11434/api' });
   const batches = chunk(files, BATCH);

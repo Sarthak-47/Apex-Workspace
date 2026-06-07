@@ -28,3 +28,4 @@ keyring = { version = "3", features = ["windows-native", "apple-native", "sync-s
 sha2 = "0.10"
 urlencoding = "2"
 base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }

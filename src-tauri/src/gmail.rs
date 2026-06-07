@@ -16,7 +16,7 @@ use tauri::{AppHandle, Emitter};
 
 const KEYRING_SERVICE: &str = "apex-workspace";
 const KEYRING_USER: &str = "gmail-credentials";
-const SCOPE: &str = "https://www.googleapis.com/auth/gmail.readonly";
+const SCOPE: &str = "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly";
 const AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
 
@@ -415,6 +415,117 @@ fn sha256_hex(s: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(s.as_bytes());
     hasher.finalize().iter().map(|b| format!("{b:02x}")).collect()
+}
+
+// ─── Google Calendar (shares the Gmail OAuth credentials) ────────────────────
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct CalState {
+    last_synced: u64,
+    event_count: u64,
+}
+
+fn cal_state_path(workspace: &str) -> std::path::PathBuf {
+    Path::new(workspace).join(".apex").join("vault").join(".state").join("calendar_state.json")
+}
+
+fn load_cal_state(workspace: &str) -> CalState {
+    fs::read_to_string(cal_state_path(workspace)).ok()
+        .and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+}
+
+#[tauri::command]
+pub async fn calendar_status(workspace: Option<String>) -> Result<GmailStatus, String> {
+    let creds = load_creds();
+    let state = workspace.as_deref().map(load_cal_state);
+    Ok(GmailStatus {
+        connected: creds.is_some(),
+        email: creds.map(|c| c.email),
+        last_synced: state.as_ref().map(|s| s.last_synced).filter(|&t| t > 0),
+        thread_count: state.map(|s| s.event_count),
+    })
+}
+
+#[tauri::command]
+pub async fn calendar_sync(workspace: String) -> Result<SyncResult, String> {
+    tauri::async_runtime::spawn_blocking(move || calendar_sync_blocking(&workspace))
+        .await.map_err(|e| e.to_string())?
+}
+
+fn slugify(s: &str) -> String {
+    s.chars().map(|c| if c.is_alphanumeric() { c } else { '-' }).collect::<String>()
+        .split('-').filter(|p| !p.is_empty()).collect::<Vec<_>>().join("-").to_lowercase()
+}
+
+fn calendar_sync_blocking(workspace: &str) -> Result<SyncResult, String> {
+    use chrono::{Duration, Utc};
+    let mut creds = load_creds().ok_or("Google account not connected")?;
+    let client = reqwest::blocking::Client::new();
+    ensure_fresh(&mut creds, &client)?;
+
+    let time_min = (Utc::now() - Duration::days(60)).to_rfc3339();
+    let time_max = (Utc::now() + Duration::days(14)).to_rfc3339();
+    let url = format!(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin={}&timeMax={}&singleEvents=true&orderBy=startTime&maxResults=250",
+        urlencoding::encode(&time_min), urlencoding::encode(&time_max),
+    );
+    let resp = client.get(&url).bearer_auth(&creds.access_token).send().map_err(|e| e.to_string())?;
+    let json: Value = resp.json().map_err(|e| e.to_string())?;
+    let empty = vec![];
+    let events = json["items"].as_array().unwrap_or(&empty);
+
+    let dir = Path::new(workspace).join(".apex").join("vault").join("raw").join("calendar");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
+    let mut written = 0u64;
+    for ev in events {
+        let (md, date, title) = event_to_markdown(ev);
+        if title.is_empty() { continue; }
+        let fname = format!("{}-{}.md", date, slugify(&title));
+        fs::write(dir.join(fname), md).map_err(|e| e.to_string())?;
+        written += 1;
+    }
+
+    let state = CalState { last_synced: now_secs(), event_count: written };
+    if let Some(parent) = cal_state_path(workspace).parent() { fs::create_dir_all(parent).ok(); }
+    fs::write(cal_state_path(workspace), serde_json::to_string_pretty(&state).unwrap_or_default()).map_err(|e| e.to_string())?;
+
+    Ok(SyncResult { thread_count: written, new_or_changed: written })
+}
+
+/// Returns (markdown, date YYYY-MM-DD, title).
+fn event_to_markdown(ev: &Value) -> (String, String, String) {
+    let title = ev["summary"].as_str().unwrap_or("").to_string();
+    let start = ev["start"]["dateTime"].as_str().or(ev["start"]["date"].as_str()).unwrap_or("");
+    let end = ev["end"]["dateTime"].as_str().or(ev["end"]["date"].as_str()).unwrap_or("");
+    let date = start.get(0..10).unwrap_or("0000-00-00").to_string();
+    let time = start.get(11..16).unwrap_or("").to_string();
+    let location = ev["location"].as_str().unwrap_or("");
+    let description = ev["description"].as_str().unwrap_or("");
+    let calendar = ev["organizer"]["email"].as_str().unwrap_or("primary");
+
+    let empty = vec![];
+    let attendees = ev["attendees"].as_array().unwrap_or(&empty);
+    let mut names: Vec<String> = Vec::new();
+    let mut links: Vec<String> = Vec::new();
+    for a in attendees {
+        let name = a["displayName"].as_str().or(a["email"].as_str()).unwrap_or("").to_string();
+        if name.is_empty() { continue; }
+        names.push(name.clone());
+        links.push(format!("- [[{}]]", name));
+    }
+
+    let md = format!(
+        "---\ntitle: {}\ndate: {}\ntime: {}\nduration: {} — {}\nattendees: {}\nlocation: {}\ncalendar: {}\n---\n\n# {}\n\n{}\n\n## Attendees\n{}\n",
+        title.replace('\n', " "),
+        date, time, start, end,
+        names.join(", ").replace('\n', " "),
+        location, calendar,
+        if title.is_empty() { "(untitled event)" } else { &title },
+        description.trim(),
+        if links.is_empty() { "(none)".to_string() } else { links.join("\n") },
+    );
+    (md, date, title)
 }
 
 // keep `Read` import used (tiny_http request bodies are not read here, but the

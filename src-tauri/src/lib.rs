@@ -3,6 +3,7 @@ mod git;
 mod bash;
 mod watcher;
 mod gmail;
+mod fireflies;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -189,6 +190,14 @@ pub fn run() {
             gmail::gmail_start_auth,
             gmail::gmail_sync,
             gmail::gmail_disconnect,
+            // Calendar (shares Google OAuth)
+            gmail::calendar_status,
+            gmail::calendar_sync,
+            // Fireflies
+            fireflies::fireflies_status,
+            fireflies::fireflies_set_key,
+            fireflies::fireflies_sync,
+            fireflies::fireflies_disconnect,
         ])
         .run(tauri::generate_context!())
         .expect("error while running APEX");
