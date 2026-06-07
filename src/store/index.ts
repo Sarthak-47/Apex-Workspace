@@ -1,6 +1,17 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AgentDef } from "@/lib/agents";
+import type { JobId, JobStatus } from "@/lib/jobs";
+
+export interface JobRuntime {
+  status: JobStatus;
+  enabled: boolean;
+  lastRun: number | null;
+  nextRun: number | null;
+  lastResult: string;
+  logs: string[];
+  startedAt: number | null;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,8 +71,8 @@ interface AppState {
   dismissToast: (id: string) => void;
 
   // Intel panel active tab
-  intelTab: "chat" | "knowledge" | "context" | "history" | "preview";
-  setIntelTab: (tab: "chat" | "knowledge" | "context" | "history" | "preview") => void;
+  intelTab: "chat" | "knowledge" | "context" | "tasks" | "preview";
+  setIntelTab: (tab: "chat" | "knowledge" | "context" | "tasks" | "preview") => void;
 
   // Vim mode
   vimMode: boolean;
@@ -143,6 +154,12 @@ interface AppState {
   // Context injection toggle (persisted)
   contextInjectionEnabled: boolean;
   setContextInjectionEnabled: (v: boolean) => void;
+
+  // Background jobs (status not persisted; enabled persisted)
+  jobs: Record<string, JobRuntime>;
+  setJobRuntime: (id: JobId, patch: Partial<JobRuntime>) => void;
+  toggleJobEnabled: (id: JobId) => void;
+  appendJobLog: (id: JobId, line: string) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -239,7 +256,7 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
       // Intel tab
-      intelTab: "chat" as "chat" | "knowledge" | "context" | "history" | "preview",
+      intelTab: "chat" as "chat" | "knowledge" | "context" | "tasks" | "preview",
       setIntelTab: (tab) => set({ intelTab: tab }),
 
       // Vim mode
@@ -328,6 +345,26 @@ export const useAppStore = create<AppState>()(
       // Context injection
       contextInjectionEnabled: true,
       setContextInjectionEnabled: (v) => set({ contextInjectionEnabled: v }),
+
+      // Background jobs
+      jobs: {},
+      setJobRuntime: (id, patch) =>
+        set((s) => {
+          const prev = s.jobs[id] ?? { status: 'idle', enabled: true, lastRun: null, nextRun: null, lastResult: '', logs: [], startedAt: null };
+          return { jobs: { ...s.jobs, [id]: { ...prev, ...patch } } };
+        }),
+      toggleJobEnabled: (id) =>
+        set((s) => {
+          const prev = s.jobs[id] ?? { status: 'idle', enabled: true, lastRun: null, nextRun: null, lastResult: '', logs: [], startedAt: null };
+          const enabled = !prev.enabled;
+          return { jobs: { ...s.jobs, [id]: { ...prev, enabled, status: enabled ? 'idle' : 'disabled' } } };
+        }),
+      appendJobLog: (id, line) =>
+        set((s) => {
+          const prev = s.jobs[id] ?? { status: 'idle', enabled: true, lastRun: null, nextRun: null, lastResult: '', logs: [], startedAt: null };
+          const stamp = new Date().toLocaleTimeString();
+          return { jobs: { ...s.jobs, [id]: { ...prev, logs: [...prev.logs.slice(-99), `${stamp}  ${line}`] } } };
+        }),
     }),
     {
       name: "apex-app-state",

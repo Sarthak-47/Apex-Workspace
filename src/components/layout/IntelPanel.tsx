@@ -7,6 +7,7 @@ import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
 import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip, clearVault, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
 import { GraphView } from "@/components/knowledge/GraphView";
+import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
@@ -568,6 +569,103 @@ function ContextPanel() {
       </div>
       <p style={{ fontSize: 10, color: '#4A4A65', marginTop: 10, lineHeight: 1.5 }}>
         Pull the embedding model first: <code style={{ fontFamily: '"JetBrains Mono",monospace', color: '#6C6C8A' }}>ollama pull {embedModel}</code>. The index is stored locally and never leaves your machine.
+      </p>
+    </div>
+  );
+}
+
+// ─── Tasks tab — background jobs ──────────────────────────────────────────────
+
+const JOB_STATUS_COLOR: Record<string, string> = {
+  idle: '#4A4A65', running: '#6366F1', done: '#22C55E', error: '#EF4444', disabled: '#4A4A65',
+};
+
+function relTime(t: number | null): string {
+  if (!t) return 'never';
+  const d = Date.now() - t;
+  if (d < 0) { // future (next run)
+    const f = -d;
+    if (f < 60000) return `in ${Math.round(f / 1000)}s`;
+    if (f < 3600000) return `in ${Math.round(f / 60000)}m`;
+    if (f < 86400000) return `in ${Math.round(f / 3600000)}h`;
+    return `in ${Math.round(f / 86400000)}d`;
+  }
+  if (d < 60000) return `${Math.round(d / 1000)}s ago`;
+  if (d < 3600000) return `${Math.round(d / 60000)}m ago`;
+  if (d < 86400000) return `${Math.round(d / 3600000)}h ago`;
+  return `${Math.round(d / 86400000)}d ago`;
+}
+
+function BackgroundTasksPanel() {
+  const { jobs, toggleJobEnabled, setJobRuntime } = useAppStore();
+  const [expanded, setExpanded] = useState<JobId | null>(null);
+  const [, force] = useState(0);
+  // tick the relative times every 10s
+  useEffect(() => { const id = setInterval(() => force(x => x + 1), 10000); return () => clearInterval(id); }, []);
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '12px 12px 16px' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+        Background Tasks
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {JOB_DEFS.map(def => {
+          const rt = jobs[def.id] ?? { status: 'idle', enabled: true, lastRun: null, nextRun: null, lastResult: '', logs: [], startedAt: null };
+          const open = expanded === def.id;
+          const running = rt.status === 'running';
+          return (
+            <div key={def.id} style={{ background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px' }}>
+                {/* status dot / spinner */}
+                {running ? (
+                  <div style={{ width: 9, height: 9, borderRadius: '50%', border: '2px solid #6366F1', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: rt.enabled ? JOB_STATUS_COLOR[rt.status] : '#2A2A3D' }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: rt.enabled ? '#E2E2EC' : '#4A4A65', fontWeight: 500 }}>{def.name}</div>
+                  <div style={{ fontSize: 9, color: '#4A4A65' }}>
+                    {def.schedule} · last {relTime(rt.lastRun)}{def.intervalMs && rt.enabled ? ` · next ${relTime(rt.nextRun)}` : ''}
+                  </div>
+                </div>
+                {/* Run now */}
+                <button onClick={() => runJobNow(def.id)} disabled={running} title="Run now"
+                  style={{ width: 24, height: 24, borderRadius: 4, cursor: running ? 'default' : 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor"><polygon points="1,0 9,4.5 1,9"/></svg>
+                </button>
+                {/* enable toggle */}
+                <button onClick={() => toggleJobEnabled(def.id)} title={rt.enabled ? 'Disable' : 'Enable'}
+                  style={{ width: 30, height: 18, borderRadius: 9, position: 'relative', background: rt.enabled ? '#6366F1' : '#252535', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                  <span style={{ position: 'absolute', top: 2, left: rt.enabled ? 14 : 2, width: 14, height: 14, borderRadius: '50%', background: '#E2E2EC', transition: 'left 150ms' }} />
+                </button>
+                {/* expand logs */}
+                <button onClick={() => setExpanded(open ? null : def.id)} title="Logs"
+                  style={{ width: 20, height: 20, borderRadius: 4, cursor: 'pointer', background: 'transparent', border: 'none', color: '#4A4A65', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.12s' }}><polyline points="2,1 6,4.5 2,8"/></svg>
+                </button>
+              </div>
+              {rt.lastResult && !open && (
+                <div style={{ fontSize: 10, color: rt.status === 'error' ? '#EF4444' : '#6C6C8A', padding: '0 10px 8px 27px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rt.lastResult}</div>
+              )}
+              {open && (
+                <div style={{ borderTop: '1px solid #1A1A28', padding: '6px 10px', maxHeight: 140, overflowY: 'auto' }}>
+                  {rt.logs.length === 0 ? (
+                    <div style={{ fontSize: 10, color: '#4A4A65' }}>No logs yet.</div>
+                  ) : rt.logs.slice(-100).map((l, i) => (
+                    <div key={i} style={{ fontSize: 10, color: '#6C6C8A', fontFamily: '"JetBrains Mono",monospace', lineHeight: 1.5 }}>{l}</div>
+                  ))}
+                  {rt.logs.length > 0 && (
+                    <button onClick={() => setJobRuntime(def.id, { logs: [] })}
+                      style={{ marginTop: 4, fontSize: 9, color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>clear logs</button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 9, color: '#4A4A65', marginTop: 12, lineHeight: 1.5 }}>
+        Jobs run while APEX is open. Sync jobs need their connection active. (OS-level scheduling that survives restart is a backend follow-up.)
       </p>
     </div>
   );
@@ -1292,7 +1390,7 @@ export function IntelPanel() {
 
       {/* ── Tabs ────────────────────────────────────────────────────────── */}
       <div style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 4, borderBottom: '1px solid #252535', flexShrink: 0 }}>
-        {(['chat', 'knowledge', 'context', 'preview'] as const).map((tab) => (
+        {(['chat', 'knowledge', 'context', 'tasks', 'preview'] as const).map((tab) => (
           <button key={tab}
             onClick={() => setIntelTab(tab)}
             style={{
@@ -1338,6 +1436,9 @@ export function IntelPanel() {
 
       {/* ── Knowledge tab (markdown vault) ───────────────────────────────── */}
       {intelTab === 'knowledge' && <KnowledgePanel />}
+
+      {/* ── Tasks tab (background jobs) ──────────────────────────────────── */}
+      {intelTab === 'tasks' && <BackgroundTasksPanel />}
 
       {/* ── Chat tab content ─────────────────────────────────────────────── */}
       {intelTab === 'chat' && ollamaOnline && (

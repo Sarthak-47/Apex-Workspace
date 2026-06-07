@@ -479,6 +479,23 @@ export async function onGmailConnected(handler: (email: string) => void): Promis
   return () => {};
 }
 
+/** Show a desktop notification via the Web Notification API (works in the Tauri webview too). */
+export async function notify(title: string, body: string): Promise<void> {
+  try {
+    if (typeof Notification === 'undefined') {
+      // eslint-disable-next-line no-console
+      console.info(`[notify] ${title}: ${body}`);
+      return;
+    }
+    let perm = Notification.permission;
+    if (perm === 'default') perm = await Notification.requestPermission();
+    if (perm === 'granted') new Notification(title, { body });
+  } catch {
+    // eslint-disable-next-line no-console
+    console.info(`[notify] ${title}: ${body}`);
+  }
+}
+
 export interface GitCommit { hash: string; author: string; message: string; date: string }
 
 /** Recent git commits for unified search (browser returns a small mock). */

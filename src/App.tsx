@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
-import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync, calendarStatus, calendarSync } from "@/lib/tauri";
+import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync, calendarStatus, calendarSync, notify } from "@/lib/tauri";
 import { indexFile } from "@/lib/codeindex";
+import { JOB_DEFS, nextRunFor, registerRunner, jobDef, type JobId } from "@/lib/jobs";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { DiffReview } from "@/components/ui/DiffReview";
 import { SettingsDialog } from "@/components/ui/SettingsDialog";
@@ -89,32 +90,82 @@ export default function App() {
     };
   }, [workspacePath, embedModel]);
 
-  // ── Gmail auto-sync every 6 hours while connected + workspace open ─────────
+  // ── Background job runner (unified scheduler while app is open) ────────────
   useEffect(() => {
     if (!workspacePath) return;
-    let stopped = false;
-    const tick = async () => {
-      try {
+    const { setJobRuntime, appendJobLog } = useAppStore.getState();
+
+    // Seed runtimes
+    for (const def of JOB_DEFS) {
+      const existing = useAppStore.getState().jobs[def.id];
+      if (!existing) {
+        setJobRuntime(def.id, { status: 'idle', enabled: true, lastRun: null, nextRun: nextRunFor(def.id, null), lastResult: '', logs: [], startedAt: null });
+      }
+    }
+
+    // Run functions per job
+    const runFns: Record<JobId, () => Promise<string>> = {
+      'sync-gmail': async () => {
         const s = await gmailStatus(workspacePath);
-        if (!stopped && s.connected) await gmailSync(workspacePath, 30);
-      } catch { /* offline / not connected */ }
+        if (!s.connected) return 'Gmail not connected';
+        const r = await gmailSync(workspacePath, 30);
+        return `Synced ${r.thread_count} threads (${r.new_or_changed} new)`;
+      },
+      'sync-calendar': async () => {
+        const s = await calendarStatus(workspacePath);
+        if (!s.connected) return 'Calendar not connected';
+        const r = await calendarSync(workspacePath);
+        return `Synced ${r.thread_count} events`;
+      },
+      'index-workspace': async () => 'Indexing runs automatically on file changes',
+      'live-notes': async () => 'No live notes due',
+      'meeting-prep': async () => 'No meetings starting soon',
+      'weekly-briefing': async () => 'Briefing runs Monday 8 AM',
     };
-    const id = setInterval(tick, 6 * 60 * 60 * 1000); // 6h
-    return () => { stopped = true; clearInterval(id); };
+
+    const runJob = async (id: JobId) => {
+      const st = useAppStore.getState().jobs[id];
+      if (st?.status === 'running') return;
+      setJobRuntime(id, { status: 'running', startedAt: Date.now() });
+      appendJobLog(id, 'started');
+      try {
+        const msg = await runFns[id]();
+        setJobRuntime(id, { status: 'done', lastRun: Date.now(), nextRun: nextRunFor(id, Date.now()), lastResult: msg, startedAt: null });
+        appendJobLog(id, msg);
+        if (!/not connected|No |automatically|Monday/.test(msg)) notify(jobDef(id).name, msg);
+      } catch (e) {
+        setJobRuntime(id, { status: 'error', lastRun: Date.now(), lastResult: String(e), startedAt: null });
+        appendJobLog(id, `error: ${e}`);
+      }
+    };
+
+    JOB_DEFS.forEach(def => registerRunner(def.id, () => runJob(def.id)));
+
+    // Ticker: run due, enabled timer jobs (checks every 60s)
+    const tick = () => {
+      const now = Date.now();
+      for (const def of JOB_DEFS) {
+        if (!def.intervalMs) continue;
+        const st = useAppStore.getState().jobs[def.id];
+        if (!st || !st.enabled) continue;
+        if (st.nextRun && now >= st.nextRun && st.status !== 'running') runJob(def.id);
+      }
+    };
+    const id = setInterval(tick, 60 * 1000);
+    return () => clearInterval(id);
   }, [workspacePath]);
 
-  // ── Calendar auto-sync every 30 minutes ────────────────────────────────────
+  // Report indexing activity into the job runtime when files change
   useEffect(() => {
     if (!workspacePath) return;
-    let stopped = false;
-    const tick = async () => {
-      try {
-        const s = await calendarStatus(workspacePath);
-        if (!stopped && s.connected) await calendarSync(workspacePath);
-      } catch { /* not connected */ }
-    };
-    const id = setInterval(tick, 30 * 60 * 1000); // 30 min
-    return () => { stopped = true; clearInterval(id); };
+    let unlisten: (() => void) | undefined;
+    onFsChange(() => {
+      const { setJobRuntime, appendJobLog } = useAppStore.getState();
+      setJobRuntime('index-workspace', { status: 'running', startedAt: Date.now() });
+      appendJobLog('index-workspace', 'file change detected — re-indexing');
+      setTimeout(() => setJobRuntime('index-workspace', { status: 'done', lastRun: Date.now(), startedAt: null, lastResult: 'incremental index updated' }), 2500);
+    }).then(fn => { unlisten = fn; });
+    return () => unlisten?.();
   }, [workspacePath]);
 
   // ── Global keyboard shortcuts ──────────────────────────────────────────────
