@@ -5,6 +5,7 @@ import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gma
 import { indexFile } from "@/lib/codeindex";
 import { JOB_DEFS, nextRunFor, registerRunner, jobDef, type JobId } from "@/lib/jobs";
 import { runAllLiveNotes } from "@/lib/livenotes";
+import { runMeetingPrep } from "@/lib/meetingprep";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { DiffReview } from "@/components/ui/DiffReview";
 import { SettingsDialog } from "@/components/ui/SettingsDialog";
@@ -125,7 +126,12 @@ export default function App() {
         const n = await runAllLiveNotes(workspacePath, model);
         return n > 0 ? `Updated ${n} live note${n === 1 ? '' : 's'}` : 'No live notes to update';
       },
-      'meeting-prep': async () => 'No meetings starting soon',
+      'meeting-prep': async () => {
+        const model = useAppStore.getState().ollamaSelectedModel || 'llama3.1';
+        if (!useAppStore.getState().ollamaOnline) return 'Ollama offline — skipped';
+        const n = await runMeetingPrep(workspacePath, model);
+        return n > 0 ? `Prepared ${n} meeting brief${n === 1 ? '' : 's'}` : 'No meetings starting soon';
+      },
       'weekly-briefing': async () => 'Briefing runs Monday 8 AM',
     };
 
