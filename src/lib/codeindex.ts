@@ -47,6 +47,17 @@ const CHUNK_LINES = 60;
 const CHUNK_OVERLAP = 10;
 const MAX_FILE_BYTES = 100 * 1024; // skip files >100KB
 
+// Never index dependency / build / VCS directories.
+const SKIP_DIRS = [
+  'node_modules', '.git', 'dist', 'build', 'target', '__pycache__',
+  '.next', '.nuxt', 'out', 'coverage', '.venv', 'venv', '.cache', 'vendor',
+];
+
+function inSkippedDir(path: string): boolean {
+  const norm = path.replace(/\\/g, '/');
+  return SKIP_DIRS.some(d => norm.includes(`/${d}/`) || norm.endsWith(`/${d}`));
+}
+
 // ─── IndexedDB helpers ────────────────────────────────────────────────────────
 
 function openDb(): Promise<IDBDatabase> {
@@ -149,7 +160,7 @@ function chunkContent(content: string): RawChunk[] {
 
 function isIndexable(e: DirEntry): boolean {
   const ext = (e.ext ?? e.name.split('.').pop() ?? '').toLowerCase();
-  return INDEXABLE_EXT.has(ext) && e.size <= MAX_FILE_BYTES;
+  return INDEXABLE_EXT.has(ext) && e.size <= MAX_FILE_BYTES && !inSkippedDir(e.path);
 }
 
 // ─── Cosine similarity ────────────────────────────────────────────────────────
