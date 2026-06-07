@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store';
 import { readFile, writeFile } from '@/lib/tauri';
 import { generateCompletion } from '@/lib/ollama';
+import { MarkdownPreview } from '@/components/editor/MarkdownPreview';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { initVimMode } from 'monaco-vim';
@@ -509,6 +510,9 @@ interface ToolbarProps {
   vimMode: boolean;
   autocomplete: boolean;
   ollamaOnline: boolean;
+  isMarkdown: boolean;
+  mdView: 'edit' | 'split' | 'preview';
+  onMdViewChange: (v: 'edit' | 'split' | 'preview') => void;
   onWordWrapToggle: () => void;
   onMinimapToggle: () => void;
   onFontIncrease: () => void;
@@ -521,7 +525,7 @@ interface ToolbarProps {
 
 function EditorToolbar({
   language, wordWrap, minimap, fontSize, editorTheme, autoSave, vimMode,
-  autocomplete, ollamaOnline,
+  autocomplete, ollamaOnline, isMarkdown, mdView, onMdViewChange,
   onWordWrapToggle, onMinimapToggle, onFontIncrease, onFontDecrease,
   onThemeChange, onAutoSaveToggle, onVimToggle, onAutocompleteToggle,
 }: ToolbarProps) {
@@ -605,6 +609,16 @@ function EditorToolbar({
         </>
       ), ollamaOnline ? 'Toggle inline AI autocomplete (ghost text)' : 'Start Ollama to enable autocomplete')}
 
+      {/* Markdown view modes */}
+      {isMarkdown && (
+        <>
+          <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 3px' }} />
+          {btn(mdView === 'edit', () => onMdViewChange('edit'), 'Edit', 'Edit only')}
+          {btn(mdView === 'split', () => onMdViewChange('split'), 'Split', 'Editor + preview')}
+          {btn(mdView === 'preview', () => onMdViewChange('preview'), 'Preview', 'Preview only')}
+        </>
+      )}
+
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
@@ -670,6 +684,8 @@ export function MonacoEditor({ path }: Props) {
   const [wordWrap, setWordWrap] = useState(false);
   const [minimap, setMinimap]   = useState(true);
   const [fontSize, setFontSize] = useState(13);
+  const [mdView, setMdView]     = useState<'edit' | 'split' | 'preview'>('edit');
+  const [liveContent, setLiveContent] = useState('');
 
   const {
     markFileUnsaved, markFileSaved,
@@ -679,6 +695,7 @@ export function MonacoEditor({ path }: Props) {
     vimMode, setVimMode,
     setEditorCursor, setEditorFileSize,
     autocompleteEnabled, setAutocompleteEnabled, ollamaOnline,
+    openFile,
   } = useAppStore();
 
   const editorRef       = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
@@ -742,9 +759,12 @@ export function MonacoEditor({ path }: Props) {
     dirtyRef.current = false;
 
     readFile(path)
-      .then((text) => { setContent(text); setLoading(false); markFileSaved(path); })
-      .catch(() => { setContent(getDemo(path)); setLoading(false); markFileSaved(path); });
+      .then((text) => { setContent(text); setLiveContent(text); setLoading(false); markFileSaved(path); })
+      .catch(() => { const d = getDemo(path); setContent(d); setLiveContent(d); setLoading(false); markFileSaved(path); });
   }, [path, markFileSaved]);
+
+  // Reset markdown view mode when switching files
+  useEffect(() => { setMdView('edit'); }, [path]);
 
   // ── Monaco lifecycle ──────────────────────────────────────────────────────
   const handleBeforeMount: BeforeMount = useCallback((monaco) => {
@@ -799,6 +819,7 @@ export function MonacoEditor({ path }: Props) {
   }, [path, markFileSaved, setEditorCursor, setEditorFileSize]);
 
   const handleChange: OnChange = useCallback((value) => {
+    if (value !== undefined) setLiveContent(value);
     if (value !== undefined && !dirtyRef.current) {
       dirtyRef.current = true;
       markFileUnsaved(path);
@@ -820,6 +841,7 @@ export function MonacoEditor({ path }: Props) {
   useEffect(() => () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); }, []);
 
   const lang = getLang(path);
+  const isMarkdown = lang === 'markdown';
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -833,6 +855,9 @@ export function MonacoEditor({ path }: Props) {
         vimMode={vimMode}
         autocomplete={autocompleteEnabled}
         ollamaOnline={ollamaOnline}
+        isMarkdown={lang === 'markdown'}
+        mdView={mdView}
+        onMdViewChange={setMdView}
         onWordWrapToggle={() => setWordWrap(w => !w)}
         onMinimapToggle={() => setMinimap(m => !m)}
         onFontIncrease={() => setFontSize(f => Math.min(f + 1, 24))}
@@ -851,7 +876,9 @@ export function MonacoEditor({ path }: Props) {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+        {(!isMarkdown || mdView !== 'preview') && (
+        <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', borderRight: isMarkdown && mdView === 'split' ? '1px solid #1A1A28' : 'none' }}>
           <Editor
             key={path}
             height={vimMode ? 'calc(100% - 24px)' : '100%'}
@@ -907,6 +934,13 @@ export function MonacoEditor({ path }: Props) {
             fontFamily: '"JetBrains Mono", monospace',
             position: 'absolute', bottom: 0, left: 0, right: 0,
           }} />
+        </div>
+        )}
+        {isMarkdown && mdView !== 'edit' && (
+          <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <MarkdownPreview path={path} content={liveContent} onNavigate={openFile} />
+          </div>
+        )}
         </div>
       )}
     </div>

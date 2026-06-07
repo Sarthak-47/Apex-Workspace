@@ -26,6 +26,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
+    "marked": "^14.1.4",
     "monaco-vim": "^0.4.4",
     "ollama-ai-provider": "^1.2.0",
     "react": "^19.1.0",

@@ -152,3 +152,24 @@ body.resizing * { transition: none !important; user-select: none !important; }
 
 /* ── Spinner ──────────────────────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Markdown note preview ────────────────────────────────────────────────── */
+.apex-md-preview h1 { font-size: 24px; font-weight: 700; color: #E2E2EC; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #1A1A28; }
+.apex-md-preview h2 { font-size: 19px; font-weight: 700; color: #E2E2EC; margin: 16px 0 8px; }
+.apex-md-preview h3 { font-size: 16px; font-weight: 600; color: #D8D8E4; margin: 14px 0 6px; }
+.apex-md-preview p { margin: 8px 0; }
+.apex-md-preview ul, .apex-md-preview ol { margin: 8px 0; padding-left: 22px; }
+.apex-md-preview li { margin: 3px 0; }
+.apex-md-preview a { color: #6366F1; text-decoration: none; }
+.apex-md-preview a:hover { text-decoration: underline; }
+.apex-md-preview a.apex-wikilink { color: #818CF8; border-bottom: 1px dashed #6366F180; cursor: pointer; }
+.apex-md-preview a.apex-wikilink:hover { background: #1A1A3A; border-radius: 2px; }
+.apex-md-preview code { background: #18181F; border: 1px solid #252535; border-radius: 3px; padding: 1px 5px; font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: #93C5FD; }
+.apex-md-preview pre { background: #090910; border: 1px solid #252535; border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+.apex-md-preview pre code { background: none; border: none; padding: 0; color: #8888A8; }
+.apex-md-preview blockquote { border-left: 3px solid #6366F1; margin: 10px 0; padding: 2px 14px; color: #8888A8; }
+.apex-md-preview hr { border: none; border-top: 1px solid #1A1A28; margin: 16px 0; }
+.apex-md-preview table { border-collapse: collapse; margin: 10px 0; }
+.apex-md-preview th, .apex-md-preview td { border: 1px solid #252535; padding: 5px 10px; font-size: 13px; }
+.apex-md-preview th { background: #111118; color: #E2E2EC; }
+.apex-md-preview strong { color: #E2E2EC; font-weight: 700; }

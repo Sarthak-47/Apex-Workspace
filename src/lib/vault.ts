@@ -139,3 +139,18 @@ export async function listVault(workspace: string): Promise<VaultNote[]> {
   const all = await Promise.all(CATEGORIES.map(c => listCategory(workspace, c.id)));
   return all.flat();
 }
+
+/** Resolve a [[wikilink]] target title to a note path (creates none). */
+export async function resolveNoteByTitle(workspace: string, title: string): Promise<string | null> {
+  const notes = await listVault(workspace);
+  const target = title.trim().toLowerCase();
+  const hit = notes.find(n => n.title.toLowerCase() === target)
+    ?? notes.find(n => n.path.toLowerCase().endsWith(`/${slugify(title).toLowerCase()}.md`));
+  return hit?.path ?? null;
+}
+
+/** Is this path a note inside the workspace vault? */
+export function isVaultNote(workspace: string, path: string): boolean {
+  const root = vaultRoot(workspace).replace(/\\/g, '/');
+  return path.replace(/\\/g, '/').startsWith(root) && path.endsWith('.md');
+}
