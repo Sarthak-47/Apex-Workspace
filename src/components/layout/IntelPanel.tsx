@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppStore, useToast } from "@/store";
 import { streamChat, type ChatMessage } from "@/lib/ollama";
-import { readFile } from "@/lib/tauri";
+import { readFile, listAllFiles } from "@/lib/tauri";
+import { suggestMentions, buildCandidates, expandMentions, type MentionItem } from "@/lib/mentions";
+import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
@@ -476,6 +478,8 @@ function ContextPanel() {
       await indexWorkspace(workspacePath, embedModel,
         (done, total, file) => setIndexProgress({ done, total, file }),
         indexAbort.current.signal);
+      // Refresh the auto-generated workspace overview
+      await generateWorkspaceMd(workspacePath).catch(() => {});
       success('Codebase index built');
     } catch (e) {
       error(`Index failed: ${(e as Error).message}`);
@@ -681,6 +685,42 @@ export function IntelPanel() {
   const bottomRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLTextAreaElement>(null);
 
+  // @mention autocomplete
+  const [mention, setMention] = useState<{ items: MentionItem[]; index: number; start: number; queryLen: number } | null>(null);
+  const candidatesRef = useRef<{ rel: string; isDir: boolean }[]>([]);
+  const workspaceMdRef = useRef<string>('');
+
+  // Load mention candidates + WORKSPACE.md when workspace changes
+  useEffect(() => {
+    if (!workspacePath) { candidatesRef.current = []; workspaceMdRef.current = ''; return; }
+    listAllFiles(workspacePath)
+      .then(files => { candidatesRef.current = buildCandidates(workspacePath, files); })
+      .catch(() => {});
+    loadWorkspaceMd(workspacePath)
+      .then(md => { if (md) workspaceMdRef.current = md; })
+      .catch(() => {});
+  }, [workspacePath]);
+
+  const updateMentionState = (value: string, caret: number) => {
+    const upto = value.slice(0, caret);
+    const m = upto.match(/@([\w./:-]*)$/);
+    if (m && workspacePath) {
+      const items = suggestMentions(m[1], candidatesRef.current);
+      setMention(items.length ? { items, index: 0, start: caret - m[0].length, queryLen: m[1].length } : null);
+    } else {
+      setMention(null);
+    }
+  };
+
+  const applyMention = (item: MentionItem) => {
+    if (!mention) return;
+    const before = input.slice(0, mention.start);
+    const after = input.slice(mention.start + 1 + mention.queryLen);
+    setInput(`${before}${item.insert} ${after}`);
+    setMention(null);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: isStreaming ? 'instant' : 'smooth' });
@@ -715,6 +755,14 @@ export function IntelPanel() {
       setAttachedFile(null);
     }
 
+    // Expand @file/@folder/@symbol mentions into context
+    if (workspacePath && /@(file|folder|symbol):/.test(userContent)) {
+      try {
+        const { contextBlock } = await expandMentions(userContent, workspacePath);
+        if (contextBlock) userContent = userContent + contextBlock;
+      } catch { /* expansion best-effort */ }
+    }
+
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
 
     // Codebase context injection — semantic search over the local index
@@ -742,6 +790,7 @@ export function IntelPanel() {
       + (planMode
         ? '\n\nPLAN MODE: Respond with a numbered step-by-step plan. Format each step as:\n1. Step title — Brief description of what this step does\n2. ...\nUse at least 3 steps. Be specific and actionable.'
         : '')
+      + (workspaceMdRef.current ? `\n\nWorkspace overview (auto-generated):\n${workspaceMdRef.current.slice(0, 2500)}` : '')
       + contextBlock;
 
     setInput('');
@@ -1097,11 +1146,42 @@ export function IntelPanel() {
         )}
 
         {/* Textarea */}
+        {/* @mention autocomplete dropdown */}
+        {mention && mention.items.length > 0 && (
+          <div style={{
+            position: 'absolute', bottom: 78, left: 12, right: 12, zIndex: 50,
+            background: '#15151E', border: '1px solid #2A2A3D', borderRadius: 8,
+            boxShadow: '0 12px 32px rgba(0,0,0,0.6)', overflow: 'hidden', maxHeight: 240, overflowY: 'auto',
+          }}>
+            {mention.items.map((it, i) => (
+              <div key={it.insert}
+                onMouseDown={e => { e.preventDefault(); applyMention(it); }}
+                onMouseEnter={() => setMention(mm => mm && ({ ...mm, index: i }))}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer',
+                  background: i === mention.index ? '#1A1A3A' : 'transparent',
+                }}>
+                <span style={{ fontSize: 12 }}>{it.kind === 'folder' ? '📁' : it.kind === 'symbol' ? '🔣' : '📄'}</span>
+                <span style={{ fontSize: 12, color: '#E2E2EC', fontFamily: '"JetBrains Mono",monospace' }}>{it.label}</span>
+                <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{it.detail}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <textarea
           ref={inputRef}
           value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+          onChange={e => { setInput(e.target.value); updateMentionState(e.target.value, e.target.selectionStart ?? e.target.value.length); }}
+          onKeyDown={e => {
+            if (mention && mention.items.length > 0) {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setMention(mm => mm && ({ ...mm, index: (mm.index + 1) % mm.items.length })); return; }
+              if (e.key === 'ArrowUp')   { e.preventDefault(); setMention(mm => mm && ({ ...mm, index: (mm.index - 1 + mm.items.length) % mm.items.length })); return; }
+              if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applyMention(mention.items[mention.index]); return; }
+              if (e.key === 'Escape')    { e.preventDefault(); setMention(null); return; }
+            }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+          }}
           placeholder={
             !ollamaOnline
               ? 'Start Ollama to enable AI…'
