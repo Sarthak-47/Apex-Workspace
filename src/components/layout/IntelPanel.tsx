@@ -4,6 +4,7 @@ import { streamChat, type ChatMessage } from "@/lib/ollama";
 import { readFile, listAllFiles } from "@/lib/tauri";
 import { suggestMentions, buildCandidates, expandMentions, type MentionItem } from "@/lib/mentions";
 import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
+import { listVault, createNote, buildBacklinkIndex, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
@@ -570,6 +571,136 @@ function ContextPanel() {
   );
 }
 
+// ─── Knowledge tab — markdown vault browser ──────────────────────────────────
+
+function KnowledgePanel() {
+  const { workspacePath, activeFile, openFile } = useAppStore();
+  const { info } = useToast();
+  const [notes, setNotes] = useState<VaultNote[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [creating, setCreating] = useState<NoteCategory | null>(null);
+  const [newName, setNewName] = useState('');
+  const [picker, setPicker] = useState(false);
+
+  const refresh = useCallback(() => {
+    if (!workspacePath) { setNotes([]); return; }
+    setLoading(true);
+    listVault(workspacePath).then(setNotes).catch(() => setNotes([])).finally(() => setLoading(false));
+  }, [workspacePath]);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const backlinks = buildBacklinkIndex(notes);
+
+  const filtered = notes.filter(n =>
+    !query || n.title.toLowerCase().includes(query.toLowerCase()) || n.body.toLowerCase().includes(query.toLowerCase()));
+
+  const grouped = CATEGORIES.map(c => ({ cat: c, items: filtered.filter(n => n.category === c.id) }))
+    .filter(g => g.items.length > 0);
+
+  const submitNew = async () => {
+    if (!workspacePath || !creating || !newName.trim()) { setCreating(null); setNewName(''); return; }
+    try {
+      const path = await createNote(workspacePath, creating, newName.trim());
+      openFile(path);
+      info(`Created ${newName.trim()}`);
+    } catch { info('Note creation requires the desktop app'); }
+    setCreating(null); setNewName(''); setPicker(false);
+    setTimeout(refresh, 200);
+  };
+
+  if (!workspacePath) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <p style={{ fontSize: 12, color: '#4A4A65', textAlign: 'center', lineHeight: 1.6 }}>
+          Open a workspace to use the<br />knowledge vault.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+      {/* Toolbar */}
+      <div style={{ padding: '8px 12px', display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '0 8px', height: 28 }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#4A4A65" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+            <circle cx="5.5" cy="5.5" r="4"/><line x1="9" y1="9" x2="11" y2="11"/>
+          </svg>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search vault…"
+            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 12, color: '#E2E2EC', fontFamily: 'inherit' }} />
+        </div>
+        <button onClick={() => setPicker(p => !p)} title="New note"
+          style={{ width: 28, height: 28, borderRadius: 5, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><line x1="6.5" y1="2" x2="6.5" y2="11"/><line x1="2" y1="6.5" x2="11" y2="6.5"/></svg>
+        </button>
+      </div>
+
+      {/* Template picker */}
+      {picker && (
+        <div style={{ margin: '0 12px 8px', padding: 8, background: '#0F0F16', border: '1px solid #252535', borderRadius: 8 }}>
+          {creating ? (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') submitNew(); if (e.key === 'Escape') { setCreating(null); setNewName(''); } }}
+                placeholder={`New ${creating} name…`}
+                style={{ flex: 1, height: 28, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#E2E2EC', fontSize: 12, padding: '0 8px', outline: 'none' }} />
+              <button onClick={submitNew} style={{ height: 28, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>Create</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {CATEGORIES.map(c => (
+                <button key={c.id} onClick={() => { setCreating(c.id); setNewName(''); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '4px 9px', borderRadius: 5, cursor: 'pointer', background: '#18181F', border: '1px solid #252535', color: c.color }}>
+                  <span>{c.icon}</span>{c.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Note list */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0 8px 12px' }}>
+        {loading ? (
+          <div style={{ padding: 16, fontSize: 11, color: '#4A4A65' }}>Loading vault…</div>
+        ) : grouped.length === 0 ? (
+          <div style={{ padding: '20px 16px', textAlign: 'center' }}>
+            <p style={{ fontSize: 12, color: '#4A4A65', lineHeight: 1.6 }}>
+              {query ? 'No matching notes.' : 'Your vault is empty. Create your first note with the + button.'}
+            </p>
+          </div>
+        ) : grouped.map(g => (
+          <div key={g.cat.id} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '6px 8px 4px', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span>{g.cat.icon}</span>{g.cat.label}<span style={{ color: '#2A2A3D' }}>· {g.items.length}</span>
+            </div>
+            {g.items.map(n => {
+              const bl = backlinks[n.title]?.length ?? 0;
+              const active = activeFile === n.path;
+              return (
+                <div key={n.path} onClick={() => openFile(n.path)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: 5, cursor: 'pointer',
+                    background: active ? '#1A1A3A' : 'transparent', borderLeft: `2px solid ${active ? g.cat.color : 'transparent'}` }}
+                  className={!active ? 'hover:bg-[#18181F] transition-colors' : ''}>
+                  <span style={{ fontSize: 12, flexShrink: 0 }}>{g.cat.icon}</span>
+                  <span style={{ fontSize: 12, color: active ? '#E2E2EC' : '#C0C0D0', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
+                  {bl > 0 && (
+                    <span title={`${bl} backlink${bl > 1 ? 's' : ''}`}
+                      style={{ fontSize: 9, color: '#6366F1', background: '#1A1A3A', borderRadius: 8, padding: '1px 6px', flexShrink: 0, fontFamily: '"JetBrains Mono",monospace' }}>
+                      ↩ {bl}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 function EmptyState({ ollamaOnline }: { ollamaOnline: boolean }) {
@@ -1021,6 +1152,9 @@ export function IntelPanel() {
 
       {/* ── Context tab (codebase index) ─────────────────────────────────── */}
       {intelTab === 'context' && <ContextPanel />}
+
+      {/* ── Knowledge tab (markdown vault) ───────────────────────────────── */}
+      {intelTab === 'knowledge' && <KnowledgePanel />}
 
       {/* ── Chat tab content ─────────────────────────────────────────────── */}
       {intelTab === 'chat' && ollamaOnline && (
