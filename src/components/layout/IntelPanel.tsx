@@ -12,6 +12,7 @@ import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
 import { runDeepResearch } from "@/lib/deepresearch";
 import { createLiveNote, runLiveNote, parseLiveConfig, SCHEDULE_PRESETS, type LiveSource } from "@/lib/livenotes";
 import { listThreads, draftReply, saveDraft, type EmailThread } from "@/lib/emaildraft";
+import { listCalendarEvents, prepForEvent, type CalEvent } from "@/lib/meetingprep";
 import { CategoryIcon, ToolIcon, MentionIcon, BoltIcon, AgentIcon } from "@/components/ui/Icons";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
@@ -605,17 +606,35 @@ function ContextPanel() {
 // ─── Email panel (COMMS mode) ─────────────────────────────────────────────────
 
 function EmailPanel() {
-  const { workspacePath, ollamaOnline, ollamaSelectedModel, ollamaModels } = useAppStore();
+  const { workspacePath, ollamaOnline, ollamaSelectedModel, ollamaModels, openFile } = useAppStore();
   const { info, error, success } = useToast();
   const [threads, setThreads] = useState<EmailThread[]>([]);
   const [selected, setSelected] = useState<EmailThread | null>(null);
   const [draft, setDraft] = useState('');
   const [drafting, setDrafting] = useState(false);
+  const [events, setEvents] = useState<CalEvent[]>([]);
+  const [prepping, setPrepping] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!workspacePath) { setThreads([]); return; }
+    if (!workspacePath) { setThreads([]); setEvents([]); return; }
     listThreads(workspacePath).then(setThreads).catch(() => setThreads([]));
+    listCalendarEvents(workspacePath).then(evs => {
+      const now = Date.now();
+      setEvents(evs.filter(e => e.startsAt >= now).slice(0, 4)); // upcoming few
+    }).catch(() => setEvents([]));
   }, [workspacePath]);
+
+  const prep = async (ev: CalEvent) => {
+    if (!workspacePath) return;
+    if (!ollamaOnline) { error('Ollama must be running for meeting prep'); return; }
+    setPrepping(ev.path);
+    try {
+      const path = await prepForEvent(workspacePath, ev, ollamaSelectedModel || ollamaModels[0] || 'llama3.1');
+      if (path) { openFile(path); success('Meeting prep ready'); }
+      else error('Prep produced no output');
+    } catch (e) { error(`Prep failed: ${(e as Error).message}`); }
+    setPrepping(null);
+  };
 
   const doDraft = async () => {
     if (!selected || !workspacePath) return;
@@ -642,6 +661,27 @@ function EmailPanel() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+      {/* Upcoming meetings with per-event prep */}
+      {events.length > 0 && (
+        <div style={{ flexShrink: 0, padding: '8px 12px 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>Upcoming meetings</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+            {events.map(ev => (
+              <div key={ev.path} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.title}</div>
+                  <div style={{ fontSize: 9, color: '#4A4A65' }}>{ev.date} {ev.time} · {ev.attendees.length} attendee{ev.attendees.length === 1 ? '' : 's'}</div>
+                </div>
+                <button onClick={() => prep(ev)} disabled={prepping === ev.path || !ollamaOnline} title="Generate a meeting prep brief"
+                  style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: ollamaOnline ? '#6366F1' : '#4A4A65', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 5, padding: '3px 9px', cursor: ollamaOnline ? 'pointer' : 'default' }}>
+                  {prepping === ev.path ? '…' : 'Prep'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '10px 12px 6px', flexShrink: 0 }}>Email · {threads.length} threads</div>
       {threads.length === 0 ? (
         <div style={{ padding: '16px', fontSize: 12, color: '#4A4A65', lineHeight: 1.6 }}>No synced threads. Connect Gmail in Settings → Connections.</div>
