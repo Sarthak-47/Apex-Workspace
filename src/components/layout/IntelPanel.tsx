@@ -1305,6 +1305,19 @@ export function IntelPanel() {
   const [researchMode, setResearchMode] = useState(false);
   const pendingEditsRef = useRef<PendingEdit[]>([]);
 
+  // Per-agent conversation threads: the default chat + one thread per agent (tools mode)
+  const convKey = toolsMode ? `agent:${selectedAgentId}` : 'default';
+  const convStore = useRef<Record<string, Message[]>>({});
+  const prevConvKey = useRef(convKey);
+  useEffect(() => {
+    if (prevConvKey.current !== convKey && !isStreaming) {
+      convStore.current[prevConvKey.current] = messages;   // save outgoing thread
+      setMessages(convStore.current[convKey] ?? []);         // load incoming thread
+      prevConvKey.current = convKey;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convKey]);
+
   // Bash approval gating
   const [pendingBash, setPendingBash] = useState<{ command: string } | null>(null);
   const bashResolverRef = useRef<((d: BashDecision) => void) | null>(null);
