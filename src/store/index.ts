@@ -114,6 +114,10 @@ interface AppState {
   shortcutsOpen: boolean;
   setShortcutsOpen: (open: boolean) => void;
 
+  // Model Cookbook
+  cookbookOpen: boolean;
+  setCookbookOpen: (open: boolean) => void;
+
   // First-launch onboarding (persisted)
   onboarded: boolean;
   setOnboarded: (v: boolean) => void;
@@ -314,6 +318,10 @@ export const useAppStore = create<AppState>()(
       // Keyboard shortcuts
       shortcutsOpen: false,
       setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+
+      // Model Cookbook
+      cookbookOpen: false,
+      setCookbookOpen: (open) => set({ cookbookOpen: open }),
 
       // Onboarding
       onboarded: false,

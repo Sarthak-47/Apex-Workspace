@@ -1638,9 +1638,17 @@ export function IntelPanel() {
             </span>
           )}
 
+          {/* Model Cookbook trigger */}
+          <button onClick={() => useAppStore.getState().setCookbookOpen(true)} title="Model Cookbook — recommended models for your hardware"
+            style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: toolsMode ? 6 : 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', fontSize: 10, padding: 0 }}
+            className="hover:!text-[#8888A8]">
+            <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2.5" width="10" height="9" rx="1.5"/><line x1="2" y1="5.5" x2="12" y2="5.5"/><circle cx="4.2" cy="4" r="0.4" fill="currentColor"/></svg>
+            Cookbook
+          </button>
+
           {/* Agent selector — only relevant in tools mode */}
           {toolsMode && (
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ marginLeft: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ display: 'flex', color: activeAgent.color }}><AgentIcon kind={activeAgent.icon} size={12} /></span>
               <select
                 value={selectedAgentId}

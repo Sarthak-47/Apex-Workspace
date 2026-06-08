@@ -485,6 +485,25 @@ export async function onGmailConnected(handler: (email: string) => void): Promis
   return () => {};
 }
 
+// ─── Hardware (Model Cookbook) ────────────────────────────────────────────────
+
+export interface HardwareInfo {
+  cpu: string;
+  cores: number;
+  ram_mb: number;
+  gpu: string | null;
+  vram_mb: number | null;
+}
+
+export async function hardwareInfo(): Promise<HardwareInfo> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<HardwareInfo>('hardware_info');
+  }
+  // Browser mock — the target dev profile (RTX 4070 Laptop, 8GB VRAM)
+  return { cpu: 'Intel Core i7 (14th Gen)', cores: 20, ram_mb: 32 * 1024, gpu: 'NVIDIA GeForce RTX 4070 Laptop GPU', vram_mb: 8 * 1024 };
+}
+
 // ─── MCP (Model Context Protocol) ─────────────────────────────────────────────
 
 export interface McpServerConfig {

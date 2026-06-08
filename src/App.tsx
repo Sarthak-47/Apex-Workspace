@@ -12,6 +12,7 @@ import { DiffReview } from "@/components/ui/DiffReview";
 import { SettingsDialog } from "@/components/ui/SettingsDialog";
 import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
 import { Onboarding } from "@/components/ui/Onboarding";
+import { Cookbook } from "@/components/ui/Cookbook";
 import { Titlebar } from "@/components/layout/Titlebar";
 import { ModeBar } from "@/components/layout/ModeBar";
 import { LeftNav } from "@/components/layout/LeftNav";
@@ -299,6 +300,7 @@ export default function App() {
       {settingsOpen && <SettingsDialog />}
       <KeyboardShortcuts />
       <Onboarding />
+      <Cookbook />
       <DiffReview />
     </div>
   );

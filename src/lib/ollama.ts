@@ -67,6 +67,44 @@ export async function generateCompletion(
 }
 
 /**
+ * Pull a model via Ollama /api/pull, streaming progress.
+ * Calls onProgress with a 0–100 percentage (best-effort).
+ */
+export async function pullModel(
+  model: string,
+  onProgress: (pct: number, status: string) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(`${OLLAMA_BASE}/api/pull`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, stream: true }),
+    signal,
+  });
+  if (!res.ok || !res.body) throw new Error(`Ollama pull ${res.status}`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t) continue;
+      try {
+        const d = JSON.parse(t) as { status?: string; total?: number; completed?: number; error?: string };
+        if (d.error) throw new Error(d.error);
+        const pct = d.total && d.completed ? Math.round((d.completed / d.total) * 100) : 0;
+        onProgress(pct, d.status ?? '');
+      } catch { /* ignore malformed lines */ }
+    }
+  }
+}
+
+/**
  * Get an embedding vector for a text input via Ollama /api/embeddings.
  * Returns [] on failure. Default model: nomic-embed-text.
  */
