@@ -4,7 +4,8 @@ import { streamChat, type ChatMessage } from "@/lib/ollama";
 import { readFile, listAllFiles } from "@/lib/tauri";
 import { suggestMentions, buildCandidates, expandMentions, type MentionItem } from "@/lib/mentions";
 import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
-import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip, clearVault, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
+import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip, clearVault, importMarkdownFolder, linkDecisionsToCode, listVersions, saveVersion, serializeNote, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
+import { openFolderDialog, writeFile as fsWriteFile } from "@/lib/tauri";
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
 import { GraphView } from "@/components/knowledge/GraphView";
 import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
@@ -771,6 +772,52 @@ function BackgroundTasksPanel() {
   );
 }
 
+// ─── Note history viewer ──────────────────────────────────────────────────────
+
+function NoteHistory({ note, workspace, onClose, onRestored }: { note: VaultNote; workspace: string; onClose: () => void; onRestored: () => void }) {
+  const { openFile } = useAppStore();
+  const { success, error } = useToast();
+  const [versions, setVersions] = useState<{ path: string; when: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    listVersions(workspace, note.path).then(setVersions).catch(() => setVersions([])).finally(() => setLoading(false));
+  }, [workspace, note.path]);
+
+  const restore = async (versionPath: string) => {
+    try {
+      const content = await readFile(versionPath);
+      await saveVersion(workspace, note.path, serializeNote(note.frontmatter, note.body)); // snapshot current first
+      await fsWriteFile(note.path, content);
+      success('Note restored from history');
+      onRestored(); onClose();
+    } catch (e) { error(`Restore failed: ${(e as Error).message}`); }
+  };
+
+  return (
+    <div onMouseDown={onClose} style={{ position: 'absolute', inset: 0, zIndex: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)' }}>
+      <div onMouseDown={e => e.stopPropagation()} style={{ width: 280, maxHeight: '80%', display: 'flex', flexDirection: 'column', background: '#15151E', border: '1px solid #2A2A3D', borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ padding: '10px 12px', borderBottom: '1px solid #1A1A28', fontSize: 12, fontWeight: 600, color: '#E2E2EC' }}>
+          History · {note.title}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
+          {loading ? <div style={{ fontSize: 11, color: '#4A4A65', padding: 8 }}>Loading…</div>
+            : versions.length === 0 ? <div style={{ fontSize: 11, color: '#4A4A65', padding: 8, lineHeight: 1.5 }}>No prior versions yet. Versions are saved automatically when a note changes.</div>
+            : versions.map(v => (
+              <div key={v.path} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 5, background: '#0F0F16', border: '1px solid #1A1A28', marginBottom: 4 }}>
+                <span style={{ flex: 1, fontSize: 10, color: '#8888A8', fontFamily: '"JetBrains Mono",monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {v.when.replace('T', ' ').slice(0, 16)}
+                </span>
+                <button onClick={() => openFile(v.path)} style={{ fontSize: 9, color: '#8888A8', background: 'transparent', border: '1px solid #252535', borderRadius: 4, padding: '2px 7px', cursor: 'pointer' }}>View</button>
+                <button onClick={() => restore(v.path)} style={{ fontSize: 9, color: '#6366F1', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 4, padding: '2px 7px', cursor: 'pointer' }}>Restore</button>
+              </div>
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Knowledge tab — markdown vault browser ──────────────────────────────────
 
 function KnowledgePanel() {
@@ -796,6 +843,9 @@ function KnowledgePanel() {
   // Live notes (Day 29)
   const [liveForm, setLiveForm] = useState<{ title: string; objective: string; schedule: string; sources: LiveSource[] } | null>(null);
   const [runningLive, setRunningLive] = useState<string | null>(null);
+
+  // Note history viewer
+  const [historyFor, setHistoryFor] = useState<VaultNote | null>(null);
 
   // Entity extraction (Day 20)
   const [strictness, setStrictness] = useState<Strictness>('medium');
@@ -858,6 +908,23 @@ function KnowledgePanel() {
     catch (e) { error(`Clear failed: ${(e as Error).message}`); }
     setConfirmClear(false); setManage(false);
   };
+  const doImport = async () => {
+    if (!workspacePath) return;
+    setManage(false);
+    const folder = await openFolderDialog();
+    if (!folder) return;
+    setBusyMgmt(true);
+    try { const r = await importMarkdownFolder(workspacePath, folder); success(`Imported ${r.imported} notes (${r.skipped} skipped)`); refresh(); }
+    catch (e) { error(`Import failed: ${(e as Error).message}`); }
+    setBusyMgmt(false);
+  };
+  const doLinkCode = async () => {
+    if (!workspacePath) return;
+    setBusyMgmt(true);
+    try { const n = await linkDecisionsToCode(workspacePath); success(`Linked code in ${n} decision note${n === 1 ? '' : 's'}`); refresh(); }
+    catch (e) { error(`Link failed: ${(e as Error).message}`); }
+    setBusyMgmt(false); setManage(false);
+  };
 
   // Live notes
   const submitLiveNote = async () => {
@@ -916,6 +983,11 @@ function KnowledgePanel() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
+      {/* Note history viewer */}
+      {historyFor && workspacePath && (
+        <NoteHistory note={historyFor} workspace={workspacePath} onClose={() => setHistoryFor(null)} onRestored={refresh} />
+      )}
+
       {/* Clear-vault confirm */}
       {confirmClear && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)' }}
@@ -967,6 +1039,8 @@ function KnowledgePanel() {
             <div style={{ position: 'absolute', top: 32, right: 0, zIndex: 60, width: 180, background: '#15151E', border: '1px solid #2A2A3D', borderRadius: 8, boxShadow: '0 12px 32px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
               {[
                 { label: 'Rebuild links', fn: doRebuild, color: '#C0C0D0' },
+                { label: 'Link decisions → code', fn: doLinkCode, color: '#C0C0D0' },
+                { label: 'Import folder…', fn: doImport, color: '#C0C0D0' },
                 { label: 'Export vault (.zip)', fn: doExport, color: '#C0C0D0' },
                 { label: 'Clear vault…', fn: () => { setConfirmClear(true); setManage(false); }, color: '#EF4444' },
               ].map(item => (
@@ -1131,6 +1205,11 @@ function KnowledgePanel() {
                       ↩ {bl}
                     </span>
                   )}
+                  <button onClick={e => { e.stopPropagation(); setHistoryFor(n); }} title="Version history"
+                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', display: 'flex', padding: 0 }}
+                    className="hover:!text-[#8888A8]">
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M2 7a5 5 0 1 0 1.5-3.5"/><polyline points="2 2 2 4 4 4"/><polyline points="7 4.5 7 7 9 8.5"/></svg>
+                  </button>
                 </div>
               );
             })}

@@ -3,7 +3,7 @@
  * Notes live under `<workspace>/.apex/vault/<category>/`. Each note has YAML
  * frontmatter and may reference others via [[wikilinks]].
  */
-import { readFile, writeFile, listDir, deletePath, type DirEntry } from './tauri';
+import { readFile, writeFile, listDir, deletePath, listAllFiles, grepFiles, type DirEntry } from './tauri';
 
 export type NoteCategory = 'people' | 'projects' | 'organizations' | 'decisions' | 'meetings' | 'topics';
 
@@ -253,3 +253,67 @@ export async function exportVaultZip(workspace: string): Promise<number> {
 export async function clearVault(workspace: string): Promise<void> {
   try { await deletePath(vaultRoot(workspace)); } catch { /* may not exist */ }
 }
+
+// ─── Bulk import (Obsidian-style folder) ──────────────────────────────────────
+
+/**
+ * Import .md files from an external folder into the vault. Notes are placed by
+ * their frontmatter `type` (person→people, …) or default to topics. Existing
+ * notes of the same filename are skipped (no overwrite). Returns count imported.
+ */
+export async function importMarkdownFolder(workspace: string, folder: string): Promise<{ imported: number; skipped: number }> {
+  const files = (await listAllFiles(folder)).filter(f => f.name.endsWith('.md'));
+  const existing = new Set((await listVault(workspace)).map(n => n.path.split(/[\\/]/).pop()));
+  const typeToCat: Record<string, NoteCategory> = {
+    person: 'people', people: 'people', project: 'projects', organization: 'organizations',
+    decision: 'decisions', meeting: 'meetings', topic: 'topics',
+  };
+  let imported = 0, skipped = 0;
+  for (const f of files) {
+    const name = f.name;
+    if (existing.has(name)) { skipped++; continue; }
+    let content = '';
+    try { content = await readFile(f.path); } catch { continue; }
+    const { frontmatter } = parseFrontmatter(content);
+    const cat = typeToCat[(frontmatter.type ?? '').toLowerCase()] ?? 'topics';
+    try { await writeFile([vaultRoot(workspace), cat, name].join(sep(workspace)), content); imported++; }
+    catch { /* unwritable */ }
+  }
+  return { imported, skipped };
+}
+
+// ─── Decision → code backlinks ────────────────────────────────────────────────
+
+/**
+ * For each decision note, find code files it references (by path/module/function
+ * names that appear in the note body and resolve to real files) and append a
+ * "## Related code" section linking them. Returns notes updated.
+ */
+export async function linkDecisionsToCode(workspace: string): Promise<number> {
+  const notes = (await listVault(workspace)).filter(n => n.category === 'decisions');
+  let updated = 0;
+  for (const note of notes) {
+    // candidate identifiers: words that look like file/module/symbol names
+    const candidates = [...new Set(
+      (note.body.match(/\b[\w-]+\.(ts|tsx|js|jsx|rs|py|go|java)\b|\b[A-Z][a-zA-Z0-9]{3,}\b/g) ?? [])
+    )].slice(0, 8);
+    const refs: string[] = [];
+    for (const c of candidates) {
+      try {
+        const hits = await grepFiles(workspace, c);
+        const file = hits[0]?.split(':')[0];
+        if (file && !refs.includes(file)) refs.push(file);
+      } catch { /* grep unavailable */ }
+      if (refs.length >= 5) break;
+    }
+    if (refs.length === 0) continue;
+    const section = refs.map(r => `- \`${r}\``).join('\n');
+    if (note.body.includes('## Related code')) continue; // already linked
+    await saveVersion(workspace, note.path, serializeNote(note.frontmatter, note.body));
+    const body = `${note.body.trimEnd()}\n\n## Related code\n${section}\n`;
+    await writeFile(note.path, serializeNote({ ...note.frontmatter, updated: today() }, body));
+    updated++;
+  }
+  return updated;
+}
+
