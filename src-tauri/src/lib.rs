@@ -4,6 +4,7 @@ mod bash;
 mod watcher;
 mod gmail;
 mod fireflies;
+mod mcp;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -149,6 +150,7 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(terminal::PtyRegistry::new())
         .manage(watcher::WatcherState::new())
+        .manage(mcp::McpRegistry::new())
         .invoke_handler(tauri::generate_handler![
             // File system
             read_file,
@@ -198,6 +200,12 @@ pub fn run() {
             fireflies::fireflies_set_key,
             fireflies::fireflies_sync,
             fireflies::fireflies_disconnect,
+            // MCP
+            mcp::mcp_start,
+            mcp::mcp_list_tools,
+            mcp::mcp_call_tool,
+            mcp::mcp_stop,
+            mcp::mcp_running,
         ])
         .run(tauri::generate_context!())
         .expect("error while running APEX");

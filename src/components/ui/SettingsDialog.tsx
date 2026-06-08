@@ -3,7 +3,8 @@ import { useAppStore, useToast } from "@/store";
 import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { BUILTIN_AGENTS, ALL_TOOLS, type AgentDef, type ToolName } from "@/lib/agents";
 import { gmailStatus, gmailStartAuth, gmailSync, gmailDisconnect, onGmailConnected, type GmailStatus,
-  calendarStatus, calendarSync, firefliesStatus, firefliesSetKey, firefliesSync, firefliesDisconnect, type FirefliesStatus } from "@/lib/tauri";
+  calendarStatus, calendarSync, firefliesStatus, firefliesSetKey, firefliesSync, firefliesDisconnect, type FirefliesStatus,
+  mcpStart, mcpStop, type McpServerConfig, type McpTool } from "@/lib/tauri";
 
 type Tab = 'general' | 'editor' | 'terminal' | 'ai' | 'connections' | 'themes' | 'about';
 
@@ -291,6 +292,104 @@ function AgentForm({ draft, onChange }: { draft: AgentDef; onChange: (a: AgentDe
   );
 }
 
+function McpSection() {
+  const { mcpServers, setMcpServers } = useAppStore();
+  const { success, error } = useToast();
+  const [tools, setTools] = useState<Record<string, McpTool[]>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState<McpServerConfig>({ name: '', command: 'npx', args: [], env: {}, enabled: false });
+
+  const toggle = async (cfg: McpServerConfig) => {
+    setBusy(cfg.name);
+    try {
+      if (!cfg.enabled) {
+        const r = await mcpStart(cfg);
+        setTools(t => ({ ...t, [cfg.name]: r.tools }));
+        setMcpServers(mcpServers.map(s => s.name === cfg.name ? { ...s, enabled: true } : s));
+        success(`${cfg.name} started — ${r.tools.length} tools`);
+      } else {
+        await mcpStop(cfg.name);
+        setMcpServers(mcpServers.map(s => s.name === cfg.name ? { ...s, enabled: false } : s));
+        setTools(t => { const n = { ...t }; delete n[cfg.name]; return n; });
+      }
+    } catch (e) { error(`${cfg.name}: ${(e as Error).message}`); }
+    setBusy(null);
+  };
+  const remove = (name: string) => setMcpServers(mcpServers.filter(s => s.name !== name));
+  const setEnv = (cfg: McpServerConfig, key: string, val: string) =>
+    setMcpServers(mcpServers.map(s => s.name === cfg.name ? { ...s, env: { ...s.env, [key]: val } } : s));
+  const addServer = () => {
+    if (!draft.name.trim() || !draft.command.trim()) { error('Name and command required'); return; }
+    setMcpServers([...mcpServers, draft]);
+    setDraft({ name: '', command: 'npx', args: [], env: {}, enabled: false });
+    setAdding(false);
+  };
+
+  const inputStyle: React.CSSProperties = { height: 26, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#C0C0D0', fontSize: 11, padding: '0 8px', outline: 'none', fontFamily: '"JetBrains Mono",monospace' };
+
+  return (
+    <Section title="MCP Servers">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {mcpServers.map(cfg => (
+          <div key={cfg.name} style={{ background: '#0F0F16', border: '1px solid #1A1A28', borderRadius: 6, padding: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.enabled ? '#22C55E' : '#4A4A65', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 600 }}>{cfg.name}</div>
+                <div style={{ fontSize: 9, color: '#4A4A65', fontFamily: '"JetBrains Mono",monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cfg.command} {cfg.args.join(' ')}</div>
+              </div>
+              <button onClick={() => toggle(cfg)} disabled={busy === cfg.name}
+                style={{ height: 24, padding: '0 10px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer', background: cfg.enabled ? '#2D1515' : '#1A1A3A', border: `1px solid ${cfg.enabled ? '#EF444440' : '#6366F140'}`, color: cfg.enabled ? '#EF4444' : '#6366F1' }}>
+                {busy === cfg.name ? '…' : cfg.enabled ? 'Stop' : 'Start'}
+              </button>
+              {!['exa', 'github'].includes(cfg.name) && (
+                <button onClick={() => remove(cfg.name)} style={{ width: 22, height: 22, borderRadius: 4, cursor: 'pointer', background: 'transparent', border: 'none', color: '#4A4A65' }}>×</button>
+              )}
+            </div>
+            {/* env keys (e.g. API keys) */}
+            {Object.keys(cfg.env).length > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {Object.entries(cfg.env).map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 9, color: '#4A4A65', fontFamily: '"JetBrains Mono",monospace', minWidth: 90 }}>{k}</span>
+                    <input type="password" value={v} onChange={e => setEnv(cfg, k, e.target.value)} placeholder="…" style={{ ...inputStyle, flex: 1 }} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* tools registry */}
+            {tools[cfg.name] && tools[cfg.name].length > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {tools[cfg.name].map(t => (
+                  <span key={t.name} title={t.description} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 4, background: '#1A1A3A', border: '1px solid #6366F130', color: '#6366F1', fontFamily: '"JetBrains Mono",monospace' }}>{t.name}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {adding ? (
+          <div style={{ background: '#0F0F16', border: '1px solid #6366F130', borderRadius: 6, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="server name" style={inputStyle} />
+            <input value={draft.command} onChange={e => setDraft({ ...draft, command: e.target.value })} placeholder="command (e.g. npx)" style={inputStyle} />
+            <input value={draft.args.join(' ')} onChange={e => setDraft({ ...draft, args: e.target.value.split(/\s+/).filter(Boolean) })} placeholder="args (space-separated)" style={inputStyle} />
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+              <button onClick={() => setAdding(false)} style={{ height: 26, padding: '0 10px', borderRadius: 5, fontSize: 11, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>Cancel</button>
+              <button onClick={addServer} style={{ height: 26, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>Add</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setAdding(true)} style={{ height: 28, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1' }}>+ Add MCP Server</button>
+        )}
+      </div>
+      <p style={{ fontSize: 10, color: '#4A4A65', marginTop: 8, lineHeight: 1.5 }}>
+        Exa needs an API key; GitHub needs a Personal Access Token. Started servers expose their tools to the agent (with approval gating).
+      </p>
+    </Section>
+  );
+}
+
 function AITab() {
   const { userAgents, addUserAgent, updateUserAgent, deleteUserAgent, bashAllowAlways } = useAppStore();
   const setState = useAppStore.setState;
@@ -389,6 +488,8 @@ function AITab() {
           </div>
         )}
       </Section>
+
+      <McpSection />
     </div>
   );
 }

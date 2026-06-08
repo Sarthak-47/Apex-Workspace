@@ -485,6 +485,68 @@ export async function onGmailConnected(handler: (email: string) => void): Promis
   return () => {};
 }
 
+// ─── MCP (Model Context Protocol) ─────────────────────────────────────────────
+
+export interface McpServerConfig {
+  name: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  enabled: boolean;
+}
+
+export interface McpTool {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+}
+
+const MCP_MOCK_TOOLS: Record<string, McpTool[]> = {
+  exa: [
+    { name: 'exa_search', description: 'Search the web; returns titles, URLs, snippets' },
+    { name: 'exa_get_contents', description: 'Fetch full page content for a URL' },
+  ],
+  github: [
+    { name: 'list_prs', description: 'List pull requests for a repo' },
+    { name: 'get_pr', description: 'Get a pull request by number' },
+    { name: 'list_issues', description: 'List issues for a repo' },
+    { name: 'create_issue', description: 'Create an issue' },
+    { name: 'list_commits', description: 'List recent commits' },
+  ],
+};
+
+export async function mcpStart(cfg: McpServerConfig): Promise<{ name: string; tools: McpTool[] }> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('mcp_start', { name: cfg.name, command: cfg.command, args: cfg.args, env: cfg.env });
+  }
+  await new Promise(r => setTimeout(r, 300));
+  return { name: cfg.name, tools: MCP_MOCK_TOOLS[cfg.name] ?? [{ name: `${cfg.name}_tool`, description: 'mock tool' }] };
+}
+
+export async function mcpStop(name: string): Promise<void> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('mcp_stop', { name });
+  }
+}
+
+export async function mcpRunning(): Promise<string[]> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<string[]>('mcp_running');
+  }
+  return [];
+}
+
+export async function mcpCallTool(name: string, tool: string, args: Record<string, unknown>): Promise<unknown> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke('mcp_call_tool', { name, tool, arguments: args });
+  }
+  return { content: [{ type: 'text', text: `[browser preview] ${name}.${tool}(${JSON.stringify(args)})` }] };
+}
+
 /** Show a desktop notification via the Web Notification API (works in the Tauri webview too). */
 export async function notify(title: string, body: string): Promise<void> {
   try {

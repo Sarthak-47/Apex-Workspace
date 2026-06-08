@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AgentDef } from "@/lib/agents";
 import type { JobId, JobStatus } from "@/lib/jobs";
+import type { McpServerConfig } from "@/lib/tauri";
 
 export interface JobRuntime {
   status: JobStatus;
@@ -166,6 +167,10 @@ interface AppState {
   setJobRuntime: (id: JobId, patch: Partial<JobRuntime>) => void;
   toggleJobEnabled: (id: JobId) => void;
   appendJobLog: (id: JobId, line: string) => void;
+
+  // MCP servers (persisted)
+  mcpServers: McpServerConfig[];
+  setMcpServers: (servers: McpServerConfig[]) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -371,6 +376,13 @@ export const useAppStore = create<AppState>()(
           const stamp = new Date().toLocaleTimeString();
           return { jobs: { ...s.jobs, [id]: { ...prev, logs: [...prev.logs.slice(-99), `${stamp}  ${line}`] } } };
         }),
+
+      // MCP servers (pre-configured Exa + GitHub, disabled until keys are set)
+      mcpServers: [
+        { name: 'exa', command: 'npx', args: ['-y', 'exa-mcp-server'], env: { EXA_API_KEY: '' }, enabled: false },
+        { name: 'github', command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'], env: { GITHUB_PERSONAL_ACCESS_TOKEN: '' }, enabled: false },
+      ] as McpServerConfig[],
+      setMcpServers: (servers) => set({ mcpServers: servers }),
     }),
     {
       name: "apex-app-state",
@@ -403,6 +415,7 @@ export const useAppStore = create<AppState>()(
           ...DEFAULT_JOB,
           enabled: v.enabled, lastRun: v.lastRun, nextRun: v.nextRun, lastResult: v.lastResult, runCount: v.runCount,
         }])),
+        mcpServers: s.mcpServers,
       }),
     }
   )
