@@ -6,6 +6,8 @@ import {
   type DirEntry,
 } from "@/lib/tauri";
 import { GitPanel } from "@/components/layout/GitPanel";
+import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
+import { CategoryIcon } from "@/components/ui/Icons";
 
 // ─── File type icon ────────────────────────────────────────────────────────────
 
@@ -734,28 +736,64 @@ function NoWorkspace({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-// ─── Knowledge node row ───────────────────────────────────────────────────────
+// ─── Knowledge node row (live vault data) ─────────────────────────────────────
 
-const NODE_ICONS: Record<string, { svg: React.ReactNode; color: string }> = {
-  people: { color: '#93C5FD', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/></svg> },
-  decision: { color: '#C084FC', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#C084FC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 2H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6z"/><polyline points="9 2 9 6 13 6"/><polyline points="6 10 7.5 11.5 10 9"/></svg> },
-  meeting: { color: '#F9A8D4', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#F9A8D4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="12" height="11" rx="1"/><line x1="5" y1="1.5" x2="5" y2="4.5"/><line x1="11" y1="1.5" x2="11" y2="4.5"/><line x1="2" y1="7" x2="14" y2="7"/></svg> },
-  question: { color: '#F59E0B', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6"/><path d="M6 6a2 2 0 0 1 4 0c0 1.5-2 2-2 3"/><circle cx="8" cy="12" r="0.5" fill="#F59E0B"/></svg> },
-  project: { color: '#86EFAC', svg: <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#86EFAC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 5a1 1 0 0 1 1-1h3.586a1 1 0 0 1 .707.293L8.414 5.414A1 1 0 0 0 9.121 5.707H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z"/></svg> },
+const CAT_COLOR: Record<NoteCategory, string> = {
+  people: '#93C5FD', projects: '#86EFAC', organizations: '#FCD34D',
+  decisions: '#C084FC', meetings: '#F9A8D4', topics: '#7DD3FC',
 };
 
-function NodeRow({ type, label }: { type: keyof typeof NODE_ICONS; label: string }) {
-  const meta = NODE_ICONS[type];
+function NodeRow({ note, onClick }: { note: VaultNote; onClick: () => void }) {
   return (
-    <div style={{ height: 30, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 8, cursor: 'pointer', flexShrink: 0 }}
+    <div onClick={onClick}
+      style={{ height: 30, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 8, cursor: 'pointer', flexShrink: 0 }}
       className="hover:bg-[#18181F] transition-colors group">
-      <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{meta.svg}</span>
+      <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: CAT_COLOR[note.category] }}>
+        <CategoryIcon cat={note.category} size={14} />
+      </span>
       <span style={{ fontSize: 12, color: '#8888A8', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-        className="group-hover:!text-[#E2E2EC] transition-colors">{label}</span>
+        className="group-hover:!text-[#E2E2EC] transition-colors">{note.title}</span>
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#4A4A65" strokeWidth="1.5" className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <line x1="2" y1="6" x2="10" y2="6"/><polyline points="7,3 10,6 7,9"/>
       </svg>
     </div>
+  );
+}
+
+/** The "Knowledge" section under the file tree — recent vault notes, loaded live. */
+function ConnectedNodes({ workspacePath, onOpen }: { workspacePath: string; onOpen: (path: string) => void }) {
+  const [notes, setNotes] = useState<VaultNote[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    listVault(workspacePath)
+      .then(all => {
+        if (cancelled) return;
+        const recent = [...all].sort((a, b) =>
+          (b.frontmatter.updated ?? b.frontmatter.created ?? '').localeCompare(a.frontmatter.updated ?? a.frontmatter.created ?? '')
+        ).slice(0, 6);
+        setNotes(recent);
+      })
+      .catch(() => setNotes([]));
+    return () => { cancelled = true; };
+  }, [workspacePath]);
+
+  return (
+    <>
+      <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: '#252535' }} />
+        <span style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.12em', textTransform: 'uppercase',
+          background: '#111118', padding: '0 8px', position: 'relative', zIndex: 1, margin: '0 auto' }}>
+          Knowledge
+        </span>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        {notes.length === 0 ? (
+          <div style={{ padding: '10px 12px', fontSize: 10, color: '#4A4A65', lineHeight: 1.5 }}>
+            No notes yet. Build a knowledge graph by creating notes or syncing Gmail in the Knowledge panel.
+          </div>
+        ) : notes.map(n => <NodeRow key={n.path} note={n} onClick={() => onOpen(n.path)} />)}
+      </div>
+    </>
   );
 }
 
@@ -919,23 +957,8 @@ export function LeftPanel() {
             )}
           </div>
 
-          {/* Connected divider */}
-          <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: '#252535' }} />
-            <span style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.12em', textTransform: 'uppercase',
-              background: '#111118', padding: '0 8px', position: 'relative', zIndex: 1, margin: '0 auto' }}>
-              Connected
-            </span>
-          </div>
-
-          {/* Knowledge nodes */}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-            <NodeRow type="people"   label="Alex Chen" />
-            <NodeRow type="decision" label="Auth Decision #12" />
-            <NodeRow type="meeting"  label="Sprint 23 Standup" />
-            <NodeRow type="question" label="2 open questions" />
-            <NodeRow type="project"  label="Auth v2 Project" />
-          </div>
+          {/* Knowledge nodes — live vault data */}
+          {workspacePath && <ConnectedNodes workspacePath={workspacePath} onOpen={openFile} />}
         </>
       )}
     </div>

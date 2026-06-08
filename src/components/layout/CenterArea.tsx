@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { MonacoEditor } from "@/components/editor/MonacoEditor";
+import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
+import { CategoryIcon } from "@/components/ui/Icons";
 
 // ─── Tab bar ──────────────────────────────────────────────────────────────────
 
@@ -292,62 +294,56 @@ function Breadcrumb({ path }: { path: string }) {
   );
 }
 
-// ─── Context Ribbon ───────────────────────────────────────────────────────────
-const CHIPS = [
-  {
-    type: 'person', label: 'Alex Chen', bg: '#0D1929', color: '#93C5FD', border: '#1A2940',
-    svg: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="4.5" r="2.5"/><path d="M1.5 12.5c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5"/></svg>,
-  },
-  {
-    type: 'decision', label: 'Auth Decision #12', bg: '#150D29', color: '#C084FC', border: '#251A40',
-    svg: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#C084FC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 1.5H3.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5z"/><polyline points="8 1.5 8 5 11.5 5"/><polyline points="5 9 6.5 10.5 9.5 8"/></svg>,
-  },
-  {
-    type: 'meeting', label: 'Sprint 23', bg: '#290D1F', color: '#F9A8D4', border: '#401A30',
-    svg: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#F9A8D4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1.5" y="2.5" width="11" height="10" rx="1"/><line x1="4.5" y1="1" x2="4.5" y2="4"/><line x1="9.5" y1="1" x2="9.5" y2="4"/><line x1="1.5" y1="6" x2="12.5" y2="6"/></svg>,
-  },
-  {
-    type: 'question', label: '2 questions', bg: '#291A0D', color: '#F59E0B', border: '#403010',
-    svg: <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#F59E0B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><path d="M5.5 5.5A1.5 1.5 0 0 1 8.5 6c0 1.5-1.5 1.75-1.5 2.75"/><circle cx="7" cy="10.5" r="0.4" fill="#F59E0B"/></svg>,
-  },
-];
+// ─── Context Ribbon (live vault notes relevant to the open file) ──────────────
 
-function ContextRibbon() {
+const CHIP_STYLE: Record<NoteCategory, { bg: string; color: string; border: string }> = {
+  people:        { bg: '#0D1929', color: '#93C5FD', border: '#1A2940' },
+  projects:      { bg: '#0D2916', color: '#86EFAC', border: '#1A402A' },
+  organizations: { bg: '#29230D', color: '#FCD34D', border: '#403510' },
+  decisions:     { bg: '#150D29', color: '#C084FC', border: '#251A40' },
+  meetings:      { bg: '#290D1F', color: '#F9A8D4', border: '#401A30' },
+  topics:        { bg: '#0D2329', color: '#7DD3FC', border: '#1A3540' },
+};
+
+function ContextRibbon({ activeFile }: { activeFile: string }) {
+  const { workspacePath, openFile } = useAppStore();
+  const [chips, setChips] = useState<VaultNote[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!workspacePath) { setChips([]); return; }
+    const base = activeFile.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') ?? '';
+    listVault(workspacePath).then(all => {
+      if (cancelled) return;
+      // Notes that reference this file by name; else fall back to the most-recent notes
+      const refs = base.length > 2
+        ? all.filter(n => n.body.toLowerCase().includes(base.toLowerCase()) || n.body.toLowerCase().includes(activeFile.split(/[\\/]/).pop()?.toLowerCase() ?? ''))
+        : [];
+      const pool = refs.length ? refs : [...all].sort((a, b) =>
+        (b.frontmatter.updated ?? '').localeCompare(a.frontmatter.updated ?? ''));
+      setChips(pool.slice(0, 5));
+    }).catch(() => setChips([]));
+    return () => { cancelled = true; };
+  }, [workspacePath, activeFile]);
+
+  if (chips.length === 0) return null; // no fake data — hide when the vault is empty
+
   return (
-    <div style={{
-      height: 32,
-      background: '#0D0D16',
-      borderBottom: '1px solid #252535',
-      display: 'flex',
-      alignItems: 'center',
-      padding: '0 12px',
-      gap: 6,
-      flexShrink: 0,
-      overflow: 'hidden',
-    }}>
-      <span style={{
-        fontSize: 9, fontWeight: 600,
-        color: '#4A4A65', letterSpacing: '0.1em',
-        textTransform: 'uppercase', marginRight: 4, whiteSpace: 'nowrap',
-      }}>
-        ↗ Context
+    <div style={{ height: 32, background: '#0D0D16', borderBottom: '1px solid #252535', display: 'flex', alignItems: 'center', padding: '0 12px', gap: 6, flexShrink: 0, overflow: 'hidden' }}>
+      <span style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', letterSpacing: '0.1em', textTransform: 'uppercase', marginRight: 4, whiteSpace: 'nowrap' }}>
+        Context
       </span>
-      {CHIPS.map((chip) => (
-        <div
-          key={chip.type}
-          style={{
-            height: 24, padding: '0 8px', borderRadius: 4,
-            display: 'flex', alignItems: 'center', gap: 5,
-            cursor: 'pointer', fontSize: 11, fontWeight: 500,
-            whiteSpace: 'nowrap', border: `1px solid ${chip.border}`,
-            background: chip.bg, color: chip.color, flexShrink: 0,
-          }}
-          className="hover:brightness-110 transition-all"
-        >
-          {chip.svg}
-          {chip.label}
-        </div>
-      ))}
+      {chips.map((n) => {
+        const s = CHIP_STYLE[n.category];
+        return (
+          <div key={n.path} onClick={() => openFile(n.path)}
+            style={{ height: 24, padding: '0 8px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', border: `1px solid ${s.border}`, background: s.bg, color: s.color, flexShrink: 0 }}
+            className="hover:brightness-110 transition-all">
+            <span style={{ display: 'flex' }}><CategoryIcon cat={n.category} size={12} color={s.color} /></span>
+            {n.title}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -430,7 +426,7 @@ export function CenterArea() {
       {activeFile ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
           <Breadcrumb path={activeFile} />
-          <ContextRibbon />
+          <ContextRibbon activeFile={activeFile} />
           {/* Monaco remounts cleanly on path change via key={path} inside component */}
           <MonacoEditor path={activeFile} />
         </div>
