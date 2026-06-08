@@ -110,6 +110,14 @@ interface AppState {
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
 
+  // Keyboard shortcuts reference
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (open: boolean) => void;
+
+  // First-launch onboarding (persisted)
+  onboarded: boolean;
+  setOnboarded: (v: boolean) => void;
+
   // Pending AI file edit (not persisted)
   pendingFileEdit: { path: string; content: string } | null;
   setPendingFileEdit: (edit: { path: string; content: string } | null) => void;
@@ -299,6 +307,14 @@ export const useAppStore = create<AppState>()(
       commandPaletteOpen: false,
       setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
 
+      // Keyboard shortcuts
+      shortcutsOpen: false,
+      setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+
+      // Onboarding
+      onboarded: false,
+      setOnboarded: (v) => set({ onboarded: v }),
+
       // Pending AI file edit
       pendingFileEdit: null,
       setPendingFileEdit: (edit) => set({ pendingFileEdit: edit }),
@@ -416,6 +432,7 @@ export const useAppStore = create<AppState>()(
           enabled: v.enabled, lastRun: v.lastRun, nextRun: v.nextRun, lastResult: v.lastResult, runCount: v.runCount,
         }])),
         mcpServers: s.mcpServers,
+        onboarded: s.onboarded,
       }),
     }
   )

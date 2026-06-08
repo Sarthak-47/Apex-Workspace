@@ -10,6 +10,8 @@ import { runWeeklyBriefing } from "@/lib/briefing";
 import { CommandPalette } from "@/components/ui/CommandPalette";
 import { DiffReview } from "@/components/ui/DiffReview";
 import { SettingsDialog } from "@/components/ui/SettingsDialog";
+import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
+import { Onboarding } from "@/components/ui/Onboarding";
 import { Titlebar } from "@/components/layout/Titlebar";
 import { ModeBar } from "@/components/layout/ModeBar";
 import { LeftNav } from "@/components/layout/LeftNav";
@@ -32,6 +34,7 @@ export default function App() {
     setGitBranch, workspacePath,
     commandPaletteOpen, setCommandPaletteOpen,
     settingsOpen, setSettingsOpen,
+    setShortcutsOpen,
     embedModel,
   } = useAppStore();
 
@@ -223,6 +226,12 @@ export default function App() {
         setSettingsOpen(true);
         return;
       }
+      // Ctrl+/ → keyboard shortcuts
+      if (ctrl && e.key === '/') {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
       // Ctrl+` → toggle terminal
       if (ctrl && e.key === '`') {
         e.preventDefault();
@@ -253,7 +262,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [setCommandPaletteOpen, setSettingsOpen, toggleTerminal, toggleLeftPanel, leftPanelOpen, leftPanelView, setLeftPanelView]);
+  }, [setCommandPaletteOpen, setSettingsOpen, setShortcutsOpen, toggleTerminal, toggleLeftPanel, leftPanelOpen, leftPanelView, setLeftPanelView]);
 
   // Keep CSS vars in sync with store (for future drag-to-resize)
   useEffect(() => {
@@ -288,6 +297,8 @@ export default function App() {
       <Toaster />
       {commandPaletteOpen && <CommandPalette onClose={() => setCommandPaletteOpen(false)} />}
       {settingsOpen && <SettingsDialog />}
+      <KeyboardShortcuts />
+      <Onboarding />
       <DiffReview />
     </div>
   );
