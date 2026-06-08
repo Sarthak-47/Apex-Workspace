@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useAppStore, useToast } from "@/store";
 import { listAllFiles, gitLog, type DirEntry, type GitCommit } from "@/lib/tauri";
 import { listVault, type VaultNote } from "@/lib/vault";
+import { MentionIcon } from "@/components/ui/Icons";
 
 type Source = 'Files' | 'Knowledge' | 'Git';
 interface UResult {
@@ -208,7 +209,6 @@ export function CommandPalette({ onClose }: Props) {
           {results.map((entry, i) => {
             const isSelected = i === selectedIdx;
             const showHeader = i === 0 || results[i - 1].source !== entry.source;
-            const srcIcon: Record<Source, string> = { Files: '', Knowledge: '🔗', Git: '⎇' };
             return (
               <div key={entry.id}>
                 {showHeader && (
@@ -228,7 +228,7 @@ export function CommandPalette({ onClose }: Props) {
                 >
                   {entry.source === 'Files'
                     ? <FileIcon ext={entry.ext ?? null} />
-                    : <span style={{ width: 15, textAlign: 'center', fontSize: 12, flexShrink: 0 }}>{srcIcon[entry.source]}</span>}
+                    : <span style={{ width: 15, display: 'flex', justifyContent: 'center', flexShrink: 0, color: entry.source === 'Git' ? '#8888A8' : '#6366F1' }}><MentionIcon kind={entry.source === 'Git' ? 'git' : 'knowledge'} size={13} /></span>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Highlight text={entry.title} query={query} />

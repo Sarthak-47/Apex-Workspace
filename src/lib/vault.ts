@@ -7,13 +7,13 @@ import { readFile, writeFile, listDir, deletePath, type DirEntry } from './tauri
 
 export type NoteCategory = 'people' | 'projects' | 'organizations' | 'decisions' | 'meetings' | 'topics';
 
-export const CATEGORIES: { id: NoteCategory; label: string; icon: string; color: string }[] = [
-  { id: 'people',        label: 'People',        icon: '👤', color: '#93C5FD' },
-  { id: 'projects',      label: 'Projects',      icon: '📦', color: '#86EFAC' },
-  { id: 'organizations', label: 'Organizations', icon: '🏢', color: '#FCD34D' },
-  { id: 'decisions',     label: 'Decisions',     icon: '⚖️', color: '#C084FC' },
-  { id: 'meetings',      label: 'Meetings',      icon: '📅', color: '#F9A8D4' },
-  { id: 'topics',        label: 'Topics',        icon: '🏷️', color: '#7DD3FC' },
+export const CATEGORIES: { id: NoteCategory; label: string; color: string }[] = [
+  { id: 'people',        label: 'People',        color: '#93C5FD' },
+  { id: 'projects',      label: 'Projects',      color: '#86EFAC' },
+  { id: 'organizations', label: 'Organizations', color: '#FCD34D' },
+  { id: 'decisions',     label: 'Decisions',     color: '#C084FC' },
+  { id: 'meetings',      label: 'Meetings',      color: '#F9A8D4' },
+  { id: 'topics',        label: 'Topics',        color: '#7DD3FC' },
 ];
 
 export interface VaultNote {

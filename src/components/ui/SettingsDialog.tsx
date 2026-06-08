@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore, useToast } from "@/store";
 import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { BUILTIN_AGENTS, ALL_TOOLS, type AgentDef, type ToolName } from "@/lib/agents";
+import { AgentIcon } from "@/components/ui/Icons";
 import { gmailStatus, gmailStartAuth, gmailSync, gmailDisconnect, onGmailConnected, type GmailStatus,
   calendarStatus, calendarSync, firefliesStatus, firefliesSetKey, firefliesSync, firefliesDisconnect, type FirefliesStatus,
   mcpStart, mcpStop, type McpServerConfig, type McpTool } from "@/lib/tauri";
@@ -230,7 +231,7 @@ const EMPTY_AGENT = (): AgentDef => ({
   name: '',
   description: '',
   color: '#6366F1',
-  icon: '🤖',
+  icon: 'custom',
   systemPrompt: '',
   tools: [...ALL_TOOLS],
   temperature: 0.2,
@@ -248,12 +249,8 @@ function AgentForm({ draft, onChange }: { draft: AgentDef; onChange: (a: AgentDe
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input style={{ ...inputStyle, width: 54, textAlign: 'center' }} value={draft.icon}
-          onChange={e => onChange({ ...draft, icon: e.target.value })} placeholder="🤖" />
-        <input style={inputStyle} value={draft.name}
-          onChange={e => onChange({ ...draft, name: e.target.value })} placeholder="Agent name" />
-      </div>
+      <input style={inputStyle} value={draft.name}
+        onChange={e => onChange({ ...draft, name: e.target.value })} placeholder="Agent name" />
       <input style={inputStyle} value={draft.description}
         onChange={e => onChange({ ...draft, description: e.target.value })} placeholder="Short description" />
       <textarea style={{ ...inputStyle, minHeight: 80, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
@@ -418,7 +415,7 @@ function AITab() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {BUILTIN_AGENTS.map(a => (
             <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#0F0F16', borderRadius: 6, border: '1px solid #1A1A28' }}>
-              <span style={{ fontSize: 14 }}>{a.icon}</span>
+              <span style={{ display: 'flex', color: a.color }}><AgentIcon kind={a.icon} size={15} /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, color: a.color, fontWeight: 600 }}>{a.name}</div>
                 <div style={{ fontSize: 10, color: '#4A4A65' }}>{a.description}</div>
@@ -438,7 +435,7 @@ function AITab() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#0F0F16', borderRadius: 6, border: '1px solid #1A1A28' }}>
-                  <span style={{ fontSize: 14 }}>{a.icon}</span>
+                  <span style={{ display: 'flex', color: a.color }}><AgentIcon kind={a.icon} size={15} /></span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, color: a.color, fontWeight: 600 }}>{a.name || '(unnamed)'}</div>
                     <div style={{ fontSize: 10, color: '#4A4A65' }}>{a.description}</div>

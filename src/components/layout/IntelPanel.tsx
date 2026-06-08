@@ -10,6 +10,7 @@ import { GraphView } from "@/components/knowledge/GraphView";
 import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
 import { createLiveNote, runLiveNote, parseLiveConfig, SCHEDULE_PRESETS, type LiveSource } from "@/lib/livenotes";
 import { listThreads, draftReply, saveDraft, type EmailThread } from "@/lib/emaildraft";
+import { CategoryIcon, ToolIcon, MentionIcon, BoltIcon, AgentIcon } from "@/components/ui/Icons";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
@@ -355,11 +356,6 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
 
 // ─── Tool call block ──────────────────────────────────────────────────────────
 
-const TOOL_ICONS: Record<string, string> = {
-  read_file: '📄', list_directory: '📁', search_files: '🔍',
-  edit_file: '✏️', write_file: '💾', run_bash: '▶️',
-};
-
 function ToolCallView({ call }: { call: ToolCallBlock }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -395,7 +391,7 @@ function ToolCallView({ call }: { call: ToolCallBlock }) {
           <span style={{ fontSize: 10, color: '#22C55E' }}>✓</span>
         )}
 
-        <span style={{ fontSize: 12 }}>{TOOL_ICONS[call.toolName] ?? '🔧'}</span>
+        <span style={{ display: 'flex', color: '#8888A8' }}><ToolIcon name={call.toolName} size={12} /></span>
 
         <span style={{ fontSize: 11, color: '#8888A8', fontFamily: '"JetBrains Mono",monospace' }}>
           {call.toolName}
@@ -646,7 +642,7 @@ function EmailPanel() {
           <div style={{ padding: '0 12px 6px', flexShrink: 0 }}>
             <button onClick={doDraft} disabled={drafting || !ollamaOnline}
               style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: drafting || !ollamaOnline ? 'default' : 'pointer', background: ollamaOnline ? '#6366F1' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>
-              {drafting ? 'Drafting…' : '✎ Draft Reply'}
+              {drafting ? 'Drafting…' : 'Draft Reply'}
             </button>
           </div>
           {draft && (
@@ -1016,7 +1012,7 @@ function KnowledgePanel() {
             </div>
           ) : liveForm ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ fontSize: 10, color: '#F59E0B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>⚡ New Live Note</div>
+              <div style={{ fontSize: 10, color: '#F59E0B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 5 }}><BoltIcon size={11} color="#F59E0B" />New Live Note</div>
               <input autoFocus value={liveForm.title} onChange={e => setLiveForm({ ...liveForm, title: e.target.value })} placeholder="Title (e.g. Open PRs blocking v2)"
                 style={{ height: 28, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#E2E2EC', fontSize: 12, padding: '0 8px', outline: 'none' }} />
               <textarea value={liveForm.objective} onChange={e => setLiveForm({ ...liveForm, objective: e.target.value })} placeholder="Objective — what should this note always reflect?"
@@ -1046,12 +1042,12 @@ function KnowledgePanel() {
               {CATEGORIES.map(c => (
                 <button key={c.id} onClick={() => { setCreating(c.id); setNewName(''); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '4px 9px', borderRadius: 5, cursor: 'pointer', background: '#18181F', border: '1px solid #252535', color: c.color }}>
-                  <span>{c.icon}</span>{c.label}
+                  <CategoryIcon cat={c.id} size={12} />{c.label}
                 </button>
               ))}
               <button onClick={() => setLiveForm({ title: '', objective: '', schedule: 'morning', sources: ['vault', 'codebase'] })}
                 style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '4px 9px', borderRadius: 5, cursor: 'pointer', background: '#1A140A', border: '1px solid #F59E0B40', color: '#F59E0B' }}>
-                <span>⚡</span>Live Note
+                <BoltIcon size={11} />Live Note
               </button>
             </div>
           )}
@@ -1109,7 +1105,7 @@ function KnowledgePanel() {
         ) : grouped.map(g => (
           <div key={g.cat.id} style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 9, fontWeight: 600, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '6px 8px 4px', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span>{g.cat.icon}</span>{g.cat.label}<span style={{ color: '#2A2A3D' }}>· {g.items.length}</span>
+              <CategoryIcon cat={g.cat.id} size={11} />{g.cat.label}<span style={{ color: '#2A2A3D' }}>· {g.items.length}</span>
             </div>
             {g.items.map(n => {
               const bl = backlinks[n.title]?.length ?? 0;
@@ -1120,7 +1116,7 @@ function KnowledgePanel() {
                   style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: 5, cursor: 'pointer',
                     background: active ? '#1A1A3A' : 'transparent', borderLeft: `2px solid ${active ? g.cat.color : 'transparent'}` }}
                   className={!active ? 'hover:bg-[#18181F] transition-colors' : ''}>
-                  <span style={{ fontSize: 12, flexShrink: 0 }}>{parseLiveConfig(n) ? '⚡' : g.cat.icon}</span>
+                  <span style={{ display: 'flex', flexShrink: 0, color: parseLiveConfig(n) ? '#F59E0B' : g.cat.color }}>{parseLiveConfig(n) ? <BoltIcon size={12} /> : <CategoryIcon cat={g.cat.id} size={12} />}</span>
                   <span style={{ fontSize: 12, color: active ? '#E2E2EC' : '#C0C0D0', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
                   {parseLiveConfig(n) && (
                     <button onClick={e => { e.stopPropagation(); runLive(n); }} disabled={runningLive === n.path} title="Run live note now"
@@ -1639,7 +1635,7 @@ export function IntelPanel() {
           {/* Agent selector — only relevant in tools mode */}
           {toolsMode && (
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 11 }}>{activeAgent.icon}</span>
+              <span style={{ display: 'flex', color: activeAgent.color }}><AgentIcon kind={activeAgent.icon} size={12} /></span>
               <select
                 value={selectedAgentId}
                 onChange={e => setSelectedAgentId(e.target.value)}
@@ -1746,7 +1742,6 @@ export function IntelPanel() {
             boxShadow: '0 12px 32px rgba(0,0,0,0.6)', overflow: 'hidden', maxHeight: 240, overflowY: 'auto',
           }}>
             {mention.items.map((it, i) => {
-              const ICON: Record<string, string> = { folder: '📁', symbol: '🔣', file: '📄', person: '👤', project: '📦', decision: '⚖️', meeting: '📅' };
               const showHeader = i === 0 || mention.items[i - 1].group !== it.group;
               return (
                 <div key={it.insert}>
@@ -1760,7 +1755,7 @@ export function IntelPanel() {
                       display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer',
                       background: i === mention.index ? '#1A1A3A' : 'transparent',
                     }}>
-                    <span style={{ fontSize: 12 }}>{ICON[it.kind] ?? '📄'}</span>
+                    <span style={{ display: 'flex', color: it.group === 'Knowledge' ? '#6366F1' : '#8888A8' }}><MentionIcon kind={it.kind} size={12} /></span>
                     <span style={{ fontSize: 12, color: '#E2E2EC', fontFamily: it.group === 'Knowledge' ? 'inherit' : '"JetBrains Mono",monospace' }}>{it.label}</span>
                     <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{it.detail}</span>
                   </div>

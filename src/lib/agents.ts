@@ -22,6 +22,7 @@ export interface AgentDef {
   name: string;
   description: string;
   color: string;
+  /** Icon key for AgentIcon (coder/reviewer/explainer/debugger/test-writer); not an emoji. */
   icon: string;
   systemPrompt: string;
   tools: ToolName[];
@@ -62,7 +63,7 @@ export const BUILTIN_AGENTS: AgentDef[] = [
     name: 'Coder',
     description: 'Full tools — writes and edits code',
     color: '#6366F1',
-    icon: '⚡',
+    icon: 'coder',
     systemPrompt: CODER_PROMPT,
     tools: [...ALL_TOOLS],
     temperature: 0.2,
@@ -73,7 +74,7 @@ export const BUILTIN_AGENTS: AgentDef[] = [
     name: 'Reviewer',
     description: 'Read-only — reviews code, no edits',
     color: '#22C55E',
-    icon: '🔍',
+    icon: 'reviewer',
     systemPrompt: REVIEWER_PROMPT,
     tools: READ_ONLY_TOOLS,
     temperature: 0.1,
@@ -84,7 +85,7 @@ export const BUILTIN_AGENTS: AgentDef[] = [
     name: 'Explainer',
     description: 'No tools — teaches and explains',
     color: '#F59E0B',
-    icon: '💡',
+    icon: 'explainer',
     systemPrompt: EXPLAINER_PROMPT,
     tools: [],
     temperature: 0.4,
@@ -95,7 +96,7 @@ export const BUILTIN_AGENTS: AgentDef[] = [
     name: 'Debugger',
     description: 'Full tools — finds and fixes bugs',
     color: '#EF4444',
-    icon: '🐞',
+    icon: 'debugger',
     systemPrompt: DEBUGGER_PROMPT,
     tools: [...ALL_TOOLS],
     temperature: 0.2,
@@ -106,7 +107,7 @@ export const BUILTIN_AGENTS: AgentDef[] = [
     name: 'Test Writer',
     description: 'Full tools — writes test coverage',
     color: '#A855F7',
-    icon: '🧪',
+    icon: 'test-writer',
     systemPrompt: TEST_WRITER_PROMPT,
     tools: [...ALL_TOOLS],
     temperature: 0.2,
