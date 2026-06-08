@@ -186,6 +186,7 @@ pub fn run() {
             git::git_create_branch,
             // Bash (approval-gated)
             bash::run_bash,
+            bash::kill_bash,
             // File watcher
             watcher::start_watching,
             watcher::stop_watching,

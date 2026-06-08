@@ -5,7 +5,7 @@ import { readFile, listAllFiles } from "@/lib/tauri";
 import { suggestMentions, buildCandidates, expandMentions, type MentionItem } from "@/lib/mentions";
 import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
 import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip, clearVault, importMarkdownFolder, linkDecisionsToCode, listVersions, saveVersion, serializeNote, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
-import { openFolderDialog, writeFile as fsWriteFile, extractDocument, openDocumentDialog } from "@/lib/tauri";
+import { openFolderDialog, writeFile as fsWriteFile, extractDocument, openDocumentDialog, killBash } from "@/lib/tauri";
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
 import { GraphView } from "@/components/knowledge/GraphView";
 import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
@@ -1389,6 +1389,7 @@ export function IntelPanel() {
   // Bash approval gating
   const [pendingBash, setPendingBash] = useState<{ command: string } | null>(null);
   const bashResolverRef = useRef<((d: BashDecision) => void) | null>(null);
+  const activeBashRunId = useRef<string | null>(null);
 
   const activeAgent = getAgentById(selectedAgentId, userAgents);
   const allAgents = [...BUILTIN_AGENTS, ...userAgents];
@@ -1606,6 +1607,7 @@ export function IntelPanel() {
           onRequestBash: requestBash,
           mcpTools: mcpToolRefs,
           searxngUrl: useAppStore.getState().searxngUrl,
+          onBashRun: (id) => { activeBashRunId.current = id; },
         });
 
         for await (const event of stream) {
@@ -1694,6 +1696,8 @@ export function IntelPanel() {
 
   const handleStop = () => {
     abortRef.current?.abort();
+    // Also terminate any bash command still running (invokes don't honor the abort signal)
+    if (activeBashRunId.current) { killBash(activeBashRunId.current); activeBashRunId.current = null; }
   };
 
   // ── Open diff review for AI code suggestion ───────────────────────────────

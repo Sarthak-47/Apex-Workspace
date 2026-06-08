@@ -268,13 +268,14 @@ export interface BashResult {
   stderr: string;
   exit_code: number;
   timed_out: boolean;
+  killed?: boolean;
 }
 
 /** Run a shell command. The UI handles approval gating before this is called. */
-export async function runBash(command: string, cwd?: string, timeout?: number): Promise<BashResult> {
+export async function runBash(command: string, cwd?: string, timeout?: number, runId?: string): Promise<BashResult> {
   if (isTauri()) {
     const { invoke } = await import('@tauri-apps/api/core');
-    return invoke<BashResult>('run_bash', { command, cwd: cwd ?? null, timeout: timeout ?? null });
+    return invoke<BashResult>('run_bash', { command, cwd: cwd ?? null, timeout: timeout ?? null, runId: runId ?? null });
   }
   // Browser mock — simulate a few common commands for web-first testing
   await new Promise(r => setTimeout(r, 250));
@@ -295,6 +296,16 @@ export async function runBash(command: string, cwd?: string, timeout?: number): 
     return { stdout: 'On branch main\nnothing to commit, working tree clean\n', stderr: '', exit_code: 0, timed_out: false };
   }
   return { stdout: `[browser preview] would run: ${c}\n`, stderr: '', exit_code: 0, timed_out: false };
+}
+
+/** Kill a running bash command by run_id. */
+export async function killBash(runId: string): Promise<void> {
+  if (isTauri()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('kill_bash', { runId });
+    } catch { /* no-op */ }
+  }
 }
 
 // ─── File watcher ─────────────────────────────────────────────────────────────

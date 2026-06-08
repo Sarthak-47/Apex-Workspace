@@ -75,6 +75,8 @@ export interface AgentStreamOptions {
   mcpTools?: McpToolRef[];
   /** SearXNG instance URL; when set, a web_search tool is exposed. */
   searxngUrl?: string;
+  /** Reports the active bash run_id (or null when done) so the UI can kill it. */
+  onBashRun?: (runId: string | null) => void;
 }
 
 export type { CoreMessage };
@@ -130,6 +132,8 @@ interface BuildToolsOpts {
   onRequestBash?: (command: string) => Promise<BashDecision>;
   mcpTools?: McpToolRef[];
   searxngUrl?: string;
+  /** Reports the active bash run_id (string while running, null when done) so the UI can kill it. */
+  onBashRun?: (runId: string | null) => void;
 }
 
 function buildTools(
@@ -250,8 +254,11 @@ function buildTools(
             return `Command denied by user: ${command}`;
           }
         }
+        const runId = (globalThis.crypto?.randomUUID?.() ?? `bash-${Date.now()}`);
+        opts.onBashRun?.(runId);
         try {
-          const res = await runBash(command, workspacePath, timeout);
+          const res = await runBash(command, workspacePath, timeout, runId);
+          if (res.killed) return `Command was stopped by the user: ${command}`;
           const out = [
             res.stdout && `stdout:\n${res.stdout}`,
             res.stderr && `stderr:\n${res.stderr}`,
@@ -260,6 +267,8 @@ function buildTools(
           return out.length > 8000 ? out.slice(0, 8000) + '\n…(truncated)' : out;
         } catch (e) {
           return `Error running command: ${e}`;
+        } finally {
+          opts.onBashRun?.(null);
         }
       },
     }),
@@ -311,10 +320,10 @@ function buildTools(
 // ─── Stream factory ───────────────────────────────────────────────────────────
 
 export async function* createAgentStream(opts: AgentStreamOptions): AsyncGenerator<AgentEvent> {
-  const { model, messages, workspacePath, signal, onPendingEdit, tools: allowed, temperature, onRequestBash, mcpTools, searxngUrl } = opts;
+  const { model, messages, workspacePath, signal, onPendingEdit, tools: allowed, temperature, onRequestBash, mcpTools, searxngUrl, onBashRun } = opts;
 
   const ollama = createOllama({ baseURL: 'http://localhost:11434/api' });
-  const tools = buildTools(workspacePath, onPendingEdit, { onRequestBash, mcpTools, searxngUrl });
+  const tools = buildTools(workspacePath, onPendingEdit, { onRequestBash, mcpTools, searxngUrl, onBashRun });
 
   // Active set = the agent's allowed built-ins + every running MCP tool.
   const mcpKeys = (mcpTools ?? []).map(mt => `mcp_${mt.server}_${mt.name}`.replace(/[^a-zA-Z0-9_]/g, '_'));
