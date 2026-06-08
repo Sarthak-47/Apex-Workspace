@@ -1646,6 +1646,14 @@ export function IntelPanel() {
             Cookbook
           </button>
 
+          {/* Blind Compare trigger */}
+          <button onClick={() => useAppStore.getState().setCompareOpen(true)} title="Blind model compare"
+            style={{ display: 'flex', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', fontSize: 10, padding: 0 }}
+            className="hover:!text-[#8888A8]">
+            <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="2" x2="7" y2="12"/><rect x="2" y="4" width="3.5" height="6" rx="0.6"/><rect x="8.5" y="4" width="3.5" height="6" rx="0.6"/></svg>
+            Compare
+          </button>
+
           {/* Agent selector — only relevant in tools mode */}
           {toolsMode && (
             <div style={{ marginLeft: 6, display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -13,6 +13,7 @@ import { SettingsDialog } from "@/components/ui/SettingsDialog";
 import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
 import { Onboarding } from "@/components/ui/Onboarding";
 import { Cookbook } from "@/components/ui/Cookbook";
+import { Compare } from "@/components/ui/Compare";
 import { UpdateBanner } from "@/components/ui/UpdateBanner";
 import { Titlebar } from "@/components/layout/Titlebar";
 import { ModeBar } from "@/components/layout/ModeBar";
@@ -302,6 +303,7 @@ export default function App() {
       <KeyboardShortcuts />
       <Onboarding />
       <Cookbook />
+      <Compare />
       <UpdateBanner />
       <DiffReview />
     </div>

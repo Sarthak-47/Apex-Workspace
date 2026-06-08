@@ -118,6 +118,12 @@ interface AppState {
   cookbookOpen: boolean;
   setCookbookOpen: (open: boolean) => void;
 
+  // Blind model compare
+  compareOpen: boolean;
+  setCompareOpen: (open: boolean) => void;
+  compareWins: Record<string, number>;
+  addCompareWin: (model: string) => void;
+
   // First-launch onboarding (persisted)
   onboarded: boolean;
   setOnboarded: (v: boolean) => void;
@@ -323,6 +329,12 @@ export const useAppStore = create<AppState>()(
       cookbookOpen: false,
       setCookbookOpen: (open) => set({ cookbookOpen: open }),
 
+      // Blind compare
+      compareOpen: false,
+      setCompareOpen: (open) => set({ compareOpen: open }),
+      compareWins: {},
+      addCompareWin: (model) => set((s) => ({ compareWins: { ...s.compareWins, [model]: (s.compareWins[model] ?? 0) + 1 } })),
+
       // Onboarding
       onboarded: false,
       setOnboarded: (v) => set({ onboarded: v }),
@@ -453,6 +465,7 @@ export const useAppStore = create<AppState>()(
         }])),
         mcpServers: s.mcpServers,
         onboarded: s.onboarded,
+        compareWins: s.compareWins,
       }),
     }
   )
