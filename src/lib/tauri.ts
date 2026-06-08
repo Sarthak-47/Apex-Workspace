@@ -37,8 +37,10 @@ export async function readFile(path: string): Promise<string> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('read_file', { path });
   }
-  const mock = MOCK_VAULT_FILES[path.replace(/\\/g, '/')];
-  if (mock !== undefined) return mock;
+  if (demoVault()) {
+    const mock = MOCK_VAULT_FILES[path.replace(/\\/g, '/')];
+    if (mock !== undefined) return mock;
+  }
   throw new Error('File system not available in browser preview');
 }
 
@@ -165,10 +167,17 @@ export async function listDir(path: string): Promise<DirEntry[]> {
   }
   // Browser mock: simulate realistic project tree
   await new Promise(r => setTimeout(r, 60)); // tiny latency to test loading states
-  return MOCK_TREE[path] ?? MOCK_VAULT_TREE[path] ?? [];
+  return MOCK_TREE[path] ?? (demoVault() ? MOCK_VAULT_TREE[path] : undefined) ?? [];
 }
 
-// ─── Browser mock vault (demoable Knowledge view + graph) ─────────────────────
+// ─── Browser preview demo vault (OPT-IN; off by default) ──────────────────────
+// Only populates the Knowledge view / graph / email in the *web preview* when
+// localStorage 'apex-demo-vault' === '1'. The real desktop app always reads the
+// actual <workspace>/.apex/vault folder. By default the preview shows empty states.
+
+function demoVault(): boolean {
+  try { return localStorage.getItem('apex-demo-vault') === '1'; } catch { return false; }
+}
 
 const VR = '/demo-workspace/.apex/vault';
 function vfile(cat: string, file: string, body: string): [string, string] {
