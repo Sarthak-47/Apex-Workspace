@@ -8,6 +8,7 @@ import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
 import { GraphView } from "@/components/knowledge/GraphView";
 import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
+import { runDeepResearch } from "@/lib/deepresearch";
 import { createLiveNote, runLiveNote, parseLiveConfig, SCHEDULE_PRESETS, type LiveSource } from "@/lib/livenotes";
 import { listThreads, draftReply, saveDraft, type EmailThread } from "@/lib/emaildraft";
 import { CategoryIcon, ToolIcon, MentionIcon, BoltIcon, AgentIcon } from "@/components/ui/Icons";
@@ -1222,6 +1223,7 @@ export function IntelPanel() {
   const [attachedFile, setAttachedFile] = useState<{ name: string; path: string } | null>(null);
   const [planMode, setPlanMode]   = useState(false);
   const [toolsMode, setToolsMode] = useState(false);
+  const [researchMode, setResearchMode] = useState(false);
   const pendingEditsRef = useRef<PendingEdit[]>([]);
 
   // Bash approval gating
@@ -1378,7 +1380,28 @@ export function IntelPanel() {
     abortRef.current = new AbortController();
     const model = agentForRun.model || ollamaSelectedModel || ollamaModels[0] || 'llama3.2';
 
-    if (toolsMode && workspacePath) {
+    if (researchMode) {
+      // ── Deep Research mode: gather → synthesize → report ───────────────
+      try {
+        const { report, sources } = await runDeepResearch(text, {
+          model,
+          workspace: workspacePath ?? undefined,
+          searxngUrl: useAppStore.getState().searxngUrl,
+          signal: abortRef.current.signal,
+          onProgress: p => setMessages(prev => prev.map(m =>
+            m.id === assistantId ? { ...m, content: `_Researching — ${p.phase} (${p.step}/${p.total})…_` } : m)),
+        });
+        const srcLine = sources.length
+          ? `\n\n---\n**Sources (${sources.length}):** ` + sources.map(s => `${s.title}`).slice(0, 12).join(' · ')
+          : '';
+        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: report + srcLine } : m));
+      } catch (e: unknown) {
+        const err = e as Error;
+        if (err.name !== 'AbortError') {
+          setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `⚠️ Research failed: ${err.message}` } : m));
+        }
+      }
+    } else if (toolsMode && workspacePath) {
       // ── Tools mode: Vercel AI SDK with tool calling ────────────────────
       pendingEditsRef.current = [];
 
@@ -1506,7 +1529,7 @@ export function IntelPanel() {
     abortRef.current = null;
     inputRef.current?.focus();
   }, [input, isStreaming, ollamaOnline, attachedFile, messages, workspacePath, activeFile,
-      ollamaSelectedModel, ollamaModels, planMode, toolsMode, setPendingDiffReview,
+      ollamaSelectedModel, ollamaModels, planMode, toolsMode, researchMode, setPendingDiffReview,
       selectedAgentId, userAgents, requestBash, contextInjectionEnabled, embedModel]);
 
   const handleStop = () => {
@@ -1865,6 +1888,26 @@ export function IntelPanel() {
               <circle cx="10" cy="9" r="1.5" fill="currentColor" stroke="none"/>
             </svg>
             Plan
+          </button>
+
+          {/* Deep Research mode toggle */}
+          <button
+            onClick={() => setResearchMode(r => !r)}
+            title={researchMode ? 'Research mode on — gathers web + codebase + vault, writes a cited report' : 'Deep Research — multi-step gather & synthesize'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px',
+              borderRadius: 3, border: `1px solid ${researchMode ? '#7DD3FC30' : 'transparent'}`,
+              background: researchMode ? '#0D2329' : 'none',
+              color: researchMode ? '#7DD3FC' : '#4A4A65',
+              cursor: 'pointer', fontSize: 10, fontWeight: researchMode ? 600 : 400,
+              transition: 'all 0.15s',
+            }}
+            className={!researchMode ? 'hover:!text-[#8888A8]' : ''}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="5.5" cy="5.5" r="3.5"/><line x1="8" y1="8" x2="10.5" y2="10.5"/>
+            </svg>
+            Research
           </button>
 
           {/* Tools mode toggle */}
