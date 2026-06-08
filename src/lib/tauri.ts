@@ -494,6 +494,32 @@ export async function onGmailConnected(handler: (email: string) => void): Promis
   return () => {};
 }
 
+// ─── Document ingestion ───────────────────────────────────────────────────────
+
+/** Extract plain text from a document (PDF/DOCX/PPTX/XLSX/EPUB/text). */
+export async function extractDocument(path: string): Promise<string> {
+  if (isTauri()) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<string>('extract_document', { path });
+  }
+  return `[browser preview] extracted text from ${path.split(/[\\/]/).pop()} would appear here.`;
+}
+
+/** Open a file picker filtered to ingestible document types. */
+export async function openDocumentDialog(): Promise<string | null> {
+  if (isTauri()) {
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const result = await open({
+        multiple: false, title: 'Ingest a document',
+        filters: [{ name: 'Documents', extensions: ['pdf', 'docx', 'pptx', 'xlsx', 'epub', 'md', 'txt', 'csv', 'html'] }],
+      });
+      return typeof result === 'string' ? result : null;
+    } catch { return null; }
+  }
+  return '/demo-workspace/spec.pdf';
+}
+
 // ─── Hardware (Model Cookbook) ────────────────────────────────────────────────
 
 export interface HardwareInfo {

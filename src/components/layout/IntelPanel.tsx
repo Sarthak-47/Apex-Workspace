@@ -5,7 +5,7 @@ import { readFile, listAllFiles } from "@/lib/tauri";
 import { suggestMentions, buildCandidates, expandMentions, type MentionItem } from "@/lib/mentions";
 import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
 import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip, clearVault, importMarkdownFolder, linkDecisionsToCode, listVersions, saveVersion, serializeNote, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
-import { openFolderDialog, writeFile as fsWriteFile } from "@/lib/tauri";
+import { openFolderDialog, writeFile as fsWriteFile, extractDocument, openDocumentDialog } from "@/lib/tauri";
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
 import { GraphView } from "@/components/knowledge/GraphView";
 import { JOB_DEFS, runJobNow, type JobId } from "@/lib/jobs";
@@ -16,7 +16,7 @@ import { CategoryIcon, ToolIcon, MentionIcon, BoltIcon, AgentIcon } from "@/comp
 import { getLang } from "@/components/editor/MonacoEditor";
 import { createAgentStream, type ToolCallBlock, type PendingEdit, type BashDecision } from "@/lib/agent";
 import { BUILTIN_AGENTS, getAgentById } from "@/lib/agents";
-import { searchIndex, indexWorkspace, getStats, clearIndex, type SearchResult, type IndexStats } from "@/lib/codeindex";
+import { searchIndex, indexWorkspace, indexFile, getStats, clearIndex, type SearchResult, type IndexStats } from "@/lib/codeindex";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -469,10 +469,31 @@ function ContextPanel() {
   } = useAppStore();
   const { info, error, success } = useToast();
   const [stats, setStats] = useState<IndexStats | null>(null);
+  const [ingesting, setIngesting] = useState(false);
   const indexAbort = useRef<AbortController | null>(null);
 
   const refresh = useCallback(() => { getStats().then(setStats).catch(() => {}); }, []);
   useEffect(() => { refresh(); }, [refresh]);
+
+  const ingestDoc = async () => {
+    if (!workspacePath) { info('Open a workspace first'); return; }
+    if (!ollamaOnline) { error('Ollama must be running to index a document'); return; }
+    const path = await openDocumentDialog();
+    if (!path) return;
+    setIngesting(true);
+    try {
+      const text = await extractDocument(path);
+      if (!text.trim()) { error('No text extracted from that document'); setIngesting(false); return; }
+      const name = (path.split(/[\\/]/).pop() ?? 'document').replace(/\.[^.]+$/, '');
+      const sep = workspacePath.includes('\\') ? '\\' : '/';
+      const dest = [workspacePath, '.apex', 'docs', `${name}.md`].join(sep);
+      await fsWriteFile(dest, `# ${name}\n\n${text}`);
+      await indexFile(dest, embedModel);
+      success(`Ingested ${name} into the index`);
+      refresh();
+    } catch (e) { error(`Ingest failed: ${(e as Error).message}`); }
+    setIngesting(false);
+  };
 
   const runIndex = async () => {
     if (!workspacePath) { info('Open a workspace first'); return; }
@@ -550,6 +571,13 @@ function ContextPanel() {
           Clear
         </button>
       </div>
+
+      {/* Ingest document */}
+      <button onClick={ingestDoc} disabled={ingesting || !ollamaOnline}
+        style={{ width: '100%', height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: ingesting || !ollamaOnline ? 'default' : 'pointer', background: 'transparent', border: '1px dashed #2A2A3D', color: '#8888A8', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M8 1.5H3.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5z"/><polyline points="8 1.5 8 5 11.5 5"/><line x1="7" y1="11" x2="7" y2="7"/><polyline points="5 9 7 7 9 9"/></svg>
+        {ingesting ? 'Ingesting…' : 'Ingest document (PDF, DOCX…)'}
+      </button>
 
       {/* Settings */}
       <div style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>

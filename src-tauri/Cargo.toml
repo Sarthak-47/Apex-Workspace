@@ -30,3 +30,5 @@ urlencoding = "2"
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 sysinfo = "0.32"
+pdf-extract = "0.7"
+zip = { version = "2", default-features = false, features = ["deflate"] }

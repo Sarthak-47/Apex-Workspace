@@ -6,6 +6,7 @@ mod gmail;
 mod fireflies;
 mod mcp;
 mod hardware;
+mod docs;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -209,6 +210,8 @@ pub fn run() {
             mcp::mcp_running,
             // Hardware (Model Cookbook)
             hardware::hardware_info,
+            // Document ingestion
+            docs::extract_document,
         ])
         .run(tauri::generate_context!())
         .expect("error while running APEX");
