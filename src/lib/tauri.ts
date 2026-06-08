@@ -566,20 +566,34 @@ export async function mcpCallTool(name: string, tool: string, args: Record<strin
   return { content: [{ type: 'text', text: `[browser preview] ${name}.${tool}(${JSON.stringify(args)})` }] };
 }
 
-/** Show a desktop notification via the Web Notification API (works in the Tauri webview too). */
-export async function notify(title: string, body: string): Promise<void> {
+/** Read the persisted ntfy topic URL without importing the store (avoids a cycle). */
+function ntfyTopicFromState(): string {
   try {
-    if (typeof Notification === 'undefined') {
+    const raw = localStorage.getItem('apex-app-state');
+    return raw ? (JSON.parse(raw).state?.ntfyTopic ?? '') : '';
+  } catch { return ''; }
+}
+
+/** Notify via the Web Notification API + (if configured) an ntfy topic for phone/browser push. */
+export async function notify(title: string, body: string): Promise<void> {
+  // Desktop notification
+  try {
+    if (typeof Notification !== 'undefined') {
+      let perm = Notification.permission;
+      if (perm === 'default') perm = await Notification.requestPermission();
+      if (perm === 'granted') new Notification(title, { body });
+    } else {
       // eslint-disable-next-line no-console
       console.info(`[notify] ${title}: ${body}`);
-      return;
     }
-    let perm = Notification.permission;
-    if (perm === 'default') perm = await Notification.requestPermission();
-    if (perm === 'granted') new Notification(title, { body });
-  } catch {
-    // eslint-disable-next-line no-console
-    console.info(`[notify] ${title}: ${body}`);
+  } catch { /* ignore */ }
+
+  // ntfy push (self-hostable, cross-device)
+  const topic = ntfyTopicFromState();
+  if (topic) {
+    try {
+      await fetch(topic, { method: 'POST', headers: { Title: title }, body });
+    } catch { /* offline */ }
   }
 }
 

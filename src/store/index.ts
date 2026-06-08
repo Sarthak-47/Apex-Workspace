@@ -176,6 +176,10 @@ interface AppState {
   searxngUrl: string;
   setSearxngUrl: (u: string) => void;
 
+  // ntfy topic URL for push notifications (persisted)
+  ntfyTopic: string;
+  setNtfyTopic: (u: string) => void;
+
   // Codebase index progress (not persisted)
   indexProgress: { done: number; total: number; file: string } | null;
   setIndexProgress: (p: { done: number; total: number; file: string } | null) => void;
@@ -397,6 +401,10 @@ export const useAppStore = create<AppState>()(
       searxngUrl: 'http://localhost:8080',
       setSearxngUrl: (u) => set({ searxngUrl: u }),
 
+      // ntfy
+      ntfyTopic: '',
+      setNtfyTopic: (u) => set({ ntfyTopic: u }),
+
       // Index progress
       indexProgress: null,
       setIndexProgress: (p) => set({ indexProgress: p }),
@@ -466,6 +474,7 @@ export const useAppStore = create<AppState>()(
         autocompleteEnabled: s.autocompleteEnabled,
         embedModel: s.embedModel,
         searxngUrl: s.searxngUrl,
+        ntfyTopic: s.ntfyTopic,
         contextInjectionEnabled: s.contextInjectionEnabled,
         // Persist job schedule state (not transient status/logs) for overdue rerun across restarts
         jobs: Object.fromEntries(Object.entries(s.jobs).map(([k, v]) => [k, {
