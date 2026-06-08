@@ -697,8 +697,19 @@ function BackgroundTasksPanel() {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '12px 12px 16px' }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
-        Background Tasks
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#8888A8', textTransform: 'uppercase', letterSpacing: '0.1em', flex: 1 }}>
+          Background Tasks
+        </span>
+        {(() => {
+          const running = JOB_DEFS.filter(d => jobs[d.id]?.status === 'running').length;
+          return running > 0 ? (
+            <span style={{ fontSize: 10, color: '#6366F1', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', border: '2px solid #6366F1', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite' }} />
+              {running} running
+            </span>
+          ) : null;
+        })()}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {JOB_DEFS.map(def => {
@@ -717,7 +728,7 @@ function BackgroundTasksPanel() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: rt.enabled ? '#E2E2EC' : '#4A4A65', fontWeight: 500 }}>{def.name}</div>
                   <div style={{ fontSize: 9, color: '#4A4A65' }}>
-                    {def.schedule} · last {relTime(rt.lastRun)}{def.intervalMs && rt.enabled ? ` · next ${relTime(rt.nextRun)}` : ''}
+                    {def.schedule} · last {relTime(rt.lastRun)}{def.intervalMs && rt.enabled ? ` · next ${relTime(rt.nextRun)}` : ''}{rt.runCount > 0 ? ` · ${rt.runCount} run${rt.runCount === 1 ? '' : 's'}` : ''}
                   </div>
                 </div>
                 {/* Run now */}

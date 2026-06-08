@@ -11,7 +11,13 @@ export interface JobRuntime {
   lastResult: string;
   logs: string[];
   startedAt: number | null;
+  runCount: number;
 }
+
+export const DEFAULT_JOB: JobRuntime = {
+  status: 'idle', enabled: true, lastRun: null, nextRun: null,
+  lastResult: '', logs: [], startedAt: null, runCount: 0,
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -350,18 +356,18 @@ export const useAppStore = create<AppState>()(
       jobs: {},
       setJobRuntime: (id, patch) =>
         set((s) => {
-          const prev = s.jobs[id] ?? { status: 'idle', enabled: true, lastRun: null, nextRun: null, lastResult: '', logs: [], startedAt: null };
+          const prev = s.jobs[id] ?? DEFAULT_JOB;
           return { jobs: { ...s.jobs, [id]: { ...prev, ...patch } } };
         }),
       toggleJobEnabled: (id) =>
         set((s) => {
-          const prev = s.jobs[id] ?? { status: 'idle', enabled: true, lastRun: null, nextRun: null, lastResult: '', logs: [], startedAt: null };
+          const prev = s.jobs[id] ?? DEFAULT_JOB;
           const enabled = !prev.enabled;
           return { jobs: { ...s.jobs, [id]: { ...prev, enabled, status: enabled ? 'idle' : 'disabled' } } };
         }),
       appendJobLog: (id, line) =>
         set((s) => {
-          const prev = s.jobs[id] ?? { status: 'idle', enabled: true, lastRun: null, nextRun: null, lastResult: '', logs: [], startedAt: null };
+          const prev = s.jobs[id] ?? DEFAULT_JOB;
           const stamp = new Date().toLocaleTimeString();
           return { jobs: { ...s.jobs, [id]: { ...prev, logs: [...prev.logs.slice(-99), `${stamp}  ${line}`] } } };
         }),
@@ -392,6 +398,11 @@ export const useAppStore = create<AppState>()(
         autocompleteEnabled: s.autocompleteEnabled,
         embedModel: s.embedModel,
         contextInjectionEnabled: s.contextInjectionEnabled,
+        // Persist job schedule state (not transient status/logs) for overdue rerun across restarts
+        jobs: Object.fromEntries(Object.entries(s.jobs).map(([k, v]) => [k, {
+          ...DEFAULT_JOB,
+          enabled: v.enabled, lastRun: v.lastRun, nextRun: v.nextRun, lastResult: v.lastResult, runCount: v.runCount,
+        }])),
       }),
     }
   )

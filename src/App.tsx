@@ -144,20 +144,35 @@ export default function App() {
     const runJob = async (id: JobId) => {
       const st = useAppStore.getState().jobs[id];
       if (st?.status === 'running') return;
+      const runCount = (st?.runCount ?? 0) + 1;
       setJobRuntime(id, { status: 'running', startedAt: Date.now() });
       appendJobLog(id, 'started');
       try {
         const msg = await runFns[id]();
-        setJobRuntime(id, { status: 'done', lastRun: Date.now(), nextRun: nextRunFor(id, Date.now()), lastResult: msg, startedAt: null });
+        // If the run was skipped because Ollama was offline, retry soon (queued) rather than waiting a full interval.
+        const offline = /offline/i.test(msg);
+        const nextRun = offline ? Date.now() + 5 * 60 * 1000 : nextRunFor(id, Date.now());
+        setJobRuntime(id, { status: offline ? 'idle' : 'done', lastRun: Date.now(), nextRun, lastResult: msg, startedAt: null, runCount });
         appendJobLog(id, msg);
-        if (!/not connected|No |automatically|Monday/.test(msg)) notify(jobDef(id).name, msg);
+        if (!/not connected|No |automatically|Monday|offline|skipped/i.test(msg)) notify(jobDef(id).name, msg);
       } catch (e) {
-        setJobRuntime(id, { status: 'error', lastRun: Date.now(), lastResult: String(e), startedAt: null });
+        setJobRuntime(id, { status: 'error', lastRun: Date.now(), lastResult: String(e), startedAt: null, runCount });
         appendJobLog(id, `error: ${e}`);
       }
     };
 
     JOB_DEFS.forEach(def => registerRunner(def.id, () => runJob(def.id)));
+
+    // Overdue rerun: if a job was due while the app was closed, run it shortly after startup (staggered).
+    const overdueTimers: ReturnType<typeof setTimeout>[] = [];
+    JOB_DEFS.forEach((def, i) => {
+      if (!def.intervalMs) return;
+      const st = useAppStore.getState().jobs[def.id];
+      if (st?.enabled && st.nextRun && Date.now() >= st.nextRun) {
+        appendJobLog(def.id, 'overdue (missed while closed) — running');
+        overdueTimers.push(setTimeout(() => runJob(def.id), 4000 + i * 1500));
+      }
+    });
 
     // Ticker: run due, enabled timer jobs (checks every 60s)
     const tick = () => {
@@ -170,7 +185,7 @@ export default function App() {
       }
     };
     const id = setInterval(tick, 60 * 1000);
-    return () => clearInterval(id);
+    return () => { clearInterval(id); overdueTimers.forEach(clearTimeout); };
   }, [workspacePath]);
 
   // Report indexing activity into the job runtime when files change
