@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
 import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync, calendarStatus, calendarSync, notify } from "@/lib/tauri";
@@ -39,6 +39,7 @@ export default function App() {
     settingsOpen, setSettingsOpen,
     setShortcutsOpen,
     embedModel,
+    mode, toggleIntelPanel, setIntelTab,
   } = useAppStore();
 
   // ── Ollama health polling (every 5 s) ──────────────────────────────────────
@@ -66,6 +67,17 @@ export default function App() {
     if (!workspacePath) { setGitBranch(''); return; }
     getGitBranch(workspacePath).then(setGitBranch);
   }, [workspacePath, setGitBranch]);
+
+  // ── App mode → focus the relevant view ─────────────────────────────────────
+  const prevModeRef = useRef(mode);
+  useEffect(() => {
+    if (prevModeRef.current === mode) return;
+    prevModeRef.current = mode;
+    if (!intelPanelOpen) toggleIntelPanel();
+    if (mode === 'KNOWLEDGE') { setIntelTab('knowledge'); setLeftPanelView('explorer'); }
+    else if (mode === 'CODE') { setIntelTab('chat'); }
+    // COMMS renders the Email panel via an overlay in IntelPanel
+  }, [mode, intelPanelOpen, toggleIntelPanel, setIntelTab, setLeftPanelView]);
 
   // ── File watcher: start on workspace open, re-index changed files (Tauri) ──
   useEffect(() => {
