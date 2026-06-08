@@ -1422,6 +1422,7 @@ export function IntelPanel() {
           },
           onRequestBash: requestBash,
           mcpTools: mcpToolRefs,
+          searxngUrl: useAppStore.getState().searxngUrl,
         });
 
         for await (const event of stream) {

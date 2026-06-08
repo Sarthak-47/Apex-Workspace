@@ -11,11 +11,12 @@ export const ALL_TOOLS = [
   'edit_file',
   'write_file',
   'run_bash',
+  'web_search',
 ] as const;
 
 export type ToolName = (typeof ALL_TOOLS)[number];
 
-export const READ_ONLY_TOOLS: ToolName[] = ['read_file', 'list_directory', 'search_files'];
+export const READ_ONLY_TOOLS: ToolName[] = ['read_file', 'list_directory', 'search_files', 'web_search'];
 
 export interface AgentDef {
   id: string;

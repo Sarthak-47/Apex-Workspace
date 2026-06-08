@@ -37,6 +37,7 @@ export const ToolIcon = ({ name, size = 13, color }: { name: string } & IconProp
     case 'edit_file':     return wrap(size, color, <><path d="M11.5 2.5l2 2L6 12l-2.5.5L4 10z"/></>);
     case 'write_file':    return wrap(size, color, <><path d="M3 3h7l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><polyline points="5 3 5 6 10 6"/><line x1="5" y1="9.5" x2="11" y2="9.5"/></>);
     case 'run_bash':      return wrap(size, color, <><polyline points="3 4 6.5 7.5 3 11"/><line x1="8" y1="11" x2="13" y2="11"/></>);
+    case 'web_search':    return wrap(size, color, <><circle cx="8" cy="8" r="5.5"/><line x1="2.5" y1="8" x2="13.5" y2="8"/><path d="M8 2.5c1.8 2 1.8 9 0 11M8 2.5c-1.8 2-1.8 9 0 11"/></>);
     default:              return wrap(size, color, <><circle cx="8" cy="8" r="5.5"/><path d="M8 5.5v2.5l1.8 1.8"/></>);
   }
 };

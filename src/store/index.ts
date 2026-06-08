@@ -172,6 +172,10 @@ interface AppState {
   embedModel: string;
   setEmbedModel: (m: string) => void;
 
+  // SearXNG instance for web search (persisted)
+  searxngUrl: string;
+  setSearxngUrl: (u: string) => void;
+
   // Codebase index progress (not persisted)
   indexProgress: { done: number; total: number; file: string } | null;
   setIndexProgress: (p: { done: number; total: number; file: string } | null) => void;
@@ -389,6 +393,10 @@ export const useAppStore = create<AppState>()(
       embedModel: 'nomic-embed-text',
       setEmbedModel: (m) => set({ embedModel: m }),
 
+      // SearXNG
+      searxngUrl: 'http://localhost:8080',
+      setSearxngUrl: (u) => set({ searxngUrl: u }),
+
       // Index progress
       indexProgress: null,
       setIndexProgress: (p) => set({ indexProgress: p }),
@@ -457,6 +465,7 @@ export const useAppStore = create<AppState>()(
         bashAllowAlways: s.bashAllowAlways,
         autocompleteEnabled: s.autocompleteEnabled,
         embedModel: s.embedModel,
+        searxngUrl: s.searxngUrl,
         contextInjectionEnabled: s.contextInjectionEnabled,
         // Persist job schedule state (not transient status/logs) for overdue rerun across restarts
         jobs: Object.fromEntries(Object.entries(s.jobs).map(([k, v]) => [k, {

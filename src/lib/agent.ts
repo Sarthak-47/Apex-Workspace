@@ -7,6 +7,7 @@ import { createOllama } from 'ollama-ai-provider';
 import { z } from 'zod';
 import type { CoreMessage } from 'ai';
 import { readFile, listDir, grepFiles, runBash, mcpCallTool } from './tauri';
+import { webSearch } from './websearch';
 import type { ToolName } from './agents';
 
 export type BashDecision = 'once' | 'always' | 'deny';
@@ -72,6 +73,8 @@ export interface AgentStreamOptions {
   onRequestBash?: (command: string) => Promise<BashDecision>;
   /** MCP tools from running servers to expose to the agent (approval-gated). */
   mcpTools?: McpToolRef[];
+  /** SearXNG instance URL; when set, a web_search tool is exposed. */
+  searxngUrl?: string;
 }
 
 export type { CoreMessage };
@@ -126,6 +129,7 @@ function extractMcpText(result: unknown): string {
 interface BuildToolsOpts {
   onRequestBash?: (command: string) => Promise<BashDecision>;
   mcpTools?: McpToolRef[];
+  searxngUrl?: string;
 }
 
 function buildTools(
@@ -259,6 +263,24 @@ function buildTools(
         }
       },
     }),
+
+    web_search: tool({
+      description: 'Search the web via the local SearXNG instance. Returns titles, URLs and snippets. Use for current information not in the codebase or knowledge graph.',
+      parameters: z.object({
+        query: z.string().describe('The search query'),
+      }),
+      execute: async ({ query }) => {
+        if (!opts.searxngUrl) return 'Web search is not configured (set a SearXNG instance in Settings → AI).';
+        try {
+          const results = await webSearch(query, opts.searxngUrl);
+          return results.length
+            ? results.map(r => `- ${r.title}\n  ${r.url}\n  ${r.snippet}`).join('\n\n')
+            : 'No results.';
+        } catch (e) {
+          return `Web search error: ${e}`;
+        }
+      },
+    }),
   };
 
   // ── MCP tools from running servers (approval-gated) ──────────────────────────
@@ -289,10 +311,10 @@ function buildTools(
 // ─── Stream factory ───────────────────────────────────────────────────────────
 
 export async function* createAgentStream(opts: AgentStreamOptions): AsyncGenerator<AgentEvent> {
-  const { model, messages, workspacePath, signal, onPendingEdit, tools: allowed, temperature, onRequestBash, mcpTools } = opts;
+  const { model, messages, workspacePath, signal, onPendingEdit, tools: allowed, temperature, onRequestBash, mcpTools, searxngUrl } = opts;
 
   const ollama = createOllama({ baseURL: 'http://localhost:11434/api' });
-  const tools = buildTools(workspacePath, onPendingEdit, { onRequestBash, mcpTools });
+  const tools = buildTools(workspacePath, onPendingEdit, { onRequestBash, mcpTools, searxngUrl });
 
   // Active set = the agent's allowed built-ins + every running MCP tool.
   const mcpKeys = (mcpTools ?? []).map(mt => `mcp_${mt.server}_${mt.name}`.replace(/[^a-zA-Z0-9_]/g, '_'));

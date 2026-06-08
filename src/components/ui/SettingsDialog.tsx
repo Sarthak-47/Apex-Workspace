@@ -489,7 +489,23 @@ function AITab() {
       </Section>
 
       <McpSection />
+      <WebSearchSection />
     </div>
+  );
+}
+
+function WebSearchSection() {
+  const { searxngUrl, setSearxngUrl } = useAppStore();
+  return (
+    <Section title="Web Search (SearXNG)">
+      <Field label="SearXNG instance">
+        <input value={searxngUrl} onChange={e => setSearxngUrl(e.target.value)} placeholder="http://localhost:8080"
+          style={{ flex: 1, maxWidth: 220, height: 28, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#C0C0D0', fontSize: 12, padding: '0 8px', outline: 'none', fontFamily: '"JetBrains Mono",monospace' }} />
+      </Field>
+      <p style={{ fontSize: 10, color: '#4A4A65', marginTop: 6, lineHeight: 1.5 }}>
+        Privacy-first web search. Run a local SearXNG (<code style={{ fontFamily: '"JetBrains Mono",monospace' }}>docker run searxng/searxng</code>) with JSON output enabled. The agent's <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>web_search</code> tool uses this instance.
+      </p>
+    </Section>
   );
 }
 
