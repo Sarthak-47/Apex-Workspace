@@ -38,6 +38,7 @@ export function StatusBar() {
     ollamaOnline, ollamaModels, gitBranch,
     cursorLine, cursorCol, editorFileSize,
     vimMode, indexProgress, autocompleteEnabled,
+    setCookbookOpen, setCompareOpen,
   } = useAppStore();
 
   const fmtSize = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`;
@@ -163,8 +164,8 @@ export function StatusBar() {
         </>
       )}
 
-      {/* Ollama status */}
-      <SbItem>
+      {/* Ollama status — click to open the Model Cookbook */}
+      <SbItem onClick={() => setCookbookOpen(true)} title="Model Cookbook — recommended models for your hardware">
         <div style={{
           width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
           background: ollamaOnline ? '#22C55E' : '#4A4A65',
@@ -174,6 +175,26 @@ export function StatusBar() {
         <span style={{ opacity: ollamaOnline ? 1 : 0.6 }}>
           {ollamaOnline ? (ollamaModels[0]?.split(':')[0] ?? 'Ollama') : 'Ollama offline'}
         </span>
+      </SbItem>
+
+      <Divider />
+
+      {/* Model Cookbook */}
+      <SbItem onClick={() => setCookbookOpen(true)} title="Model Cookbook — recommend & pull models for your hardware">
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
+          <rect x="2" y="2.5" width="10" height="9" rx="1.5"/><line x1="2" y1="5.5" x2="12" y2="5.5"/><circle cx="4.2" cy="4" r="0.4" fill="white"/>
+        </svg>
+        Cookbook
+      </SbItem>
+
+      <Divider />
+
+      {/* Blind Compare */}
+      <SbItem onClick={() => setCompareOpen(true)} title="Blind model compare">
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
+          <line x1="7" y1="2" x2="7" y2="12"/><rect x="2" y="4" width="3.5" height="6" rx="0.6"/><rect x="8.5" y="4" width="3.5" height="6" rx="0.6"/>
+        </svg>
+        Compare
       </SbItem>
 
       <Divider />

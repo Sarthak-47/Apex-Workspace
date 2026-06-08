@@ -1465,8 +1465,6 @@ export function IntelPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  if (!intelPanelOpen) return null;
-
   // ── @file attachment ───────────────────────────────────────────────────────
   const handleAttachFile = () => {
     if (!activeFile) return;
@@ -1733,6 +1731,9 @@ export function IntelPanel() {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   };
+
+  // Collapsed: render nothing (placed AFTER all hooks to respect the Rules of Hooks)
+  if (!intelPanelOpen) return null;
 
   return (
     <div
