@@ -6,10 +6,17 @@ import { streamText, tool } from 'ai';
 import { createOllama } from 'ollama-ai-provider';
 import { z } from 'zod';
 import type { CoreMessage } from 'ai';
-import { readFile, listDir, grepFiles, runBash } from './tauri';
+import { readFile, listDir, grepFiles, runBash, mcpCallTool } from './tauri';
 import type { ToolName } from './agents';
 
 export type BashDecision = 'once' | 'always' | 'deny';
+
+export interface McpToolRef {
+  server: string;
+  name: string;
+  description?: string;
+  inputSchema?: { properties?: Record<string, { type?: string; description?: string }>; required?: string[] };
+}
 
 export interface PendingEdit {
   path: string;
@@ -63,6 +70,8 @@ export interface AgentStreamOptions {
   temperature?: number;
   /** Called before run_bash executes; resolve with the user's decision. */
   onRequestBash?: (command: string) => Promise<BashDecision>;
+  /** MCP tools from running servers to expose to the agent (approval-gated). */
+  mcpTools?: McpToolRef[];
 }
 
 export type { CoreMessage };
@@ -83,10 +92,40 @@ function relPath(workspacePath: string, p: string): string {
   return p;
 }
 
+// ─── MCP tool schema → loose zod ──────────────────────────────────────────────
+
+function mcpSchemaToZod(schema?: McpToolRef['inputSchema']) {
+  const props = schema?.properties ?? {};
+  const required = new Set(schema?.required ?? []);
+  const shape: Record<string, z.ZodTypeAny> = {};
+  for (const [key, def] of Object.entries(props)) {
+    let z0: z.ZodTypeAny;
+    switch (def?.type) {
+      case 'number': case 'integer': z0 = z.number(); break;
+      case 'boolean': z0 = z.boolean(); break;
+      case 'array': z0 = z.array(z.any()); break;
+      case 'object': z0 = z.record(z.any()); break;
+      default: z0 = z.string();
+    }
+    if (def?.description) z0 = z0.describe(def.description);
+    shape[key] = required.has(key) ? z0 : z0.optional();
+  }
+  return Object.keys(shape).length ? z.object(shape) : z.object({}).passthrough();
+}
+
+function extractMcpText(result: unknown): string {
+  const r = result as { content?: { type?: string; text?: string }[] } | undefined;
+  if (r?.content && Array.isArray(r.content)) {
+    return r.content.map(c => c.text ?? '').filter(Boolean).join('\n') || JSON.stringify(result).slice(0, 4000);
+  }
+  return JSON.stringify(result).slice(0, 4000);
+}
+
 // ─── Tool definitions ─────────────────────────────────────────────────────────
 
 interface BuildToolsOpts {
   onRequestBash?: (command: string) => Promise<BashDecision>;
+  mcpTools?: McpToolRef[];
 }
 
 function buildTools(
@@ -94,7 +133,7 @@ function buildTools(
   onPendingEdit?: (e: PendingEdit) => void,
   opts: BuildToolsOpts = {},
 ) {
-  return {
+  const builtins = {
     read_file: tool({
       description: 'Read the full contents of a file. Use paths relative to the workspace root.',
       parameters: z.object({
@@ -221,22 +260,50 @@ function buildTools(
       },
     }),
   };
+
+  // ── MCP tools from running servers (approval-gated) ──────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const withMcp: Record<string, any> = { ...builtins };
+  for (const mt of opts.mcpTools ?? []) {
+    const toolKey = `mcp_${mt.server}_${mt.name}`.replace(/[^a-zA-Z0-9_]/g, '_');
+    withMcp[toolKey] = tool({
+      description: `[MCP: ${mt.server}] ${mt.description ?? mt.name}`,
+      parameters: mcpSchemaToZod(mt.inputSchema),
+      execute: async (args: Record<string, unknown>) => {
+        const decide = opts.onRequestBash;
+        if (decide) {
+          const decision = await decide(`${mt.server}.${mt.name}(${JSON.stringify(args)})`);
+          if (decision === 'deny') return `Tool call denied by user: ${mt.server}.${mt.name}`;
+        }
+        try {
+          return extractMcpText(await mcpCallTool(mt.server, mt.name, args));
+        } catch (e) {
+          return `MCP error (${mt.server}.${mt.name}): ${e}`;
+        }
+      },
+    });
+  }
+  return withMcp;
 }
 
 // ─── Stream factory ───────────────────────────────────────────────────────────
 
 export async function* createAgentStream(opts: AgentStreamOptions): AsyncGenerator<AgentEvent> {
-  const { model, messages, workspacePath, signal, onPendingEdit, tools: allowed, temperature, onRequestBash } = opts;
+  const { model, messages, workspacePath, signal, onPendingEdit, tools: allowed, temperature, onRequestBash, mcpTools } = opts;
 
   const ollama = createOllama({ baseURL: 'http://localhost:11434/api' });
-  const tools = buildTools(workspacePath, onPendingEdit, { onRequestBash });
+  const tools = buildTools(workspacePath, onPendingEdit, { onRequestBash, mcpTools });
+
+  // Active set = the agent's allowed built-ins + every running MCP tool.
+  const mcpKeys = (mcpTools ?? []).map(mt => `mcp_${mt.server}_${mt.name}`.replace(/[^a-zA-Z0-9_]/g, '_'));
+  const activeTools = allowed ? [...allowed, ...mcpKeys] : undefined;
 
   const result = streamText({
     model: ollama(model),
     messages,
     tools,
     // Restrict which tools the model may call (keeps full typing intact).
-    experimental_activeTools: allowed as (keyof typeof tools)[] | undefined,
+    experimental_activeTools: activeTools as (keyof typeof tools)[] | undefined,
     maxSteps: 8,
     temperature,
     abortSignal: signal,

@@ -1405,6 +1405,11 @@ export function IntelPanel() {
       void coreMessages; // suppress unused warning
 
       try {
+        // Gather tools from running MCP servers so the agent can call them (approval-gated)
+        const mcpRunningTools = useAppStore.getState().mcpRunningTools;
+        const mcpToolRefs = Object.entries(mcpRunningTools).flatMap(([server, tools]) =>
+          tools.map(t => ({ server, name: t.name, description: t.description, inputSchema: t.inputSchema as never })));
+
         const stream = createAgentStream({
           model,
           messages: apiMessages,
@@ -1416,6 +1421,7 @@ export function IntelPanel() {
             pendingEditsRef.current.push(edit);
           },
           onRequestBash: requestBash,
+          mcpTools: mcpToolRefs,
         });
 
         for await (const event of stream) {

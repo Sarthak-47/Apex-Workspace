@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AgentDef } from "@/lib/agents";
 import type { JobId, JobStatus } from "@/lib/jobs";
-import type { McpServerConfig } from "@/lib/tauri";
+import type { McpServerConfig, McpTool } from "@/lib/tauri";
 
 export interface JobRuntime {
   status: JobStatus;
@@ -179,6 +179,10 @@ interface AppState {
   // MCP servers (persisted)
   mcpServers: McpServerConfig[];
   setMcpServers: (servers: McpServerConfig[]) => void;
+
+  // MCP running tools (not persisted) — keyed by server name
+  mcpRunningTools: Record<string, McpTool[]>;
+  setMcpRunningTools: (server: string, tools: McpTool[] | null) => void;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -399,6 +403,14 @@ export const useAppStore = create<AppState>()(
         { name: 'github', command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'], env: { GITHUB_PERSONAL_ACCESS_TOKEN: '' }, enabled: false },
       ] as McpServerConfig[],
       setMcpServers: (servers) => set({ mcpServers: servers }),
+
+      mcpRunningTools: {},
+      setMcpRunningTools: (server, tools) =>
+        set((s) => {
+          const next = { ...s.mcpRunningTools };
+          if (tools === null) delete next[server]; else next[server] = tools;
+          return { mcpRunningTools: next };
+        }),
     }),
     {
       name: "apex-app-state",

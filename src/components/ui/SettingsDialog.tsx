@@ -290,7 +290,7 @@ function AgentForm({ draft, onChange }: { draft: AgentDef; onChange: (a: AgentDe
 }
 
 function McpSection() {
-  const { mcpServers, setMcpServers } = useAppStore();
+  const { mcpServers, setMcpServers, setMcpRunningTools } = useAppStore();
   const { success, error } = useToast();
   const [tools, setTools] = useState<Record<string, McpTool[]>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -303,10 +303,12 @@ function McpSection() {
       if (!cfg.enabled) {
         const r = await mcpStart(cfg);
         setTools(t => ({ ...t, [cfg.name]: r.tools }));
+        setMcpRunningTools(cfg.name, r.tools);
         setMcpServers(mcpServers.map(s => s.name === cfg.name ? { ...s, enabled: true } : s));
         success(`${cfg.name} started — ${r.tools.length} tools`);
       } else {
         await mcpStop(cfg.name);
+        setMcpRunningTools(cfg.name, null);
         setMcpServers(mcpServers.map(s => s.name === cfg.name ? { ...s, enabled: false } : s));
         setTools(t => { const n = { ...t }; delete n[cfg.name]; return n; });
       }
