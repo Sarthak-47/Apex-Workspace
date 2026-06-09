@@ -156,6 +156,11 @@ interface AppState {
   setAutoSave: (v: boolean) => void;
   formatOnSave: boolean;
   setFormatOnSave: (v: boolean) => void;
+  // Language servers (LSP) — opt-in; per-server command overrides
+  lspEnabled: boolean;
+  setLspEnabled: (v: boolean) => void;
+  lspServerPaths: Record<string, string>;
+  setLspServerPath: (id: string, command: string) => void;
 
   // Cursor position + file size (not persisted)
   cursorLine: number;
@@ -395,6 +400,10 @@ export const useAppStore = create<AppState>()(
       setAutoSave: (v) => set({ autoSave: v }),
       formatOnSave: false,
       setFormatOnSave: (v) => set({ formatOnSave: v }),
+      lspEnabled: false,
+      setLspEnabled: (v) => set({ lspEnabled: v }),
+      lspServerPaths: {},
+      setLspServerPath: (id, command) => set((s) => ({ lspServerPaths: { ...s.lspServerPaths, [id]: command } })),
 
       // Cursor position + file size
       cursorLine: 1,
@@ -502,6 +511,8 @@ export const useAppStore = create<AppState>()(
         editorTheme: s.editorTheme,
         autoSave: s.autoSave,
         formatOnSave: s.formatOnSave,
+        lspEnabled: s.lspEnabled,
+        lspServerPaths: s.lspServerPaths,
         vimMode: s.vimMode,
         recentWorkspaces: s.recentWorkspaces,
         selectedAgentId: s.selectedAgentId,

@@ -12,6 +12,7 @@
  * build this is inert.
  */
 import { isTauri, lspStart, lspSend, lspStop, onLspMessage } from "./tauri";
+import { useAppStore } from "@/store";
 import type * as MonacoType from "monaco-editor";
 
 // ─── Server registry (one server per language family) ─────────────────────────
@@ -139,10 +140,16 @@ export function pathToUri(path: string): string {
 
 async function ensureClient(lang: string, workspace: string): Promise<LspClient | null> {
   if (!isTauri()) return null;
+  const state = useAppStore.getState();
+  if (!state.lspEnabled) return null; // opt-in: don't spawn servers unless enabled
   const def = serverFor(lang);
   if (!def) return null;
   let client = clients.get(def.id);
   if (client) { await client.ready; return client; }
+
+  // Allow a user-configured command/path override per server.
+  const override = state.lspServerPaths?.[def.id]?.trim();
+  const command = override || def.command;
 
   client = new LspClient(def.id);
   clients.set(def.id, client);
@@ -153,7 +160,7 @@ async function ensureClient(lang: string, workspace: string): Promise<LspClient 
     }
   });
   try {
-    await client.start(def.command, def.args, workspace, pathToUri(workspace));
+    await client.start(command, def.args, workspace, pathToUri(workspace));
   } catch {
     clients.delete(def.id);
     return null; // server not installed / failed to launch
@@ -255,6 +262,103 @@ export function registerLspProviders(monaco: typeof MonacoType): void {
         return locationsToMonaco(monaco, res) ?? [];
       },
     });
+
+    monaco.languages.registerCompletionItemProvider(lang, {
+      triggerCharacters: [".", '"', "'", "/", "@", "<", " "],
+      async provideCompletionItems(model, position) {
+        const client = await clientForLang(lang);
+        if (!client) return { suggestions: [] };
+        const res = await client.request("textDocument/completion", {
+          textDocument: { uri: model.uri.toString() },
+          position: { line: position.lineNumber - 1, character: position.column - 1 },
+        }).catch(() => null);
+        const items = (Array.isArray(res) ? res : (res as { items?: unknown[] } | null)?.items ?? []) as LspCompletionItem[];
+        const word = model.getWordUntilPosition(position);
+        const range = {
+          startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+          startColumn: word.startColumn, endColumn: word.endColumn,
+        };
+        return {
+          suggestions: items.slice(0, 200).map((it) => ({
+            label: it.label,
+            kind: lspCompletionKindToMonaco(monaco, it.kind),
+            insertText: it.insertText ?? it.label,
+            insertTextRules: it.insertTextFormat === 2
+              ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : undefined,
+            detail: it.detail,
+            documentation: typeof it.documentation === "string" ? it.documentation : it.documentation?.value,
+            sortText: it.sortText,
+            range,
+          })),
+        };
+      },
+    });
+
+    monaco.languages.registerRenameProvider(lang, {
+      async provideRenameEdits(model, position, newName) {
+        const client = await clientForLang(lang);
+        if (!client) return { edits: [] };
+        const res = await client.request("textDocument/rename", {
+          textDocument: { uri: model.uri.toString() },
+          position: { line: position.lineNumber - 1, character: position.column - 1 },
+          newName,
+        }).catch(() => null);
+        return workspaceEditToMonaco(monaco, res);
+      },
+    });
+
+    monaco.languages.registerSignatureHelpProvider(lang, {
+      signatureHelpTriggerCharacters: ["(", ","],
+      async provideSignatureHelp(model, position) {
+        const client = await clientForLang(lang);
+        if (!client) return null;
+        const res = (await client.request("textDocument/signatureHelp", {
+          textDocument: { uri: model.uri.toString() },
+          position: { line: position.lineNumber - 1, character: position.column - 1 },
+        }).catch(() => null)) as LspSignatureHelp | null;
+        if (!res || !res.signatures?.length) return null;
+        return {
+          value: {
+            signatures: res.signatures.map((s) => ({
+              label: s.label,
+              documentation: markupToString(s.documentation),
+              parameters: (s.parameters ?? []).map((p) => ({
+                label: p.label,
+                documentation: markupToString(p.documentation),
+              })),
+            })),
+            activeSignature: res.activeSignature ?? 0,
+            activeParameter: res.activeParameter ?? 0,
+          },
+          dispose() {},
+        };
+      },
+    });
+
+    monaco.languages.registerCodeActionProvider(lang, {
+      async provideCodeActions(model, range) {
+        const client = await clientForLang(lang);
+        if (!client) return { actions: [], dispose() {} };
+        const res = await client.request("textDocument/codeAction", {
+          textDocument: { uri: model.uri.toString() },
+          range: {
+            start: { line: range.startLineNumber - 1, character: range.startColumn - 1 },
+            end: { line: range.endLineNumber - 1, character: range.endColumn - 1 },
+          },
+          context: { diagnostics: [] },
+        }).catch(() => null);
+        const arr = (Array.isArray(res) ? res : []) as LspCodeAction[];
+        return {
+          actions: arr.map((a) => ({
+            title: a.title,
+            kind: a.kind,
+            edit: a.edit ? workspaceEditToMonaco(monaco, a.edit) : undefined,
+            diagnostics: [],
+          })),
+          dispose() {},
+        };
+      },
+    });
   }
 }
 
@@ -294,4 +398,61 @@ export function lspSeverityToMonaco(monaco: typeof MonacoType, sev?: number): Mo
     case 3: return monaco.MarkerSeverity.Info;
     default: return monaco.MarkerSeverity.Hint;
   }
+}
+
+// ─── Completion / rename / signature-help / code-action types & mappers ───────
+
+interface LspMarkup { value?: string }
+interface LspCompletionItem {
+  label: string; kind?: number; insertText?: string; insertTextFormat?: number;
+  detail?: string; documentation?: string | LspMarkup; sortText?: string;
+}
+interface LspSignatureHelp {
+  signatures: Array<{ label: string; documentation?: string | LspMarkup; parameters?: Array<{ label: string | [number, number]; documentation?: string | LspMarkup }> }>;
+  activeSignature?: number; activeParameter?: number;
+}
+interface LspTextEdit { range: LspLocation["range"]; newText: string }
+interface LspWorkspaceEdit {
+  changes?: Record<string, LspTextEdit[]>;
+  documentChanges?: Array<{ textDocument: { uri: string }; edits: LspTextEdit[] }>;
+}
+interface LspCodeAction { title: string; kind?: string; edit?: LspWorkspaceEdit }
+
+function markupToString(d?: string | LspMarkup): string | undefined {
+  if (!d) return undefined;
+  return typeof d === "string" ? d : d.value;
+}
+
+/** LSP CompletionItemKind (1..25) → Monaco CompletionItemKind (best-effort). */
+function lspCompletionKindToMonaco(monaco: typeof MonacoType, kind?: number): MonacoType.languages.CompletionItemKind {
+  const K = monaco.languages.CompletionItemKind;
+  const map: Record<number, MonacoType.languages.CompletionItemKind> = {
+    1: K.Text, 2: K.Method, 3: K.Function, 4: K.Constructor, 5: K.Field, 6: K.Variable,
+    7: K.Class, 8: K.Interface, 9: K.Module, 10: K.Property, 11: K.Unit, 12: K.Value,
+    13: K.Enum, 14: K.Keyword, 15: K.Snippet, 16: K.Color, 17: K.File, 18: K.Reference,
+    19: K.Folder, 20: K.EnumMember, 21: K.Constant, 22: K.Struct, 23: K.Event,
+    24: K.Operator, 25: K.TypeParameter,
+  };
+  return (kind && map[kind]) ?? K.Property;
+}
+
+function workspaceEditToMonaco(monaco: typeof MonacoType, res: Json): MonacoType.languages.WorkspaceEdit {
+  const edits: MonacoType.languages.IWorkspaceTextEdit[] = [];
+  const we = res as LspWorkspaceEdit | null;
+  const push = (uri: string, e: LspTextEdit) => {
+    edits.push({
+      resource: monaco.Uri.parse(uri),
+      versionId: undefined,
+      textEdit: {
+        range: new monaco.Range(
+          e.range.start.line + 1, e.range.start.character + 1,
+          e.range.end.line + 1, e.range.end.character + 1,
+        ),
+        text: e.newText,
+      },
+    });
+  };
+  if (we?.changes) for (const [uri, list] of Object.entries(we.changes)) for (const e of list) push(uri, e);
+  if (we?.documentChanges) for (const dc of we.documentChanges) for (const e of dc.edits) push(dc.textDocument.uri, e);
+  return { edits };
 }

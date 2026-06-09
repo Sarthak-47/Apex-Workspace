@@ -33,9 +33,10 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 ## Tier 2 — Language intelligence (the big subsystem) 🔶
 - ◐ In-browser TS/JS/JSON/CSS intelligence via Monaco (free, already present)
 - ◐ **LSP client** — Rust transport (`lsp.rs`: spawn + Content-Length framing + event forwarding) and frontend client (`lsp.ts`: handshake, request/notify correlation, document sync) **built & compiling**; server registry for typescript-language-server / pyright / rust-analyzer / gopls. *Runtime validation needs the desktop app + the servers on PATH (maintainer's machine).*
-- ◐ **Go-to-definition · Find references · Hover** — Monaco providers wired to the LSP client (pending runtime validation); **Signature help** todo
-- ⬜ Rename symbol · Code actions / quick fixes
-- ◐ **Live diagnostics** — publishDiagnostics → Monaco markers → Problems panel (wired; pending runtime validation)
+- ✅ **Hover · Go-to-definition · Find references · Completion · Signature help · Rename · Code actions** — all wired to the LSP client and **protocol-validated** against a real typescript-language-server (hover types, diagnostics, completion, signature, rename edits all return correctly)
+- ✅ **Live diagnostics** — publishDiagnostics → Monaco markers → Problems panel (protocol-validated: both intentional type errors caught)
+- ✅ **Server config** — opt-in toggle + per-server path overrides in Settings → Editor → Language Servers; Rust spawns npm `.cmd`/`.bat` shims correctly on Windows
+- ⏳ End-to-end UI confirmation (tooltip renders in the live editor) — needs the desktop app + servers on the maintainer's machine
 
 ## Tier 3 — Debugging 🔶
 - ⬜ **Debug Adapter Protocol (DAP)** client

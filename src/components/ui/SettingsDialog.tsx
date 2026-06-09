@@ -110,13 +110,26 @@ function GeneralTab() {
   );
 }
 
+const LSP_SERVERS: { id: string; label: string; placeholder: string }[] = [
+  { id: 'typescript', label: 'TypeScript / JS', placeholder: 'typescript-language-server' },
+  { id: 'pyright',    label: 'Python',          placeholder: 'pyright-langserver' },
+  { id: 'rust',       label: 'Rust',            placeholder: 'rust-analyzer' },
+  { id: 'gopls',      label: 'Go',              placeholder: 'gopls' },
+];
+
 function EditorTab() {
-  const { editorTheme, setEditorTheme } = useAppStore();
+  const { editorTheme, setEditorTheme, lspEnabled, setLspEnabled, lspServerPaths, setLspServerPath } = useAppStore();
   const [tabSize, setTabSize]           = useState(2);
   const [fontSize, setFontSize]         = useState(13);
   const [wordWrap, setWordWrap]         = useState(false);
   const [minimap, setMinimap]           = useState(true);
   const [lineNums, setLineNums]         = useState(true);
+
+  const lspInp: React.CSSProperties = {
+    width: '100%', background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5,
+    padding: '5px 8px', fontSize: 11, color: '#E2E2EC', outline: 'none',
+    fontFamily: '"JetBrains Mono", monospace',
+  };
 
   return (
     <div>
@@ -135,6 +148,27 @@ function EditorTab() {
           <NumberInput value={tabSize} min={1} max={8} onChange={setTabSize} />
         </Field>
         <Field label="Word wrap"><Toggle value={wordWrap} onChange={setWordWrap} /></Field>
+      </Section>
+      <Section title="Language Servers (LSP)">
+        <Field label="Enable language servers"><Toggle value={lspEnabled} onChange={setLspEnabled} /></Field>
+        <p style={{ fontSize: 11, color: '#6A6A85', lineHeight: 1.5, margin: '2px 0 10px' }}>
+          Real IDE intelligence (hover, go-to-definition, find references, rename, completion, diagnostics)
+          via Language Server Protocol. Requires the desktop app and each server installed.
+          Leave a path blank to use the default command on your PATH, or point it at a binary
+          (e.g. a project-local <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>node_modules/.bin/…</code> path).
+        </p>
+        {lspEnabled && LSP_SERVERS.map((s) => (
+          <div key={s.id} style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: '#8888A8', marginBottom: 3 }}>{s.label}</div>
+            <input
+              value={lspServerPaths[s.id] ?? ''}
+              onChange={(e) => setLspServerPath(s.id, e.target.value)}
+              placeholder={s.placeholder}
+              style={lspInp}
+              spellCheck={false}
+            />
+          </div>
+        ))}
       </Section>
     </div>
   );

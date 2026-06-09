@@ -83,9 +83,19 @@ pub async fn lsp_start(
         }
     }
 
-    let mut cmd = Command::new(&command);
-    cmd.args(&args)
-        .stdin(Stdio::piped())
+    // On Windows, npm shims are .cmd/.bat scripts that CreateProcess can't run
+    // directly — wrap them with `cmd /c`. Native exes and POSIX run as-is.
+    let lower = command.to_lowercase();
+    let mut cmd = if cfg!(target_os = "windows") && (lower.ends_with(".cmd") || lower.ends_with(".bat")) {
+        let mut c = Command::new("cmd");
+        c.arg("/c").arg(&command).args(&args);
+        c
+    } else {
+        let mut c = Command::new(&command);
+        c.args(&args);
+        c
+    };
+    cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
     if !cwd.is_empty() {
