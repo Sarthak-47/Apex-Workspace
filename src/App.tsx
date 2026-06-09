@@ -43,6 +43,16 @@ export default function App() {
     mode, toggleIntelPanel, setIntelTab,
   } = useAppStore();
 
+  // ── Drop the legacy demo workspace (older builds set this mock path) ────────
+  useEffect(() => {
+    const wp = useAppStore.getState().workspacePath;
+    if (wp === '/demo-workspace') useAppStore.getState().setWorkspacePath(null);
+    const recents = useAppStore.getState().recentWorkspaces;
+    if (recents.some((p) => p === '/demo-workspace')) {
+      useAppStore.setState({ recentWorkspaces: recents.filter((p) => p !== '/demo-workspace') });
+    }
+  }, []);
+
   // ── Ollama health polling (every 5 s) ──────────────────────────────────────
   useEffect(() => {
     const poll = async () => {

@@ -4,6 +4,8 @@
  * In Tauri, we use the real Tauri APIs.
  */
 
+import * as webfs from "./webfs";
+
 export const isTauri = (): boolean =>
   typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -37,6 +39,7 @@ export async function readFile(path: string): Promise<string> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('read_file', { path });
   }
+  if (webfs.owns(path)) return webfs.readFile(path);
   if (demoVault()) {
     const mock = MOCK_VAULT_FILES[path.replace(/\\/g, '/')];
     if (mock !== undefined) return mock;
@@ -49,6 +52,7 @@ export async function writeFile(path: string, content: string): Promise<void> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('write_file', { path, content });
   }
+  if (webfs.owns(path)) return webfs.writeFile(path, content);
   throw new Error('File system not available in browser preview');
 }
 
@@ -57,6 +61,7 @@ export async function deletePath(path: string): Promise<void> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('delete_path', { path });
   }
+  if (webfs.owns(path)) return webfs.deletePath(path);
 }
 
 export async function renamePath(oldPath: string, newPath: string): Promise<void> {
@@ -64,6 +69,7 @@ export async function renamePath(oldPath: string, newPath: string): Promise<void
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('rename_path', { oldPath, newPath });
   }
+  if (webfs.owns(oldPath)) return webfs.renamePath(oldPath, newPath);
 }
 
 export async function createFile(path: string): Promise<void> {
@@ -71,6 +77,7 @@ export async function createFile(path: string): Promise<void> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('write_file', { path, content: '' });
   }
+  if (webfs.owns(path)) return webfs.createFile(path);
 }
 
 export async function createDir(path: string): Promise<void> {
@@ -78,6 +85,7 @@ export async function createDir(path: string): Promise<void> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('create_dir', { path });
   }
+  if (webfs.owns(path)) return webfs.createDir(path);
 }
 
 export async function revealInExplorer(path: string, _isDir: boolean): Promise<void> {
@@ -165,9 +173,13 @@ export async function listDir(path: string): Promise<DirEntry[]> {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke('list_dir', { path });
   }
-  // Browser mock: simulate realistic project tree
-  await new Promise(r => setTimeout(r, 60)); // tiny latency to test loading states
-  return MOCK_TREE[path] ?? (demoVault() ? MOCK_VAULT_TREE[path] : undefined) ?? [];
+  // Web: a real folder opened via the File System Access API takes priority.
+  if (webfs.owns(path)) return webfs.listDir(path);
+  // Demo data only when explicitly opted in (apex-demo-vault flag).
+  if (demoVault()) {
+    return MOCK_TREE[path] ?? MOCK_VAULT_TREE[path] ?? [];
+  }
+  return [];
 }
 
 // ─── Browser preview demo vault (OPT-IN; off by default) ──────────────────────
@@ -693,6 +705,40 @@ export async function openFolderDialog(): Promise<string | null> {
       return null;
     }
   }
-  // Browser preview — return the mock workspace
-  return '/demo-workspace';
+  // Web: open a REAL folder via the File System Access API (Chrome/Edge).
+  if (webfs.fsaSupported()) return webfs.pickDirectory();
+  // Fallback for browsers without the API: a named, in-memory workspace.
+  const name = window.prompt('Workspace name (your browser does not support opening local folders):');
+  return name ? '/' + name.trim().replace(/^\/+/, '') : null;
+}
+
+/**
+ * Create a brand-new folder and open it as the workspace.
+ * Native: pick a location, then create the named folder inside it.
+ * Web: pick a parent via the File System Access API, create the subfolder.
+ */
+export async function createWorkspaceFolder(): Promise<string | null> {
+  const name = window.prompt('New folder name:')?.trim();
+  if (!name) return null;
+  if (isTauri()) {
+    const parent = await openFolderDialog();
+    if (!parent) return null;
+    const path = parent.replace(/[\\/]+$/, '') + '/' + name;
+    await createDir(path);
+    return path;
+  }
+  if (webfs.fsaSupported()) return webfs.createSubfolder(name);
+  return '/' + name.replace(/^\/+/, '');
+}
+
+/**
+ * Ensure a workspace's underlying folder handle is active before switching to it.
+ * Native: no-op (Rust reads the path directly). Web: restores the IndexedDB handle
+ * (re-prompting for permission). Returns false if the folder can't be reopened.
+ */
+export async function activateWorkspace(path: string): Promise<boolean> {
+  if (isTauri()) return true;
+  if (webfs.owns(path)) return true;
+  if (webfs.fsaSupported()) return webfs.setActiveRoot(path);
+  return true; // virtual/named workspace — nothing to restore
 }

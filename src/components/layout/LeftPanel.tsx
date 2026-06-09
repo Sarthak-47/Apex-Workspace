@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppStore } from "@/store";
 import {
   listDir, openFolderDialog, openFileDialog, deletePath, renamePath,
-  createFile, createDir, revealInExplorer,
+  createFile, createDir, revealInExplorer, activateWorkspace,
   type DirEntry,
 } from "@/lib/tauri";
 import { GitPanel } from "@/components/layout/GitPanel";
@@ -717,7 +717,7 @@ function NoWorkspace({ onOpen }: { onOpen: () => void }) {
           </div>
           {recentWorkspaces.map(path => (
             <div key={path}
-              onClick={() => setWorkspacePath(path)}
+              onClick={async () => { if (await activateWorkspace(path)) setWorkspacePath(path); }}
               title={path}
               style={{ height: 30, display: 'flex', alignItems: 'center', padding: '0 10px', gap: 7, cursor: 'pointer', flexShrink: 0 }}
               className="hover:bg-[#18181F] transition-colors group">

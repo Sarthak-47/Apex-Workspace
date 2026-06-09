@@ -1,6 +1,8 @@
-import { minimize, toggleMaximize, closeWindow } from "@/lib/tauri";
+import { minimize, toggleMaximize, closeWindow, openFolderDialog, createWorkspaceFolder, activateWorkspace } from "@/lib/tauri";
 import { useAppStore } from "@/store";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const baseName = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p;
 
 // ─── Window Controls ──────────────────────────────────────────────────────────
 function WindowControls() {
@@ -22,18 +24,120 @@ function WindowControls() {
   );
 }
 
-// ─── Workspace name breadcrumb ────────────────────────────────────────────────
-function WorkspaceName() {
-  const { workspacePath } = useAppStore();
-  const name = workspacePath
-    ? workspacePath.split(/[\\/]/).filter(Boolean).pop() ?? workspacePath
-    : 'no folder';
+// ─── Workspace switcher (VS Code-style) ───────────────────────────────────────
+function MenuRow({ icon, label, onClick, sub }: { icon: React.ReactNode; label: string; onClick: () => void; sub?: string }) {
   return (
-    <div className="flex items-center gap-1" style={{ fontSize: 12, color: '#8888A8' }}>
-      <span style={{ color: workspacePath ? '#8888A8' : '#4A4A65' }}>{name}</span>
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#4A4A65" strokeWidth="1.4">
-        <polyline points="2,3.5 5,6.5 8,3.5"/>
-      </svg>
+    <button
+      onClick={onClick}
+      className="no-drag w-full text-left hover:bg-[#1E1E2E] transition-colors"
+      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#C7C7D9' }}
+    >
+      <span style={{ flexShrink: 0, display: 'flex', color: '#8888A8' }}>{icon}</span>
+      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>{label}</span>
+      {sub && <span style={{ fontSize: 10, color: '#4A4A65', fontFamily: 'JetBrains Mono, monospace' }}>{sub}</span>}
+    </button>
+  );
+}
+
+function WorkspaceMenu() {
+  const { workspacePath, setWorkspacePath, recentWorkspaces, addToast } = useAppStore();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const switchTo = async (path: string) => {
+    setOpen(false);
+    if (path === workspacePath) return;
+    const ok = await activateWorkspace(path);
+    if (!ok) { addToast('Could not reopen that folder — open it again.', 'error'); return; }
+    setWorkspacePath(path);
+    addToast(`Switched to ${baseName(path)}`, 'success');
+  };
+
+  const onOpenFolder = async () => {
+    setOpen(false);
+    const path = await openFolderDialog();
+    if (path) { setWorkspacePath(path); addToast(`Opened ${baseName(path)}`, 'success'); }
+  };
+
+  const onNewFolder = async () => {
+    setOpen(false);
+    const path = await createWorkspaceFolder();
+    if (path) { setWorkspacePath(path); addToast(`Created ${baseName(path)}`, 'success'); }
+  };
+
+  const name = workspacePath ? baseName(workspacePath) : 'Open Folder';
+  const recents = recentWorkspaces.filter((p) => p !== workspacePath);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }} className="no-drag">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="hover:bg-[#18181F] transition-colors"
+        style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: workspacePath ? '#C7C7D9' : '#8888A8', background: 'transparent', border: 'none', cursor: 'pointer', padding: '3px 6px', borderRadius: 5 }}
+        title="Manage workspace"
+      >
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#6366F1" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <path d="M1.5 4.2c0-.6.4-1 1-1h3l1.2 1.3h4.6c.6 0 1 .4 1 1v5.3c0 .6-.4 1-1 1H2.5c-.6 0-1-.4-1-1V4.2Z"/>
+        </svg>
+        <span>{name}</span>
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.4" style={{ opacity: 0.6, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+          <polyline points="2,3.5 5,6.5 8,3.5"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute', top: 30, left: 0, zIndex: 9999, width: 280,
+            background: '#13131B', border: '1px solid #252535', borderRadius: 8,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.6)', overflow: 'hidden', paddingBottom: 4,
+          }}
+        >
+          {workspacePath && (
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid #1E1E2E' }}>
+              <div style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 600 }}>{baseName(workspacePath)}</div>
+              <div style={{ fontSize: 10, color: '#4A4A65', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspacePath}</div>
+            </div>
+          )}
+
+          <div style={{ paddingTop: 4 }}>
+            <MenuRow
+              onClick={onOpenFolder}
+              label="Open Folder…"
+              icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1.5 4c0-.6.4-1 1-1h3l1.2 1.3h4.6c.6 0 1 .4 1 1v5c0 .6-.4 1-1 1H2.5c-.6 0-1-.4-1-1V4Z"/></svg>}
+            />
+            <MenuRow
+              onClick={onNewFolder}
+              label="New Folder…"
+              icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1.5 4c0-.6.4-1 1-1h3l1.2 1.3h4.6c.6 0 1 .4 1 1v5c0 .6-.4 1-1 1H2.5c-.6 0-1-.4-1-1V4Z"/><line x1="7" y1="6" x2="7" y2="10"/><line x1="5" y1="8" x2="9" y2="8"/></svg>}
+            />
+          </div>
+
+          {recents.length > 0 && (
+            <>
+              <div style={{ fontSize: 9, letterSpacing: '0.08em', color: '#4A4A65', padding: '8px 12px 4px', borderTop: '1px solid #1E1E2E', marginTop: 4 }}>RECENT</div>
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                {recents.map((p) => (
+                  <MenuRow
+                    key={p}
+                    onClick={() => switchTo(p)}
+                    label={baseName(p)}
+                    sub={p.length > 22 ? '…' + p.slice(-20) : p}
+                    icon={<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><polyline points="7,4 7,7 9,8.5"/></svg>}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -78,7 +182,7 @@ export function Titlebar() {
         <img src="/apex-logo.svg" width={28} height={28} alt="APEX" style={{ objectFit:'contain', flexShrink:0, mixBlendMode:'lighten' }} />
         <span style={{ fontSize:13, fontWeight:700, color:'#E2E2EC', letterSpacing:'0.04em' }}>APEX</span>
         <div style={{ width:1, height:14, background:'#252535', flexShrink:0, margin:'0 4px' }} />
-        <WorkspaceName />
+        <WorkspaceMenu />
       </div>
 
       {/* ── CENTER — Search bar (always truly centered) ── */}
