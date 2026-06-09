@@ -26,7 +26,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ✅ **Problems panel** — live Monaco diagnostics (errors/warnings/info) for the open file, severity icons, click-to-jump; status-bar counts are live and toggle the panel
 - ◐ **Outline / symbols** — ✅ Outline sidebar (Explorer section: symbols for the active file, filter, click-to-jump; heuristic extractor for TS/JS/Py/Rust/Go/Java/C#/MD — LSP will make it precise in Tier 2) · ✅ Go-to-Symbol (Ctrl+Shift+O) · ✅ Go-to-Line (Ctrl+G); workspace symbol (Ctrl+T) still todo
 - ✅ **Tasks runner** — reads `.vscode/tasks.json` (or `.apex/tasks.json`, JSONC-tolerant); "Run Task: …" entries in the command palette execute the command in the integrated terminal (via terminal command injection)
-- ◐ **Format** — Format Document (Shift+Alt+F) + **Format-on-save** toggle done · ✅ Auto-save · Emmet & Snippets todo
+- ✅ **Format** — Format Document (Shift+Alt+F) + **Format-on-save** toggle · ✅ Auto-save · ✅ **Emmet** (HTML/CSS/JSX via emmet-monaco-es) · ✅ **Snippets** (built-in for TS/JS/React/Python/Rust/Go, Tab-expand)
 - ◐ **Multiple terminals** — tabs (add / close / rename / switch, each its own pty) ✅; split-panes & shell profiles todo
 - ✅ **Timeline / local file history** — every save snapshots the file into IndexedDB (deduped, capped at 50/file); Timeline section in the Explorer lists versions for the active file with compare-to-current and one-click restore
 

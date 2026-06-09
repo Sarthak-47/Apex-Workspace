@@ -5,6 +5,21 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store';
 import { readFile, writeFile } from '@/lib/tauri';
 import { saveSnapshot } from '@/lib/history';
+import { registerSnippets } from '@/lib/snippets';
+import { emmetHTML, emmetCSS, emmetJSX } from 'emmet-monaco-es';
+
+let emmetRegistered = false;
+function registerEmmet(monaco: unknown) {
+  if (emmetRegistered) return;
+  emmetRegistered = true;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const m = monaco as any;
+    emmetHTML(m, ['html', 'php', 'markdown']);
+    emmetCSS(m, ['css', 'scss', 'less']);
+    emmetJSX(m, ['javascript', 'typescript']);
+  } catch { /* emmet optional */ }
+}
 import { generateCompletion } from '@/lib/ollama';
 import { MarkdownPreview } from '@/components/editor/MarkdownPreview';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -803,6 +818,8 @@ export function MonacoEditor({ path }: Props) {
   const handleBeforeMount: BeforeMount = useCallback((monaco) => {
     registerAllThemes(monaco);
     registerInlineCompletions(monaco as unknown as typeof MonacoType);
+    registerEmmet(monaco);
+    registerSnippets(monaco as unknown as typeof MonacoType);
   }, []);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
