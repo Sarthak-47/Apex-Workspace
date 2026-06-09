@@ -247,6 +247,12 @@ export default function App() {
         setCommandPaletteOpen(true);
         return;
       }
+      // Ctrl+T → workspace symbol search (command palette)
+      if (ctrl && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+        return;
+      }
       // Ctrl+, → settings
       if (ctrl && e.key === ',') {
         e.preventDefault();

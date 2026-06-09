@@ -1,8 +1,9 @@
 /**
- * Lightweight symbol extraction for the Outline view. This is a heuristic
- * (regex) scanner covering the common languages; the Tier 2 LSP work will
- * replace it with precise language-server symbols where a server is available.
+ * Lightweight symbol extraction for the Outline view + workspace symbol search.
+ * This is a heuristic (regex) scanner covering the common languages; the Tier 2
+ * LSP work will replace it with precise language-server symbols where available.
  */
+import { listAllFiles, readFile } from "./tauri";
 
 export type SymbolKind = "class" | "interface" | "function" | "method" | "type" | "enum" | "struct" | "trait" | "constant" | "heading";
 
@@ -64,6 +65,38 @@ function rulesFor(lang: string): Rule[] {
     case "csharp": return C_FAMILY;
     default: return [];
   }
+}
+
+// ─── Workspace symbol search (Ctrl+T) ─────────────────────────────────────────
+
+const EXT_LANG: Record<string, string> = {
+  ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
+  py: "python", rs: "rust", go: "go", java: "java",
+  c: "c", h: "c", cpp: "cpp", cc: "cpp", hpp: "cpp", cs: "csharp", md: "markdown",
+};
+
+export interface WorkspaceSymbol extends CodeSymbol { file: string }
+
+let wsCache: { ws: string; ts: number; syms: WorkspaceSymbol[] } | null = null;
+
+/** Scan the workspace for symbols (cached 30s). Capped for responsiveness. */
+export async function loadWorkspaceSymbols(workspace: string): Promise<WorkspaceSymbol[]> {
+  if (!workspace) return [];
+  if (wsCache && wsCache.ws === workspace && Date.now() - wsCache.ts < 30_000) return wsCache.syms;
+
+  const files = (await listAllFiles(workspace)).filter((f) => EXT_LANG[(f.ext ?? "").toLowerCase()]);
+  const out: WorkspaceSymbol[] = [];
+  let scanned = 0;
+  for (const f of files) {
+    if (scanned >= 300 || out.length >= 4000) break;
+    scanned++;
+    let text = "";
+    try { text = await readFile(f.path); } catch { continue; }
+    const lang = EXT_LANG[(f.ext ?? "").toLowerCase()];
+    for (const s of extractSymbols(text, lang)) out.push({ ...s, file: f.path });
+  }
+  wsCache = { ws: workspace, ts: Date.now(), syms: out };
+  return out;
 }
 
 export function extractSymbols(content: string, lang: string): CodeSymbol[] {
