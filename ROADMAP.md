@@ -42,5 +42,11 @@ The bar: no known crashes; nothing half-built is visible.
 
 ---
 
+### VS Code parity (parallel track)
+Separate from the reliability work above, the editor-feature gap toward VS Code
+is tracked with checkboxes in [`VSCODE_PARITY.md`](VSCODE_PARITY.md) — Tier 1
+(core IDE parity) first, then LSP language intelligence; full debugging and the
+extension marketplace are intentionally out of scope.
+
 ### The one rule
 Don't add a new feature until the existing ones are proven with real data and guarded by CI. APEX is already feature-rich for a 0.1 — the road to 1.0 is making what's there trustworthy.
