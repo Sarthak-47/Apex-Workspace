@@ -105,6 +105,24 @@ export async function gitBlame(workspace: string, path: string): Promise<BlameLi
   try { return await invoke<BlameLine[]>('git_blame', { workspace, path }); } catch { return []; }
 }
 
+export async function gitListBranches(workspace: string): Promise<string[]> {
+  if (!isTauri()) return [];
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return await invoke<string[]>('git_list_branches', { workspace }); } catch { return []; }
+}
+
+export async function gitSwitchBranch(workspace: string, branch: string): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('git_switch_branch', { workspace, branch });
+}
+
+export async function gitCreateBranch(workspace: string, branch: string): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('git_create_branch', { workspace, branch });
+}
+
 // ─── Language Server Protocol transport ───────────────────────────────────────
 
 export async function lspStart(id: string, command: string, args: string[], cwd: string): Promise<void> {

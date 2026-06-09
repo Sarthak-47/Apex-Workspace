@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "@/store";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { useMarkers } from "@/lib/useMarkers";
-import { gitBlame, type BlameLine } from "@/lib/tauri";
+import { gitBlame, gitListBranches, gitSwitchBranch, gitCreateBranch, type BlameLine } from "@/lib/tauri";
+import { useRef } from "react";
 
 function relTime(epochSec: number): string {
   if (!epochSec) return '';
@@ -45,6 +46,66 @@ function Divider() {
   return <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.3)' }} />;
 }
 
+function BranchPicker({ branch }: { branch: string }) {
+  const { workspacePath, setGitBranch, addToast } = useAppStore();
+  const [open, setOpen] = useState(false);
+  const [branches, setBranches] = useState<string[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    if (workspacePath) gitListBranches(workspacePath).then(setBranches).catch(() => {});
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open, workspacePath]);
+
+  const switchTo = async (b: string) => {
+    setOpen(false);
+    if (!workspacePath || b === branch) return;
+    try { await gitSwitchBranch(workspacePath, b); setGitBranch(b); addToast(`Switched to ${b}`, 'success'); }
+    catch (e) { addToast(`Checkout failed: ${e}`, 'error'); }
+  };
+  const create = async () => {
+    setOpen(false);
+    const name = window.prompt('New branch name:')?.trim();
+    if (!name || !workspacePath) return;
+    try { await gitCreateBranch(workspacePath, name); setGitBranch(name); addToast(`Created branch ${name}`, 'success'); }
+    catch (e) { addToast(`Create failed: ${e}`, 'error'); }
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative', height: '100%' }}>
+      <SbItem onClick={() => setOpen((o) => !o)} title="Switch / create branch">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.8 }}>
+          <polyline points="1,4 4,1 8,5"/><polyline points="4,1 4,8"/><polyline points="1,9 11,9"/>
+        </svg>
+        {branch}
+      </SbItem>
+      {open && (
+        <div style={{ position: 'absolute', bottom: 26, left: 0, zIndex: 9999, width: 220, background: '#13131B', border: '1px solid #252535', borderRadius: 7, boxShadow: '0 -10px 30px rgba(0,0,0,0.5)', overflow: 'hidden', paddingBottom: 4, color: '#C7C7D9' }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.08em', color: '#6A6A85', padding: '8px 12px 4px' }}>BRANCHES</div>
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            {branches.length === 0 ? (
+              <div style={{ fontSize: 11, color: '#4A4A65', padding: '2px 12px 6px' }}>{workspacePath ? 'No branches' : 'Open a folder'}</div>
+            ) : branches.map((b) => (
+              <button key={b} onClick={() => switchTo(b)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left', padding: '5px 12px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: b === branch ? '#A5B4FC' : '#C7C7D9' }}
+                className="hover:!bg-[#1E1E2E]">
+                <span style={{ width: 8, color: '#6366F1' }}>{b === branch ? '●' : ''}</span>{b}
+              </button>
+            ))}
+          </div>
+          <div style={{ height: 1, background: '#1E1E2E', margin: '4px 0' }} />
+          <button onClick={create}
+            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 12px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: '#A5B4FC' }}
+            className="hover:!bg-[#1E1E2E]">+ Create new branch…</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function StatusBar() {
   const {
     mode, activeFile, terminalOpen, toggleTerminal,
@@ -77,12 +138,7 @@ export function StatusBar() {
       style={{ height: 26, background: '#6366F1', flexShrink: 0 }}
     >
       {/* ── Left ──────────────────────────────────────────────────────── */}
-      <SbItem>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.8 }}>
-          <polyline points="1,4 4,1 8,5"/><polyline points="4,1 4,8"/><polyline points="1,9 11,9"/>
-        </svg>
-        {gitBranch || 'main'}
-      </SbItem>
+      <BranchPicker branch={gitBranch || 'main'} />
 
       <Divider />
 
