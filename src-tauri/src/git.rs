@@ -180,3 +180,54 @@ pub async fn git_create_branch(workspace: String, branch: String) -> Result<(), 
     run_git(&workspace, &["checkout", "-b", &branch])?;
     Ok(())
 }
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct BlameLine {
+    pub line: usize,
+    pub hash: String,
+    pub author: String,
+    pub time: i64,
+    pub summary: String,
+}
+
+/// Per-line `git blame` for a file (porcelain format). Returns author + commit
+/// info for every line so the editor can show inline blame annotations.
+#[tauri::command]
+pub async fn git_blame(workspace: String, path: String) -> Result<Vec<BlameLine>, String> {
+    let raw = run_git(&workspace, &["blame", "--porcelain", "--", &path])?;
+    // sha -> (author, author-time, summary), filled the first time a sha appears.
+    let mut meta: std::collections::HashMap<String, (String, i64, String)> = std::collections::HashMap::new();
+    let mut out: Vec<BlameLine> = Vec::new();
+    let mut cur_sha = String::new();
+    let mut cur_line = 0usize;
+
+    for line in raw.lines() {
+        if let Some(_content) = line.strip_prefix('\t') {
+            let (author, time, summary) = meta.get(&cur_sha).cloned().unwrap_or_default();
+            out.push(BlameLine {
+                line: cur_line,
+                hash: cur_sha.chars().take(8).collect(),
+                author,
+                time,
+                summary,
+            });
+        } else if let Some(v) = line.strip_prefix("author ") {
+            meta.entry(cur_sha.clone()).or_default().0 = v.to_string();
+        } else if let Some(t) = line.strip_prefix("author-time ") {
+            meta.entry(cur_sha.clone()).or_default().1 = t.trim().parse().unwrap_or(0);
+        } else if let Some(s) = line.strip_prefix("summary ") {
+            meta.entry(cur_sha.clone()).or_default().2 = s.to_string();
+        } else {
+            // Header line: "<40-hex sha> <orig-line> <final-line> [<count>]"
+            let parts: Vec<&str> = line.split(' ').collect();
+            if parts.len() >= 3
+                && parts[0].len() == 40
+                && parts[0].bytes().all(|b| b.is_ascii_hexdigit())
+            {
+                cur_sha = parts[0].to_string();
+                cur_line = parts[2].parse().unwrap_or(0);
+            }
+        }
+    }
+    Ok(out)
+}

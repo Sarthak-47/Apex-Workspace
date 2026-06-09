@@ -1,6 +1,18 @@
+import { useEffect, useState } from "react";
 import { useAppStore } from "@/store";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { useMarkers } from "@/lib/useMarkers";
+import { gitBlame, type BlameLine } from "@/lib/tauri";
+
+function relTime(epochSec: number): string {
+  if (!epochSec) return '';
+  const s = Math.floor(Date.now() / 1000 - epochSec);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 2592000) return `${Math.floor(s / 86400)}d ago`;
+  return new Date(epochSec * 1000).toLocaleDateString();
+}
 
 const LANG_LABELS: Record<string, string> = {
   typescript: 'TypeScript', javascript: 'JavaScript',
@@ -40,8 +52,19 @@ export function StatusBar() {
     cursorLine, cursorCol, editorFileSize,
     vimMode, indexProgress, autocompleteEnabled,
     setCookbookOpen, setCompareOpen, toggleProblems,
+    workspacePath,
   } = useAppStore();
   const { errors, warnings } = useMarkers();
+
+  // Inline git blame for the current line (desktop app only; empty in browser).
+  const [blame, setBlame] = useState<BlameLine[]>([]);
+  useEffect(() => {
+    if (!activeFile || !workspacePath) { setBlame([]); return; }
+    let cancel = false;
+    gitBlame(workspacePath, activeFile).then((b) => { if (!cancel) setBlame(b); }).catch(() => {});
+    return () => { cancel = true; };
+  }, [activeFile, workspacePath]);
+  const lineBlame = blame[cursorLine - 1];
 
   const fmtSize = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`;
 
@@ -123,6 +146,19 @@ export function StatusBar() {
       )}
 
       {/* ── Right ─────────────────────────────────────────────────────── */}
+
+      {/* Inline git blame for the current line */}
+      {lineBlame && lineBlame.author && (
+        <>
+          <SbItem title={`${lineBlame.summary} · ${lineBlame.hash}`}>
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" style={{ opacity: 0.8 }}>
+              <circle cx="6" cy="4" r="2.2"/><path d="M2 10.5a4 4 0 0 1 8 0"/>
+            </svg>
+            {lineBlame.author}, {relTime(lineBlame.time)}
+          </SbItem>
+          <Divider />
+        </>
+      )}
 
       {/* Cursor position */}
       {activeFile && (

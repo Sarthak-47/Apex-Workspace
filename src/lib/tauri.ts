@@ -88,6 +88,23 @@ export async function createDir(path: string): Promise<void> {
   if (webfs.owns(path)) return webfs.createDir(path);
 }
 
+// ─── Git blame ────────────────────────────────────────────────────────────────
+
+export interface BlameLine {
+  line: number;
+  hash: string;
+  author: string;
+  time: number; // epoch seconds
+  summary: string;
+}
+
+/** Per-line git blame for a file. Empty in the browser build (needs the desktop app). */
+export async function gitBlame(workspace: string, path: string): Promise<BlameLine[]> {
+  if (!isTauri()) return [];
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return await invoke<BlameLine[]>('git_blame', { workspace, path }); } catch { return []; }
+}
+
 // ─── Language Server Protocol transport ───────────────────────────────────────
 
 export async function lspStart(id: string, command: string, args: string[], cwd: string): Promise<void> {

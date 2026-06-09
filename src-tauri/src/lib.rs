@@ -334,6 +334,7 @@ pub fn run() {
             git::git_list_branches,
             git::git_switch_branch,
             git::git_create_branch,
+            git::git_blame,
             // Bash (approval-gated)
             bash::run_bash,
             bash::kill_bash,
