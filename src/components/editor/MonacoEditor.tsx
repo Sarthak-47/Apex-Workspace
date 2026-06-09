@@ -1022,6 +1022,7 @@ export function MonacoEditor({ path }: Props) {
               lineNumbersMinChars: 3,
               glyphMargin: false,
               folding: true,
+              stickyScroll: { enabled: true },
               wordWrap: wordWrap ? 'on' : 'off',
               scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8, useShadows: false, vertical: 'visible', horizontal: 'visible' },
               overviewRulerBorder: false,

@@ -175,6 +175,7 @@ function EditorTab() {
 }
 
 function TerminalTab() {
+  const { terminalShell, setTerminalShell } = useAppStore();
   const [scrollback, setScrollback] = useState(10000);
   const shellOptions = [
     { value: 'auto',         label: 'Auto-detect' },
@@ -184,14 +185,16 @@ function TerminalTab() {
     { value: '/bin/zsh',     label: 'Zsh' },
     { value: '/bin/bash',    label: 'Bash' },
   ];
-  const [shell, setShell] = useState('auto');
 
   return (
     <div>
       <Section title="Shell">
         <Field label="Default shell">
-          <Select value={shell} options={shellOptions} onChange={setShell} />
+          <Select value={terminalShell} options={shellOptions} onChange={setTerminalShell} />
         </Field>
+        <p style={{ fontSize: 11, color: '#6A6A85', margin: '2px 0 0' }}>
+          Applies to newly opened terminals.
+        </p>
       </Section>
       <Section title="Display">
         <Field label="Scrollback lines">

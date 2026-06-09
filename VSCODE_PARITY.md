@@ -27,7 +27,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ✅ **Outline / symbols** — Outline sidebar (Explorer section, click-to-jump) · Go-to-Symbol in file (Ctrl+Shift+O) · Go-to-Line (Ctrl+G) · **workspace symbol search (Ctrl+T)** via the command palette Symbols source (heuristic extractor for TS/JS/Py/Rust/Go/Java/C#/MD — LSP makes it precise in Tier 2)
 - ✅ **Tasks runner** — reads `.vscode/tasks.json` (or `.apex/tasks.json`, JSONC-tolerant); "Run Task: …" entries in the command palette execute the command in the integrated terminal (via terminal command injection)
 - ✅ **Format** — Format Document (Shift+Alt+F) + **Format-on-save** toggle · ✅ Auto-save · ✅ **Emmet** (HTML/CSS/JSX via emmet-monaco-es) · ✅ **Snippets** (built-in for TS/JS/React/Python/Rust/Go, Tab-expand)
-- ◐ **Multiple terminals** — tabs (add / close / rename / switch, each its own pty) ✅ · **split-panes** (side-by-side, up to 3) ✅; shell profiles todo
+- ✅ **Multiple terminals** — tabs (add / close / rename / switch, each its own pty) · **split-panes** (side-by-side, up to 3) · **shell profiles** (Settings → Terminal: pwsh / PowerShell / cmd / zsh / bash, applied to new terminals)
 - ✅ **Timeline / local file history** — every save snapshots the file into IndexedDB (deduped, capped at 50/file); Timeline section in the Explorer lists versions for the active file with compare-to-current and one-click restore
 
 ## Tier 2 — Language intelligence (the big subsystem) 🔶

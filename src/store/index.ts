@@ -70,6 +70,8 @@ interface AppState {
   intelPanelWidth: number;
   terminalOpen: boolean;
   terminalHeight: number;
+  terminalShell: string; // 'auto' or a shell path/profile
+  setTerminalShell: (v: string) => void;
   problemsOpen: boolean;
   toggleProblems: () => void;
   setProblemsOpen: (v: boolean) => void;
@@ -322,6 +324,8 @@ export const useAppStore = create<AppState>()(
       leftPanelWidth: 250,
       intelPanelOpen: true,
       intelPanelWidth: 320,
+      terminalShell: 'auto',
+      setTerminalShell: (v) => set({ terminalShell: v }),
       terminalOpen: true,
       terminalHeight: 220,
 
@@ -552,6 +556,7 @@ export const useAppStore = create<AppState>()(
         intelPanelWidth: s.intelPanelWidth,
         terminalOpen: s.terminalOpen,
         terminalHeight: s.terminalHeight,
+        terminalShell: s.terminalShell,
         ollamaSelectedModel: s.ollamaSelectedModel,
         editorTheme: s.editorTheme,
         editorFontSize: s.editorFontSize,

@@ -202,7 +202,8 @@ async function setupRealPty(
   const unlisteners: Array<() => void> = [];
 
   try {
-    ptyId = await invoke<string>('create_pty', { shell: null, cwd });
+    const shellPref = useAppStore.getState().terminalShell;
+    ptyId = await invoke<string>('create_pty', { shell: shellPref && shellPref !== 'auto' ? shellPref : null, cwd });
     if (cancelled) { await invoke('close_pty', { ptyId }); return () => {}; }
 
     unlisteners.push(
