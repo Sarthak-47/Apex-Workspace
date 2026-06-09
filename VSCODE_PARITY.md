@@ -28,7 +28,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ✅ **Tasks runner** — reads `.vscode/tasks.json` (or `.apex/tasks.json`, JSONC-tolerant); "Run Task: …" entries in the command palette execute the command in the integrated terminal (via terminal command injection)
 - ◐ **Format** — Format Document (Shift+Alt+F) + **Format-on-save** toggle done · ✅ Auto-save · Emmet & Snippets todo
 - ◐ **Multiple terminals** — tabs (add / close / rename / switch, each its own pty) ✅; split-panes & shell profiles todo
-- ⬜ **Timeline / local file history**
+- ✅ **Timeline / local file history** — every save snapshots the file into IndexedDB (deduped, capped at 50/file); Timeline section in the Explorer lists versions for the active file with compare-to-current and one-click restore
 
 ## Tier 2 — Language intelligence (the big subsystem) 🔶
 - ◐ In-browser TS/JS/JSON/CSS intelligence via Monaco (free, already present)

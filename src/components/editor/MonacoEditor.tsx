@@ -4,6 +4,7 @@ import type * as MonacoType from 'monaco-editor';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store';
 import { readFile, writeFile } from '@/lib/tauri';
+import { saveSnapshot } from '@/lib/history';
 import { generateCompletion } from '@/lib/ollama';
 import { MarkdownPreview } from '@/components/editor/MarkdownPreview';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -823,7 +824,9 @@ export function MonacoEditor({ path }: Props) {
       if (useAppStore.getState().formatOnSave) {
         try { await editor.getAction('editor.action.formatDocument')?.run(); } catch { /* no formatter */ }
       }
-      try { await writeFile(path, editor.getValue()); } catch { /* browser no-op */ }
+      const val = editor.getValue();
+      try { await writeFile(path, val); } catch { /* browser no-op */ }
+      saveSnapshot(path, val);
       dirtyRef.current = false;
       markFileSaved(path);
     });
@@ -880,6 +883,7 @@ export function MonacoEditor({ path }: Props) {
       autoSaveTimer.current = setTimeout(async () => {
         try {
           await writeFile(path, value);
+          saveSnapshot(path, value);
           dirtyRef.current = false;
           markFileSaved(path);
         } catch { /* browser no-op */ }

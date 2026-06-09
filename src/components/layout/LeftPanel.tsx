@@ -3,9 +3,10 @@ import { useAppStore } from "@/store";
 import { searchWorkspace, replaceAll, totalMatches, type SearchFileResult } from "@/lib/search";
 import {
   listDir, openFolderDialog, openFileDialog, deletePath, renamePath,
-  createFile, createDir, revealInExplorer, activateWorkspace,
+  createFile, createDir, revealInExplorer, activateWorkspace, readFile,
   type DirEntry,
 } from "@/lib/tauri";
+import { listHistory, type HistoryEntry } from "@/lib/history";
 import { GitPanel } from "@/components/layout/GitPanel";
 import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { CategoryIcon } from "@/components/ui/Icons";
@@ -985,6 +986,85 @@ function SearchView() {
   );
 }
 
+// ─── Timeline / local file history ────────────────────────────────────────────
+
+function relTime(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function Timeline({ activeFile }: { activeFile: string | null }) {
+  const { unsavedFiles, setPendingDiffReview, setPendingFileEdit, addToast } = useAppStore();
+  const [open, setOpen] = useState(true);
+  const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const saved = !unsavedFiles.includes(activeFile ?? '');
+
+  useEffect(() => {
+    if (!activeFile) { setEntries([]); return; }
+    let cancel = false;
+    listHistory(activeFile).then((h) => { if (!cancel) setEntries(h); });
+    return () => { cancel = true; };
+  }, [activeFile, saved]);
+
+  if (!activeFile) return null;
+  const fileName = activeFile.split(/[\\/]/).pop() ?? activeFile;
+
+  const compare = async (e: HistoryEntry) => {
+    const current = await readFile(activeFile).catch(() => e.content);
+    setPendingDiffReview({
+      path: activeFile, original: e.content, proposed: current,
+      mode: 'compare', originalLabel: relTime(e.ts), modifiedLabel: 'Current',
+    });
+  };
+  const restore = (e: HistoryEntry, ev: React.MouseEvent) => {
+    ev.stopPropagation();
+    setPendingFileEdit({ path: activeFile, content: e.content });
+    addToast(`Restored version from ${relTime(e.ts)} — Ctrl+S to save`, 'success');
+  };
+
+  return (
+    <div style={{ flexShrink: 0, borderTop: '1px solid #1A1A28', display: 'flex', flexDirection: 'column', maxHeight: 180, overflow: 'hidden' }}>
+      <div onClick={() => setOpen((o) => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', cursor: 'pointer', flexShrink: 0 }}
+        className="hover:bg-[#16161F]">
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#6A6A85" strokeWidth="1.4"
+          style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.1s' }}>
+          <polyline points="3.5,2 6.5,5 3.5,8" />
+        </svg>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#6A6A85', letterSpacing: '0.1em' }}>TIMELINE</span>
+        <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }} title={fileName}>{fileName}</span>
+      </div>
+      {open && (
+        <div style={{ overflowY: 'auto', minHeight: 0 }}>
+          {entries.length === 0 ? (
+            <div style={{ fontSize: 10, color: '#4A4A65', padding: '4px 10px 8px 24px' }}>No saved versions yet.</div>
+          ) : entries.map((e, i) => (
+            <div key={e.ts}
+              onClick={() => compare(e)}
+              title="Compare with current"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px 3px 24px', cursor: 'pointer', fontSize: 11 }}
+              className="hover:bg-[#18181F] group">
+              <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="#6366F1" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.8 }}>
+                <circle cx="7" cy="7" r="5.5" /><polyline points="7,4 7,7 9.5,8.5" />
+              </svg>
+              <span style={{ color: '#C7C7D9', flex: 1 }}>{i === 0 ? 'Latest' : relTime(e.ts)}</span>
+              <span style={{ color: '#4A4A65', fontSize: 9 }}>{(e.size / 1024).toFixed(1)}K</span>
+              <button onClick={(ev) => restore(e, ev)} title="Restore this version"
+                style={{ opacity: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#6A6A85', padding: 0, display: 'flex' }}
+                className="group-hover:!opacity-100">
+                <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 7a5 5 0 1 1 1.5 3.5" /><polyline points="2,11 2,7.5 5.5,7.5" /></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Left Panel ────────────────────────────────────────────────────────────────
 
 export function LeftPanel() {
@@ -1114,6 +1194,9 @@ export function LeftPanel() {
 
           {/* Knowledge nodes — live vault data */}
           {workspacePath && <ConnectedNodes workspacePath={workspacePath} onOpen={openFile} />}
+
+          {/* Timeline — local file history for the active file */}
+          <Timeline activeFile={activeFile} />
         </>
       )}
     </div>
