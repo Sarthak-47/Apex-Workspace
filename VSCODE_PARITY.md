@@ -25,7 +25,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ◐ **Diff editor** — Monaco side-by-side compare with read-only **compare mode** (HEAD vs Working Tree from the Git panel) + AI-review mode; arbitrary file-to-file compare & merge-conflict resolution still todo
 - ✅ **Problems panel** — live Monaco diagnostics (errors/warnings/info) for the open file, severity icons, click-to-jump; status-bar counts are live and toggle the panel
 - ◐ **Outline / symbols** — Go-to-Symbol in file done (Ctrl+Shift+O, Monaco quick outline) + Go-to-Line (Ctrl+G); persistent Outline sidebar and workspace symbol (Ctrl+T) still todo
-- ⬜ **Tasks runner** (`tasks.json`)
+- ✅ **Tasks runner** — reads `.vscode/tasks.json` (or `.apex/tasks.json`, JSONC-tolerant); "Run Task: …" entries in the command palette execute the command in the integrated terminal (via terminal command injection)
 - ◐ **Format** — Format Document (Shift+Alt+F) + **Format-on-save** toggle done · ✅ Auto-save · Emmet & Snippets todo
 - ◐ **Multiple terminals** — tabs (add / close / rename / switch, each its own pty) ✅; split-panes & shell profiles todo
 - ⬜ **Timeline / local file history**

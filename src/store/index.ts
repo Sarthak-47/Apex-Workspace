@@ -69,6 +69,10 @@ interface AppState {
   problemsOpen: boolean;
   toggleProblems: () => void;
   setProblemsOpen: (v: boolean) => void;
+  // Send a command into the active terminal (used by the Tasks runner)
+  terminalCommand: string | null;
+  runInTerminal: (cmd: string) => void;
+  clearTerminalCommand: () => void;
 
   toggleLeftPanel: () => void;
   toggleIntelPanel: () => void;
@@ -288,6 +292,9 @@ export const useAppStore = create<AppState>()(
       problemsOpen: false,
       toggleProblems: () => set((s) => ({ problemsOpen: !s.problemsOpen })),
       setProblemsOpen: (v) => set({ problemsOpen: v }),
+      terminalCommand: null,
+      runInTerminal: (cmd) => set({ terminalOpen: true, terminalCommand: cmd }),
+      clearTerminalCommand: () => set({ terminalCommand: null }),
       setLeftPanelWidth: (w) => set({ leftPanelWidth: w }),
       setIntelPanelWidth: (w) => set({ intelPanelWidth: w }),
       setTerminalHeight: (h) => set({ terminalHeight: h }),

@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useAppStore, useToast } from "@/store";
 import { listAllFiles, gitLog, type DirEntry, type GitCommit } from "@/lib/tauri";
 import { listVault, type VaultNote } from "@/lib/vault";
+import { loadTasks, type ApexTask } from "@/lib/tasks";
 import { MentionIcon } from "@/components/ui/Icons";
 
-type Source = 'Files' | 'Knowledge' | 'Git';
+type Source = 'Files' | 'Knowledge' | 'Git' | 'Tasks';
 interface UResult {
   source: Source;
   id: string;
@@ -61,13 +62,14 @@ function Highlight({ text, query }: { text: string; query: string }) {
 interface Props { onClose: () => void }
 
 export function CommandPalette({ onClose }: Props) {
-  const { workspacePath, openFile } = useAppStore();
+  const { workspacePath, openFile, runInTerminal } = useAppStore();
   const { info } = useToast();
   const [query, setQuery]         = useState('');
   const [files, setFiles]         = useState<DirEntry[]>([]);
   const [notes, setNotes]         = useState<VaultNote[]>([]);
   const [commits, setCommits]     = useState<GitCommit[]>([]);
-  const [enabled, setEnabled]     = useState<Record<Source, boolean>>({ Files: true, Knowledge: true, Git: true });
+  const [tasks, setTasks]         = useState<ApexTask[]>([]);
+  const [enabled, setEnabled]     = useState<Record<Source, boolean>>({ Files: true, Knowledge: true, Git: true, Tasks: true });
   const [selectedIdx, setSelected] = useState(0);
   const inputRef  = useRef<HTMLInputElement>(null);
   const listRef   = useRef<HTMLDivElement>(null);
@@ -78,6 +80,7 @@ export function CommandPalette({ onClose }: Props) {
     listAllFiles(root).then(setFiles);
     listVault(root).then(setNotes).catch(() => {});
     gitLog(root).then(setCommits).catch(() => {});
+    loadTasks(root).then(setTasks).catch(() => {});
   }, [workspacePath]);
 
   // Focus input on open
@@ -106,8 +109,12 @@ export function CommandPalette({ onClose }: Props) {
       const c = commits.filter(c => c.message.toLowerCase().includes(q) || c.hash.startsWith(q)).slice(0, 8);
       for (const e of c) out.push({ source: 'Git', id: 'g:' + e.hash, title: e.message, detail: `${e.hash} · ${e.author}`, action: () => { navigator.clipboard?.writeText(e.hash).catch(() => {}); info(`Copied ${e.hash}`); onClose(); } });
     }
+    if (enabled.Tasks) {
+      const t = (q ? tasks.filter(t => t.label.toLowerCase().includes(q) || t.command.toLowerCase().includes(q)) : tasks).slice(0, 10);
+      for (const e of t) out.push({ source: 'Tasks', id: 't:' + e.label, title: `Run Task: ${e.label}`, detail: e.command, action: () => { runInTerminal(e.command); info(`Running task: ${e.label}`); onClose(); } });
+    }
     return out;
-  }, [query, files, notes, commits, enabled, workspacePath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [query, files, notes, commits, tasks, enabled, workspacePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset selection when results change
   useEffect(() => { setSelected(0); }, [results]);
@@ -189,7 +196,7 @@ export function CommandPalette({ onClose }: Props) {
 
         {/* Source toggles */}
         <div style={{ display: 'flex', gap: 6, padding: '6px 14px', borderBottom: '1px solid #1A1A28' }}>
-          {(['Files', 'Knowledge', 'Git'] as Source[]).map(s => (
+          {(['Files', 'Knowledge', 'Git', 'Tasks'] as Source[]).map(s => (
             <button key={s} onClick={() => setEnabled(e => ({ ...e, [s]: !e[s] }))}
               style={{ height: 20, padding: '0 9px', borderRadius: 10, fontSize: 10, cursor: 'pointer',
                 background: enabled[s] ? '#1A1A3A' : 'transparent', border: `1px solid ${enabled[s] ? '#6366F140' : '#252535'}`,

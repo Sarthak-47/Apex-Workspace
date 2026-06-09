@@ -122,9 +122,13 @@ function execMockCmd(raw: string, cwdRef: { current: string }, term: Terminal) {
   }
 }
 
-function setupMockShell(term: Terminal, fitAddon: FitAddon): () => void {
+function setupMockShell(term: Terminal, fitAddon: FitAddon, writer?: Writer): () => void {
   const cwdRef = { current: '/demo-workspace' };
   let line = '';
+  if (writer) writer.current = (data: string) => {
+    const cmd = data.replace(/[\r\n]+$/, '').trim();
+    term.write('\r\n'); if (cmd) execMockCmd(cmd, cwdRef, term); term.write(buildPrompt(cwdRef.current));
+  };
   const history: string[] = [];
   let histIdx = -1;
 
@@ -182,10 +186,13 @@ function setupMockShell(term: Terminal, fitAddon: FitAddon): () => void {
   return () => { disposable.dispose(); };
 }
 
+type Writer = { current: ((data: string) => void) | null };
+
 async function setupRealPty(
   term: Terminal,
   fitAddon: FitAddon,
   cwd: string,
+  writer?: Writer,
 ): Promise<() => void> {
   const { invoke } = await import('@tauri-apps/api/core');
   const { listen }  = await import('@tauri-apps/api/event');
@@ -216,6 +223,8 @@ async function setupRealPty(
     fitAddon.fit();
     invoke('resize_pty', { ptyId, cols: term.cols, rows: term.rows }).catch(() => {});
 
+    if (writer) writer.current = (data: string) => { if (ptyId) invoke('write_pty', { ptyId, data }).catch(() => {}); };
+
   } catch (err) {
     term.writeln(`\r\n\x1b[31mFailed to start PTY: ${err}\x1b[0m`);
   }
@@ -232,6 +241,9 @@ async function setupRealPty(
 function XtermPane({ visible, workspacePath }: { visible: boolean; workspacePath: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fitRef       = useRef<FitAddon | null>(null);
+  const writerRef    = useRef<((data: string) => void) | null>(null);
+  const [ready, setReady] = useState(false);
+  const { terminalCommand, clearTerminalCommand } = useAppStore();
 
   useEffect(() => {
     const el = containerRef.current;
@@ -248,18 +260,28 @@ function XtermPane({ visible, workspacePath }: { visible: boolean; workspacePath
     let cleanupFn: (() => void) | null = null;
 
     if (isTauri()) {
-      setupRealPty(term, fitAddon, workspacePath ?? '.').then(fn => { cleanupFn = fn; });
+      setupRealPty(term, fitAddon, workspacePath ?? '.', writerRef).then(fn => { cleanupFn = fn; setReady(true); });
     } else {
-      cleanupFn = setupMockShell(term, fitAddon);
+      cleanupFn = setupMockShell(term, fitAddon, writerRef);
+      setReady(true);
     }
 
     return () => {
       cleanupFn?.();
+      writerRef.current = null;
       term.dispose();
       fitRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Consume a queued task/command — only the active (visible) pane runs it.
+  useEffect(() => {
+    if (visible && ready && terminalCommand && writerRef.current) {
+      writerRef.current(terminalCommand.replace(/[\r\n]+$/, '') + '\r');
+      clearTerminalCommand();
+    }
+  }, [visible, ready, terminalCommand, clearTerminalCommand]);
 
   // Fit when this pane becomes visible
   useEffect(() => {
