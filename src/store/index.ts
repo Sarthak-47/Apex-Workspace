@@ -53,6 +53,8 @@ interface AppState {
   closeAllFiles: () => void;
   pinnedFiles: string[];
   togglePin: (path: string) => void;
+  closedFiles: string[];
+  reopenClosedFile: () => void;
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
@@ -306,7 +308,7 @@ export const useAppStore = create<AppState>()(
           : [...s.pinnedFiles, path],
       })),
       closeFile: (path) => {
-        const { openFiles, activeFile, unsavedFiles, pinnedFiles } = get();
+        const { openFiles, activeFile, unsavedFiles, pinnedFiles, closedFiles } = get();
         const next = openFiles.filter((f) => f !== path);
         const newActive =
           activeFile === path ? (next[next.length - 1] ?? null) : activeFile;
@@ -315,7 +317,16 @@ export const useAppStore = create<AppState>()(
           activeFile: newActive,
           unsavedFiles: unsavedFiles.filter((f) => f !== path),
           pinnedFiles: pinnedFiles.filter((f) => f !== path),
+          closedFiles: [path, ...closedFiles.filter((f) => f !== path)].slice(0, 20),
         });
+      },
+      closedFiles: [],
+      reopenClosedFile: () => {
+        const { closedFiles, openFile } = get();
+        const [last, ...rest] = closedFiles;
+        if (!last) return;
+        set({ closedFiles: rest });
+        openFile(last);
       },
 
       // Unsaved tracking
