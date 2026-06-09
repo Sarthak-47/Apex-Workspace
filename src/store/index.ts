@@ -136,8 +136,8 @@ interface AppState {
   setPendingFileEdit: (edit: { path: string; content: string } | null) => void;
 
   // Diff review before applying (not persisted)
-  pendingDiffReview: { path: string; original: string; proposed: string } | null;
-  setPendingDiffReview: (r: { path: string; original: string; proposed: string } | null) => void;
+  pendingDiffReview: { path: string; original: string; proposed: string; mode?: 'review' | 'compare'; originalLabel?: string; modifiedLabel?: string } | null;
+  setPendingDiffReview: (r: { path: string; original: string; proposed: string; mode?: 'review' | 'compare'; originalLabel?: string; modifiedLabel?: string } | null) => void;
 
   // Editor preferences (persisted)
   editorTheme: string;

@@ -11,9 +11,12 @@ export function DiffReview() {
 
   if (!pendingDiffReview) return null;
 
-  const { path, original, proposed } = pendingDiffReview;
+  const { path, original, proposed, mode = 'review', originalLabel, modifiedLabel } = pendingDiffReview;
+  const isCompare = mode === 'compare';
   const fileName = path.split(/[\\/]/).pop() ?? path;
   const lang     = getLang(path);
+  const leftLabel  = originalLabel ?? (isCompare ? 'Original' : 'Current');
+  const rightLabel = modifiedLabel ?? (isCompare ? 'Modified' : 'AI Suggested');
 
   const handleMount = (editor: MonacoEditorNS.IStandaloneDiffEditor) => {
     diffRef.current = editor;
@@ -70,34 +73,36 @@ export function DiffReview() {
             <line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="9" y2="11"/>
           </svg>
 
-          <span style={{ fontSize: 13, color: '#E2E2EC', fontWeight: 500 }}>Review AI changes</span>
+          <span style={{ fontSize: 13, color: '#E2E2EC', fontWeight: 500 }}>{isCompare ? 'Compare' : 'Review AI changes'}</span>
           <span style={{ fontSize: 12, color: '#4A4A65', fontFamily: '"JetBrains Mono",monospace' }}>
             {fileName}
           </span>
 
           {/* Column labels */}
           <div style={{ flex: 1 }} />
-          <span style={{ fontSize: 10, color: '#4A4A65', background: '#18181F', padding: '2px 8px', borderRadius: 3 }}>Current</span>
-          <span style={{ fontSize: 10, color: '#6366F1', background: '#1A1A3A', border: '1px solid #6366F130', padding: '2px 8px', borderRadius: 3 }}>AI Suggested</span>
+          <span style={{ fontSize: 10, color: '#4A4A65', background: '#18181F', padding: '2px 8px', borderRadius: 3 }}>{leftLabel}</span>
+          <span style={{ fontSize: 10, color: '#6366F1', background: '#1A1A3A', border: '1px solid #6366F130', padding: '2px 8px', borderRadius: 3 }}>{rightLabel}</span>
           <div style={{ width: 1, height: 20, background: '#252535', margin: '0 6px' }} />
 
-          {/* Cancel */}
+          {/* Close / Cancel */}
           <button
             onClick={handleCancel}
             style={{ height: 30, padding: '0 14px', borderRadius: 5, fontSize: 12, cursor: 'pointer', background: '#1A1A28', border: '1px solid #252535', color: '#8888A8' }}
             className="hover:!bg-[#252535] hover:!text-[#E2E2EC] transition-colors"
           >
-            Cancel
+            {isCompare ? 'Close' : 'Cancel'}
           </button>
 
-          {/* Accept */}
-          <button
-            onClick={handleAccept}
-            style={{ height: 30, padding: '0 16px', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: 'white' }}
-            className="hover:!bg-[#7C7FFF] transition-colors"
-          >
-            ✓ Accept Changes
-          </button>
+          {/* Accept (review mode only) */}
+          {!isCompare && (
+            <button
+              onClick={handleAccept}
+              style={{ height: 30, padding: '0 16px', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: 'white' }}
+              className="hover:!bg-[#7C7FFF] transition-colors"
+            >
+              ✓ Accept Changes
+            </button>
+          )}
         </div>
 
         {/* ── Monaco DiffEditor ────────────────────────────────────────── */}
@@ -114,7 +119,7 @@ export function DiffReview() {
               fontSize: 13,
               lineHeight: 21,
               renderSideBySide: true,
-              readOnly: false,          // allow tweaking the right pane before accepting
+              readOnly: isCompare,             // compare = read-only view; review = editable right pane
               originalEditable: false,  // left pane is read-only
               scrollBeyondLastLine: false,
               minimap: { enabled: false },
@@ -136,17 +141,17 @@ export function DiffReview() {
           display: 'flex', alignItems: 'center', padding: '0 16px', gap: 16,
           flexShrink: 0,
         }}>
-          {[
-            ['Edit right pane', 'to adjust before accepting'],
-            ['Esc', 'cancel'],
-          ].map(([key, label]) => (
+          {(isCompare
+            ? [['Esc', 'close']]
+            : [['Edit right pane', 'to adjust before accepting'], ['Esc', 'cancel']]
+          ).map(([key, label]) => (
             <span key={key} style={{ fontSize: 10, color: '#4A4A65', display: 'flex', alignItems: 'center', gap: 4 }}>
               <kbd style={{ background: '#18181F', padding: '1px 5px', borderRadius: 3, fontFamily: '"JetBrains Mono",monospace', fontSize: 9 }}>{key}</kbd>
               {label}
             </span>
           ))}
           <span style={{ marginLeft: 'auto', fontSize: 10, color: '#4A4A65' }}>
-            Changes are staged in editor — Ctrl+S to write to disk
+            {isCompare ? 'Read-only comparison' : 'Changes are staged in editor — Ctrl+S to write to disk'}
           </span>
         </div>
       </div>

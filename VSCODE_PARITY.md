@@ -22,7 +22,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 ## Tier 1 — Core IDE parity (achievable, high value)
 - ✅ **Global search & replace across files** — results tree (collapsible per file), match highlighting, click-to-open at line, case/whole-word/regex toggles, include/exclude globs, replace-all. Rust `search_files` backend; web build searches via the File System Access API.
 - ⬜ **Split editors / editor groups** — side-by-side, drag tabs between groups, pinned & preview tabs
-- ⬜ **Diff editor** — compare files, compare vs git HEAD, merge-conflict resolution
+- ◐ **Diff editor** — Monaco side-by-side compare with read-only **compare mode** (HEAD vs Working Tree from the Git panel) + AI-review mode; arbitrary file-to-file compare & merge-conflict resolution still todo
 - ⬜ **Problems panel** — aggregated diagnostics with jump-to
 - ◐ **Outline / symbols** — Go-to-Symbol in file done (Ctrl+Shift+O, Monaco quick outline) + Go-to-Line (Ctrl+G); persistent Outline sidebar and workspace symbol (Ctrl+T) still todo
 - ⬜ **Tasks runner** (`tasks.json`)

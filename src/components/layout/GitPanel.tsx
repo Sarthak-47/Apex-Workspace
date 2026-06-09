@@ -95,7 +95,10 @@ function FileRow({
         gitInvoke<string>('git_file_at_head', { workspace, path: file.path }),
         readFile(absolutePath).catch(() => ''),
       ]);
-      setPendingDiffReview({ path: absolutePath, original, proposed: current });
+      setPendingDiffReview({
+        path: absolutePath, original, proposed: current,
+        mode: 'compare', originalLabel: 'HEAD', modifiedLabel: 'Working Tree',
+      });
     } catch (e) { addToast(`Diff failed: ${e}`, 'error'); }
   };
 
