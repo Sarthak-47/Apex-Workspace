@@ -48,6 +48,9 @@ interface AppState {
   openFile: (path: string) => void;
   closeFile: (path: string) => void;
   reorderOpenFiles: (from: number, to: number) => void;
+  closeOtherFiles: (keep: string) => void;
+  closeFilesToRight: (path: string) => void;
+  closeAllFiles: () => void;
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
@@ -272,6 +275,24 @@ export const useAppStore = create<AppState>()(
         const [moved] = files.splice(from, 1);
         files.splice(to, 0, moved);
         set({ openFiles: files });
+      },
+      // Bulk close actions keep any unsaved files open (avoid silent data loss).
+      closeOtherFiles: (keep) => {
+        const { openFiles, unsavedFiles } = get();
+        const next = openFiles.filter((f) => f === keep || unsavedFiles.includes(f));
+        set({ openFiles: next, activeFile: keep });
+      },
+      closeFilesToRight: (path) => {
+        const { openFiles, unsavedFiles, activeFile } = get();
+        const idx = openFiles.indexOf(path);
+        if (idx === -1) return;
+        const next = openFiles.filter((f, i) => i <= idx || unsavedFiles.includes(f));
+        set({ openFiles: next, activeFile: next.includes(activeFile ?? '') ? activeFile : path });
+      },
+      closeAllFiles: () => {
+        const { openFiles, unsavedFiles, activeFile } = get();
+        const next = openFiles.filter((f) => unsavedFiles.includes(f));
+        set({ openFiles: next, activeFile: next.includes(activeFile ?? '') ? activeFile : (next[0] ?? null) });
       },
       closeFile: (path) => {
         const { openFiles, activeFile, unsavedFiles } = get();

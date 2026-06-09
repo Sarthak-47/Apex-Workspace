@@ -11,9 +11,24 @@ interface TabBarProps {
 }
 
 function TabBar({ onRequestClose }: TabBarProps) {
-  const { openFiles, activeFile, unsavedFiles, setActiveFile, rightPaneFile, setRightPaneFile, reorderOpenFiles } = useAppStore();
+  const {
+    openFiles, activeFile, unsavedFiles, setActiveFile, rightPaneFile, setRightPaneFile,
+    reorderOpenFiles, closeOtherFiles, closeFilesToRight, closeAllFiles,
+  } = useAppStore();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    document.addEventListener('click', close);
+    document.addEventListener('contextmenu', close);
+    return () => { document.removeEventListener('click', close); document.removeEventListener('contextmenu', close); };
+  }, [menu]);
+
   if (openFiles.length === 0) return null;
+
+  const relOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
 
   return (
     <div style={{
@@ -41,6 +56,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
             onDrop={(e) => { e.preventDefault(); if (dragIdx !== null) reorderOpenFiles(dragIdx, idx); setDragIdx(null); }}
             onDragEnd={() => setDragIdx(null)}
             onClick={() => setActiveFile(path)}
+            onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, path }); }}
             style={{
               height: 36,
               display: 'flex',
@@ -137,6 +153,34 @@ function TabBar({ onRequestClose }: TabBarProps) {
           <rect x="1.5" y="2" width="11" height="10" rx="1.5"/><line x1="7" y1="2" x2="7" y2="12"/>
         </svg>
       </button>
+
+      {menu && (
+        <div style={{
+          position: 'fixed', left: menu.x, top: menu.y, zIndex: 10000, minWidth: 190,
+          background: '#13131B', border: '1px solid #252535', borderRadius: 7,
+          boxShadow: '0 14px 36px rgba(0,0,0,0.6)', overflow: 'hidden', padding: '4px 0',
+        }}>
+          {([
+            ['Close', () => onRequestClose(menu.path)],
+            ['Close Others', () => closeOtherFiles(menu.path)],
+            ['Close to the Right', () => closeFilesToRight(menu.path)],
+            ['Close All', () => closeAllFiles()],
+            ['—', null],
+            ['Open to the Side', () => setRightPaneFile(menu.path)],
+            ['—', null],
+            ['Copy Path', () => navigator.clipboard?.writeText(menu.path).catch(() => {})],
+            ['Copy File Name', () => navigator.clipboard?.writeText(relOf(menu.path)).catch(() => {})],
+          ] as [string, (() => void) | null][]).map(([label, fn], i) =>
+            label === '—'
+              ? <div key={i} style={{ height: 1, background: '#1E1E2E', margin: '4px 0' }} />
+              : <button key={i} onClick={() => { fn?.(); setMenu(null); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 14px', fontSize: 12, color: '#C7C7D9', background: 'none', border: 'none', cursor: 'pointer' }}
+                  className="hover:!bg-[#1E1E2E]">
+                  {label}
+                </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -21,7 +21,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 
 ## Tier 1 — Core IDE parity (achievable, high value)
 - ✅ **Global search & replace across files** — results tree (collapsible per file), match highlighting, click-to-open at line, case/whole-word/regex toggles, include/exclude globs, replace-all. Rust `search_files` backend; web build searches via the File System Access API.
-- ◐ **Split editors** — side-by-side second editor group (split toggle in the tab bar, independent right pane with close) · **drag-to-reorder tabs** ✅; drag *between* groups + pinned/preview tabs todo
+- ◐ **Split editors** — side-by-side second editor group (split toggle in the tab bar, independent right pane with close) · **drag-to-reorder tabs** ✅ · **tab context menu** (Close / Close Others / Close to Right / Close All / Open to Side / Copy Path) ✅; drag *between* groups + pinned/preview tabs todo
 - ◐ **Diff editor** — Monaco side-by-side compare with read-only **compare mode** (HEAD vs Working Tree from the Git panel) + AI-review mode; arbitrary file-to-file compare & merge-conflict resolution still todo
 - ✅ **Problems panel** — live Monaco diagnostics (errors/warnings/info) for the open file, severity icons, click-to-jump; status-bar counts are live and toggle the panel
 - ✅ **Outline / symbols** — Outline sidebar (Explorer section, click-to-jump) · Go-to-Symbol in file (Ctrl+Shift+O) · Go-to-Line (Ctrl+G) · **workspace symbol search (Ctrl+T)** via the command palette Symbols source (heuristic extractor for TS/JS/Py/Rust/Go/Java/C#/MD — LSP makes it precise in Tier 2)
