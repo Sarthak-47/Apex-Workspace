@@ -7,6 +7,8 @@ import {
   type DirEntry,
 } from "@/lib/tauri";
 import { listHistory, type HistoryEntry } from "@/lib/history";
+import { extractSymbols, type CodeSymbol, type SymbolKind } from "@/lib/symbols";
+import { getLang } from "@/components/editor/MonacoEditor";
 import { GitPanel } from "@/components/layout/GitPanel";
 import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { CategoryIcon } from "@/components/ui/Icons";
@@ -986,6 +988,81 @@ function SearchView() {
   );
 }
 
+// ─── Outline (symbols for the active file) ────────────────────────────────────
+
+const SYMBOL_COLOR: Record<SymbolKind, string> = {
+  class: '#EE9D28', interface: '#6366F1', function: '#B180D7', method: '#B180D7',
+  type: '#4EC9B0', enum: '#EE9D28', struct: '#EE9D28', trait: '#6366F1',
+  constant: '#4FC1FF', heading: '#8888A8',
+};
+const SYMBOL_GLYPH: Record<SymbolKind, string> = {
+  class: 'C', interface: 'I', function: 'ƒ', method: 'm', type: 'T',
+  enum: 'E', struct: 'S', trait: 'R', constant: 'K', heading: '#',
+};
+
+function Outline({ activeFile }: { activeFile: string | null }) {
+  const { unsavedFiles, openFileAt } = useAppStore();
+  const [open, setOpen] = useState(true);
+  const [symbols, setSymbols] = useState<CodeSymbol[]>([]);
+  const [filter, setFilter] = useState('');
+  const saved = !unsavedFiles.includes(activeFile ?? '');
+
+  useEffect(() => {
+    if (!activeFile) { setSymbols([]); return; }
+    let cancel = false;
+    readFile(activeFile)
+      .then((text) => { if (!cancel) setSymbols(extractSymbols(text, getLang(activeFile))); })
+      .catch(() => { if (!cancel) setSymbols([]); });
+    return () => { cancel = true; };
+  }, [activeFile, saved]);
+
+  if (!activeFile) return null;
+  const q = filter.toLowerCase();
+  const shown = q ? symbols.filter((s) => s.name.toLowerCase().includes(q)) : symbols;
+
+  return (
+    <div style={{ flexShrink: 0, borderTop: '1px solid #1A1A28', display: 'flex', flexDirection: 'column', maxHeight: 220, overflow: 'hidden' }}>
+      <div onClick={() => setOpen((o) => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', cursor: 'pointer', flexShrink: 0 }}
+        className="hover:bg-[#16161F]">
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#6A6A85" strokeWidth="1.4"
+          style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.1s' }}>
+          <polyline points="3.5,2 6.5,5 3.5,8" />
+        </svg>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#6A6A85', letterSpacing: '0.1em' }}>OUTLINE</span>
+        <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto' }}>{symbols.length || ''}</span>
+      </div>
+      {open && (
+        <div style={{ overflowY: 'auto', minHeight: 0 }}>
+          {symbols.length === 0 ? (
+            <div style={{ fontSize: 10, color: '#4A4A65', padding: '4px 10px 8px 24px' }}>No symbols found.</div>
+          ) : (
+            <>
+              {symbols.length > 8 && (
+                <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter symbols…"
+                  style={{ margin: '2px 10px 4px 24px', width: 'calc(100% - 40px)', background: '#0A0A0F', border: '1px solid #252535', borderRadius: 4, padding: '2px 6px', fontSize: 10, color: '#E2E2EC', outline: 'none' }} />
+              )}
+              {shown.map((s, i) => (
+                <div key={i}
+                  onClick={() => openFileAt(activeFile, s.line, 1)}
+                  title={`${s.kind} · line ${s.line}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '2px 10px 2px 24px', cursor: 'pointer', fontSize: 11 }}
+                  className="hover:bg-[#18181F]">
+                  <span style={{ width: 13, height: 13, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: SYMBOL_COLOR[s.kind], background: `${SYMBOL_COLOR[s.kind]}22`, borderRadius: 2 }}>
+                    {SYMBOL_GLYPH[s.kind]}
+                  </span>
+                  <span style={{ color: '#C7C7D9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                  <span style={{ color: '#3A3A4D', fontSize: 9 }}>{s.line}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Timeline / local file history ────────────────────────────────────────────
 
 function relTime(ts: number): string {
@@ -1194,6 +1271,9 @@ export function LeftPanel() {
 
           {/* Knowledge nodes — live vault data */}
           {workspacePath && <ConnectedNodes workspacePath={workspacePath} onOpen={openFile} />}
+
+          {/* Outline — symbols for the active file */}
+          <Outline activeFile={activeFile} />
 
           {/* Timeline — local file history for the active file */}
           <Timeline activeFile={activeFile} />
