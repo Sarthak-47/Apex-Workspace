@@ -4,6 +4,7 @@ import { useAppStore } from "@/store";
 const GROUPS: { title: string; items: [string, string][] }[] = [
   { title: 'General', items: [
     ['Ctrl K / Ctrl P', 'Unified search / quick open'],
+    ['Ctrl T', 'Go to symbol in workspace'],
     ['Ctrl ,', 'Settings'],
     ['Ctrl /', 'This shortcuts panel'],
     ['Ctrl `', 'Toggle terminal'],
@@ -11,14 +12,21 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
   { title: 'Panels', items: [
     ['Ctrl Shift E', 'Explorer'],
     ['Ctrl Shift G', 'Source control'],
-    ['Ctrl Shift F', 'Search'],
+    ['Ctrl Shift F', 'Search & replace'],
   ]},
   { title: 'Editor', items: [
     ['Ctrl S', 'Save file'],
     ['Ctrl G', 'Go to line'],
-    ['Ctrl H', 'Find & replace'],
+    ['Ctrl Shift O', 'Go to symbol in file'],
+    ['Shift Alt F', 'Format document'],
     ['Ctrl = / Ctrl -', 'Font size'],
     ['Alt Z', 'Toggle word wrap'],
+  ]},
+  { title: 'Code intelligence', items: [
+    ['F12', 'Go to definition (LSP)'],
+    ['Shift F12', 'Find all references (LSP)'],
+    ['F2', 'Rename symbol (LSP)'],
+    ['Ctrl Space', 'Trigger completion'],
   ]},
   { title: 'Chat', items: [
     ['Enter', 'Send message'],
