@@ -26,6 +26,7 @@ import { StatusBar } from "@/components/layout/StatusBar";
 import { ProblemsPanel } from "@/components/layout/ProblemsPanel";
 import { Toaster } from "@/components/ui/Toaster";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { applyWorkspaceSettings } from "@/lib/workspaceSettings";
 
 export default function App() {
   const {
@@ -79,6 +80,11 @@ export default function App() {
     if (!workspacePath) { setGitBranch(''); return; }
     getGitBranch(workspacePath).then(setGitBranch);
   }, [workspacePath, setGitBranch]);
+
+  // Apply per-workspace settings.json (VS Code-compatible) when a folder opens.
+  useEffect(() => {
+    if (workspacePath) applyWorkspaceSettings(workspacePath).catch(() => {});
+  }, [workspacePath]);
 
   // ── App mode → focus the relevant view ─────────────────────────────────────
   const prevModeRef = useRef(mode);
