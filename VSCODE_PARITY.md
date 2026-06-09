@@ -8,6 +8,9 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 
 ---
 
+## Recently added ✅
+- ✅ **Command palette — commands** (`>` prefix / Ctrl+Shift+P): View toggles (terminal, problems, sidebar, explorer/search/git, split), Preferences, editor toggles (wrap, minimap, auto-save, format-on-save, vim, AI autocomplete), Cookbook/Compare — alongside file/symbol/task/git search
+
 ## Already in APEX ✅
 - ✅ Monaco editor — multi-cursor, folding, minimap, bracket-pair colorization (built in)
 - ✅ Editor tabs (single group) · unsaved indicators

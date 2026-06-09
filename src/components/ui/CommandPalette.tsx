@@ -6,7 +6,9 @@ import { loadTasks, type ApexTask } from "@/lib/tasks";
 import { loadWorkspaceSymbols, type WorkspaceSymbol } from "@/lib/symbols";
 import { MentionIcon } from "@/components/ui/Icons";
 
-type Source = 'Files' | 'Knowledge' | 'Git' | 'Tasks' | 'Symbols';
+type Source = 'Commands' | 'Files' | 'Knowledge' | 'Git' | 'Tasks' | 'Symbols';
+
+interface AppCommand { id: string; title: string; run: () => void }
 interface UResult {
   source: Source;
   id: string;
@@ -63,7 +65,8 @@ function Highlight({ text, query }: { text: string; query: string }) {
 interface Props { onClose: () => void }
 
 export function CommandPalette({ onClose }: Props) {
-  const { workspacePath, openFile, openFileAt, runInTerminal } = useAppStore();
+  const store = useAppStore();
+  const { workspacePath, openFile, openFileAt, runInTerminal } = store;
   const { info } = useToast();
   const [query, setQuery]         = useState('');
   const [files, setFiles]         = useState<DirEntry[]>([]);
@@ -71,7 +74,32 @@ export function CommandPalette({ onClose }: Props) {
   const [commits, setCommits]     = useState<GitCommit[]>([]);
   const [tasks, setTasks]         = useState<ApexTask[]>([]);
   const [symbols, setSymbols]     = useState<WorkspaceSymbol[]>([]);
-  const [enabled, setEnabled]     = useState<Record<Source, boolean>>({ Files: true, Knowledge: true, Git: true, Tasks: true, Symbols: true });
+  const [enabled, setEnabled]     = useState<Record<Source, boolean>>({ Commands: true, Files: true, Knowledge: true, Git: true, Tasks: true, Symbols: true });
+
+  // Executable commands (VS Code's ">" command palette).
+  const commands = useMemo<AppCommand[]>(() => {
+    const run = (fn: () => void) => () => { fn(); onClose(); };
+    return [
+      { id: 'c:terminal', title: 'View: Toggle Terminal', run: run(() => store.toggleTerminal()) },
+      { id: 'c:problems', title: 'View: Toggle Problems Panel', run: run(() => store.toggleProblems()) },
+      { id: 'c:explorer', title: 'View: Show Explorer', run: run(() => { store.setLeftPanelView('explorer'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
+      { id: 'c:search', title: 'View: Show Search', run: run(() => { store.setLeftPanelView('search'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
+      { id: 'c:git', title: 'View: Show Source Control', run: run(() => { store.setLeftPanelView('git'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
+      { id: 'c:sidebar', title: 'View: Toggle Side Bar', run: run(() => store.toggleLeftPanel()) },
+      { id: 'c:split', title: 'View: Split Editor', run: run(() => store.activeFile && store.setRightPaneFile(store.activeFile)) },
+      { id: 'c:settings', title: 'Preferences: Open Settings', run: run(() => store.setSettingsOpen(true)) },
+      { id: 'c:shortcuts', title: 'Help: Keyboard Shortcuts', run: run(() => store.setShortcutsOpen(true)) },
+      { id: 'c:wrap', title: 'Editor: Toggle Word Wrap', run: run(() => store.setEditorWordWrap(!store.editorWordWrap)) },
+      { id: 'c:minimap', title: 'Editor: Toggle Minimap', run: run(() => store.setEditorMinimap(!store.editorMinimap)) },
+      { id: 'c:autosave', title: 'Editor: Toggle Auto Save', run: run(() => store.setAutoSave(!store.autoSave)) },
+      { id: 'c:formatsave', title: 'Editor: Toggle Format On Save', run: run(() => store.setFormatOnSave(!store.formatOnSave)) },
+      { id: 'c:vim', title: 'Editor: Toggle Vim Mode', run: run(() => store.setVimMode(!store.vimMode)) },
+      { id: 'c:autocomplete', title: 'Editor: Toggle Inline AI Autocomplete', run: run(() => store.setAutocompleteEnabled(!store.autocompleteEnabled)) },
+      { id: 'c:cookbook', title: 'Models: Open Cookbook', run: run(() => store.setCookbookOpen(true)) },
+      { id: 'c:compare', title: 'Models: Blind Compare', run: run(() => store.setCompareOpen(true)) },
+    ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store]);
   const [selectedIdx, setSelected] = useState(0);
   const inputRef  = useRef<HTMLInputElement>(null);
   const listRef   = useRef<HTMLDivElement>(null);
@@ -96,8 +124,17 @@ export function CommandPalette({ onClose }: Props) {
 
   // Unified, grouped results
   const results = useMemo<UResult[]>(() => {
-    const q = query.toLowerCase().trim();
+    const raw = query.trim();
+    const commandMode = raw.startsWith('>');
+    const q = (commandMode ? raw.slice(1) : raw).toLowerCase().trim();
     const out: UResult[] = [];
+
+    // Commands: shown first. In ">" mode, ONLY commands (filtered by the rest).
+    if (enabled.Commands && (commandMode || q)) {
+      const c = commands.filter((c) => c.title.toLowerCase().includes(q)).slice(0, commandMode ? 50 : 8);
+      for (const e of c) out.push({ source: 'Commands', id: e.id, title: e.title, detail: 'command', action: e.run });
+    }
+    if (commandMode) return out;
 
     if (enabled.Files) {
       const f = (q ? files.filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)) : files)
@@ -121,7 +158,7 @@ export function CommandPalette({ onClose }: Props) {
       for (const e of s) out.push({ source: 'Symbols', id: `s:${e.file}:${e.line}:${e.name}`, title: e.name, detail: `${e.kind} · ${relPath(e.file)}:${e.line}`, action: () => { openFileAt(e.file, e.line, 1); onClose(); } });
     }
     return out;
-  }, [query, files, notes, commits, tasks, symbols, enabled, workspacePath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [query, files, notes, commits, tasks, symbols, commands, enabled, workspacePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset selection when results change
   useEffect(() => { setSelected(0); }, [results]);
@@ -203,7 +240,7 @@ export function CommandPalette({ onClose }: Props) {
 
         {/* Source toggles */}
         <div style={{ display: 'flex', gap: 6, padding: '6px 14px', borderBottom: '1px solid #1A1A28' }}>
-          {(['Files', 'Knowledge', 'Git', 'Tasks', 'Symbols'] as Source[]).map(s => (
+          {(['Commands', 'Files', 'Knowledge', 'Git', 'Tasks', 'Symbols'] as Source[]).map(s => (
             <button key={s} onClick={() => setEnabled(e => ({ ...e, [s]: !e[s] }))}
               style={{ height: 20, padding: '0 9px', borderRadius: 10, fontSize: 10, cursor: 'pointer',
                 background: enabled[s] ? '#1A1A3A' : 'transparent', border: `1px solid ${enabled[s] ? '#6366F140' : '#252535'}`,
