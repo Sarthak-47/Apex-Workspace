@@ -6,6 +6,7 @@ import { useAppStore } from '@/store';
 import { readFile, writeFile } from '@/lib/tauri';
 import { saveSnapshot } from '@/lib/history';
 import { registerSnippets } from '@/lib/snippets';
+import { registerLspProviders, onDiagnostics, syncDocument, closeDocument, lspSeverityToMonaco } from '@/lib/lsp';
 import { emmetHTML, emmetCSS, emmetJSX } from 'emmet-monaco-es';
 
 let emmetRegistered = false;
@@ -731,6 +732,8 @@ export function MonacoEditor({ path }: Props) {
   const editorRef       = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
   const dirtyRef        = useRef(false);
   const autoSaveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lspSyncTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modelUriRef     = useRef<string | null>(null);
   const monacoInstance  = useMonaco();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const vimModeRef      = useRef<any>(null);
@@ -820,6 +823,22 @@ export function MonacoEditor({ path }: Props) {
     registerInlineCompletions(monaco as unknown as typeof MonacoType);
     registerEmmet(monaco);
     registerSnippets(monaco as unknown as typeof MonacoType);
+    // LSP: providers (hover / go-to-def / references) + diagnostics → markers.
+    const m = monaco as unknown as typeof MonacoType;
+    registerLspProviders(m);
+    onDiagnostics((uri, diags) => {
+      const model = m.editor.getModels().find((mm) => mm.uri.toString() === uri);
+      if (!model) return;
+      m.editor.setModelMarkers(model, 'lsp', diags.map((d) => ({
+        severity: lspSeverityToMonaco(m, d.severity),
+        message: d.message,
+        source: d.source,
+        startLineNumber: d.range.start.line + 1,
+        startColumn: d.range.start.character + 1,
+        endLineNumber: d.range.end.line + 1,
+        endColumn: d.range.end.character + 1,
+      })));
+    });
   }, []);
 
   const handleMount: OnMount = useCallback((editor, monaco) => {
@@ -885,6 +904,13 @@ export function MonacoEditor({ path }: Props) {
     const model = editor.getModel();
     if (model) setEditorFileSize(new TextEncoder().encode(model.getValue()).length);
 
+    // LSP: open the document with its language server (no-op in browser / no server).
+    if (model) {
+      modelUriRef.current = model.uri.toString();
+      const ws = useAppStore.getState().workspacePath ?? '';
+      syncDocument(model.uri.toString(), getLang(path), ws, model.getValue());
+    }
+
     editor.focus();
   }, [path, markFileSaved, setEditorCursor, setEditorFileSize]);
 
@@ -893,6 +919,14 @@ export function MonacoEditor({ path }: Props) {
     if (value !== undefined && !dirtyRef.current) {
       dirtyRef.current = true;
       markFileUnsaved(path);
+    }
+    // LSP: push incremental document changes (debounced) so diagnostics update.
+    if (value !== undefined && modelUriRef.current) {
+      if (lspSyncTimer.current) clearTimeout(lspSyncTimer.current);
+      const uri = modelUriRef.current;
+      lspSyncTimer.current = setTimeout(() => {
+        syncDocument(uri, getLang(path), useAppStore.getState().workspacePath ?? '', value);
+      }, 400);
     }
     // Auto-save debounce
     if (autoSave && value !== undefined) {
@@ -910,6 +944,12 @@ export function MonacoEditor({ path }: Props) {
 
   // Cleanup auto-save timer on unmount
   useEffect(() => () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); }, []);
+
+  // LSP: notify the server the document closed when switching files / unmounting.
+  useEffect(() => () => {
+    if (lspSyncTimer.current) clearTimeout(lspSyncTimer.current);
+    if (modelUriRef.current) closeDocument(modelUriRef.current, getLang(path));
+  }, [path]);
 
   const lang = getLang(path);
   const isMarkdown = lang === 'markdown';

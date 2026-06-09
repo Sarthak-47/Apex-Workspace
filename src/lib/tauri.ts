@@ -88,6 +88,34 @@ export async function createDir(path: string): Promise<void> {
   if (webfs.owns(path)) return webfs.createDir(path);
 }
 
+// ─── Language Server Protocol transport ───────────────────────────────────────
+
+export async function lspStart(id: string, command: string, args: string[], cwd: string): Promise<void> {
+  if (!isTauri()) throw new Error('LSP requires the desktop app');
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('lsp_start', { id, command, args, cwd });
+}
+
+export async function lspSend(id: string, message: string): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('lsp_send', { id, message });
+}
+
+export async function lspStop(id: string): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('lsp_stop', { id });
+}
+
+/** Subscribe to framed messages from a language server. Returns an unlisten fn. */
+export async function onLspMessage(id: string, cb: (raw: string) => void): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  const { listen } = await import('@tauri-apps/api/event');
+  const un = await listen<string>(`lsp-message-${id}`, (e) => cb(e.payload));
+  return un;
+}
+
 export async function revealInExplorer(path: string, _isDir: boolean): Promise<void> {
   if (isTauri()) {
     try {

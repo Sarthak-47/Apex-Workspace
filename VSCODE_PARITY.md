@@ -32,10 +32,10 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 
 ## Tier 2 — Language intelligence (the big subsystem) 🔶
 - ◐ In-browser TS/JS/JSON/CSS intelligence via Monaco (free, already present)
-- ⬜ **LSP client** — spawn language servers (rust-analyzer, pyright, gopls, clangd…)
-- ⬜ Go-to-definition · Find references · Hover · Signature help
+- ◐ **LSP client** — Rust transport (`lsp.rs`: spawn + Content-Length framing + event forwarding) and frontend client (`lsp.ts`: handshake, request/notify correlation, document sync) **built & compiling**; server registry for typescript-language-server / pyright / rust-analyzer / gopls. *Runtime validation needs the desktop app + the servers on PATH (maintainer's machine).*
+- ◐ **Go-to-definition · Find references · Hover** — Monaco providers wired to the LSP client (pending runtime validation); **Signature help** todo
 - ⬜ Rename symbol · Code actions / quick fixes
-- ⬜ Live diagnostics (squiggles) feeding the Problems panel
+- ◐ **Live diagnostics** — publishDiagnostics → Monaco markers → Problems panel (wired; pending runtime validation)
 
 ## Tier 3 — Debugging 🔶
 - ⬜ **Debug Adapter Protocol (DAP)** client

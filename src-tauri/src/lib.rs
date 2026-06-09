@@ -5,6 +5,7 @@ mod watcher;
 mod gmail;
 mod fireflies;
 mod mcp;
+mod lsp;
 mod hardware;
 mod docs;
 
@@ -300,6 +301,7 @@ pub fn run() {
         .manage(terminal::PtyRegistry::new())
         .manage(watcher::WatcherState::new())
         .manage(mcp::McpRegistry::new())
+        .manage(lsp::LspRegistry::new())
         .invoke_handler(tauri::generate_handler![
             // File system
             read_file,
@@ -357,6 +359,11 @@ pub fn run() {
             mcp::mcp_call_tool,
             mcp::mcp_stop,
             mcp::mcp_running,
+            // LSP (language servers)
+            lsp::lsp_start,
+            lsp::lsp_send,
+            lsp::lsp_stop,
+            lsp::lsp_running,
             // Hardware (Model Cookbook)
             hardware::hardware_info,
             // Document ingestion
