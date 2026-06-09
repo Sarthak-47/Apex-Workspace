@@ -304,6 +304,12 @@ export default function App() {
         else { setLeftPanelView('search'); if (!leftPanelOpen) toggleLeftPanel(); }
         return;
       }
+      // Esc → exit Zen mode (when active and no overlay is open)
+      if (e.key === 'Escape' && useAppStore.getState().zenMode
+          && !useAppStore.getState().commandPaletteOpen && !useAppStore.getState().settingsOpen) {
+        useAppStore.getState().toggleZen();
+        return;
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -322,11 +328,13 @@ export default function App() {
     document.documentElement.style.setProperty('--terminal-height', `${terminalHeight}px`);
   }, [terminalHeight]);
 
+  const zenMode = useAppStore((s) => s.zenMode);
   const cls = [
     'app-grid',
     !leftPanelOpen && 'lp-hidden',
     !intelPanelOpen && 'ip-hidden',
     !terminalOpen && 'trm-hidden',
+    zenMode && 'zen',
   ].filter(Boolean).join(' ');
 
   return (

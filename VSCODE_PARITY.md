@@ -61,7 +61,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ⬜ **Multi-root workspaces** (`.code-workspace`)
 - ⬜ **Remote** — SSH / WSL / containers 🔴
 - ⬜ **Notebooks** (Jupyter)
-- ⬜ Zen mode · layout drag-drop · settings sync
+- ✅ **Zen mode** (distraction-free: titlebar + editor only, Esc to exit, command-palette toggle) · ✅ **Reopen Closed Editor** (Ctrl+Shift+T) · layout drag-drop · settings sync todo
 
 ---
 

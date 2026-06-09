@@ -98,6 +98,18 @@ html, body, #root {
 .app-grid.ip-hidden  { grid-template-columns: 48px var(--left-panel-width) 1fr 0; }
 .app-grid.trm-hidden { grid-template-rows: 38px 36px 1fr 0 26px; }
 
+/* Zen mode — distraction-free: only titlebar + editor */
+.app-grid.zen {
+  grid-template-columns: 0 0 1fr 0;
+  grid-template-rows: 38px 0 1fr 0 0;
+}
+.app-grid.zen .app-left-nav,
+.app-grid.zen .app-modebar,
+.app-grid.zen .app-left-panel,
+.app-grid.zen .app-intel,
+.app-grid.zen .app-terminal,
+.app-grid.zen .app-statusbar { display: none; }
+
 /* ── Drag / no-drag regions ───────────────────────────────────────────────── */
 .drag    { -webkit-app-region: drag;    app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; app-region: no-drag; }

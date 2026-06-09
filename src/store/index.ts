@@ -55,6 +55,8 @@ interface AppState {
   togglePin: (path: string) => void;
   closedFiles: string[];
   reopenClosedFile: () => void;
+  zenMode: boolean;
+  toggleZen: () => void;
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
@@ -328,6 +330,8 @@ export const useAppStore = create<AppState>()(
         set({ closedFiles: rest });
         openFile(last);
       },
+      zenMode: false,
+      toggleZen: () => set((s) => ({ zenMode: !s.zenMode })),
 
       // Unsaved tracking
       unsavedFiles: [],

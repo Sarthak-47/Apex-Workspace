@@ -86,6 +86,7 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:search', title: 'View: Show Search', run: run(() => { store.setLeftPanelView('search'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
       { id: 'c:git', title: 'View: Show Source Control', run: run(() => { store.setLeftPanelView('git'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
       { id: 'c:sidebar', title: 'View: Toggle Side Bar', run: run(() => store.toggleLeftPanel()) },
+      { id: 'c:zen', title: 'View: Toggle Zen Mode', run: run(() => store.toggleZen()) },
       { id: 'c:split', title: 'View: Split Editor', run: run(() => store.activeFile && store.setRightPaneFile(store.activeFile)) },
       { id: 'c:reopen', title: 'File: Reopen Closed Editor', run: run(() => store.reopenClosedFile()) },
       { id: 'c:settings', title: 'Preferences: Open Settings', run: run(() => store.setSettingsOpen(true)) },
