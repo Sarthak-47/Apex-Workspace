@@ -141,6 +141,153 @@ async fn grep_files(workspace: String, pattern: String, dir: Option<String>) -> 
     Ok(results)
 }
 
+// ─── Structured workspace search (VS Code-style) ─────────────────────────────
+
+#[derive(Serialize)]
+pub struct SearchMatch {
+    pub line: usize,
+    pub text: String,
+    pub start: usize,
+    pub end: usize,
+}
+
+#[derive(Serialize)]
+pub struct SearchFileResult {
+    pub path: String,
+    pub matches: Vec<SearchMatch>,
+}
+
+const MAX_TOTAL_MATCHES: usize = 5000;
+const MAX_MATCHES_PER_FILE: usize = 500;
+
+fn glob_to_regex(glob: &str) -> Option<regex::Regex> {
+    let mut r = String::from("(?i)");
+    for ch in glob.chars() {
+        match ch {
+            '*' => r.push_str(".*"),
+            '?' => r.push('.'),
+            '/' | '\\' => r.push_str("[\\\\/]"),
+            c => r.push_str(&regex::escape(&c.to_string())),
+        }
+    }
+    regex::Regex::new(&r).ok()
+}
+
+#[allow(clippy::too_many_arguments)]
+#[command]
+async fn search_files(
+    workspace: String,
+    query: String,
+    case_sensitive: bool,
+    whole_word: bool,
+    is_regex: bool,
+    includes: Option<String>,
+    excludes: Option<String>,
+) -> Result<Vec<SearchFileResult>, String> {
+    if query.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut pat = if is_regex { query.clone() } else { regex::escape(&query) };
+    if whole_word {
+        pat = format!(r"\b{pat}\b");
+    }
+    let re = regex::RegexBuilder::new(&pat)
+        .case_insensitive(!case_sensitive)
+        .build()
+        .map_err(|e| format!("Invalid pattern: {e}"))?;
+
+    let split = |s: Option<String>| -> Vec<regex::Regex> {
+        s.unwrap_or_default()
+            .split(',')
+            .map(|x| x.trim())
+            .filter(|x| !x.is_empty())
+            .filter_map(glob_to_regex)
+            .collect()
+    };
+    let inc = split(includes);
+    let exc = split(excludes);
+
+    let mut out: Vec<SearchFileResult> = Vec::new();
+    let mut total = 0usize;
+    search_walk(Path::new(&workspace), &re, &workspace, &inc, &exc, &mut out, &mut total);
+    Ok(out)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn search_walk(
+    dir: &Path,
+    re: &regex::Regex,
+    workspace: &str,
+    inc: &[regex::Regex],
+    exc: &[regex::Regex],
+    out: &mut Vec<SearchFileResult>,
+    total: &mut usize,
+) {
+    if *total >= MAX_TOTAL_MATCHES {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        if *total >= MAX_TOTAL_MATCHES {
+            return;
+        }
+        let path = entry.path();
+        let name = entry.file_name();
+        let name_s = name.to_string_lossy();
+        if name_s.starts_with('.') && name_s != ".env" {
+            continue;
+        }
+        if SKIP_DIRS.contains(&name_s.as_ref()) {
+            continue;
+        }
+        if path.is_dir() {
+            search_walk(&path, re, workspace, inc, exc, out, total);
+        } else {
+            let ext = path
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase())
+                .unwrap_or_default();
+            if !TEXT_EXTS.contains(&ext.as_str()) {
+                continue;
+            }
+            let rel = path
+                .strip_prefix(workspace)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            if !inc.is_empty() && !inc.iter().any(|g| g.is_match(&rel)) {
+                continue;
+            }
+            if exc.iter().any(|g| g.is_match(&rel)) {
+                continue;
+            }
+            let Ok(content) = fs::read_to_string(&path) else { continue };
+            let mut matches: Vec<SearchMatch> = Vec::new();
+            for (i, line) in content.lines().enumerate() {
+                if matches.len() >= MAX_MATCHES_PER_FILE {
+                    break;
+                }
+                for m in re.find_iter(line) {
+                    let start = line[..m.start()].chars().count();
+                    let end = line[..m.end()].chars().count();
+                    let text: String = line.chars().take(400).collect();
+                    matches.push(SearchMatch { line: i + 1, text, start, end });
+                    *total += 1;
+                    if matches.len() >= MAX_MATCHES_PER_FILE || *total >= MAX_TOTAL_MATCHES {
+                        break;
+                    }
+                }
+            }
+            if !matches.is_empty() {
+                out.push(SearchFileResult {
+                    path: path.to_string_lossy().replace('\\', "/"),
+                    matches,
+                });
+            }
+        }
+    }
+}
+
 // ─── App Entry ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -162,6 +309,7 @@ pub fn run() {
             delete_path,
             rename_path,
             grep_files,
+            search_files,
             // Terminal (PTY)
             terminal::create_pty,
             terminal::write_pty,

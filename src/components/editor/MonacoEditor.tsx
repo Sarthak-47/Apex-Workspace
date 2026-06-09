@@ -696,6 +696,7 @@ export function MonacoEditor({ path }: Props) {
     setEditorCursor, setEditorFileSize,
     autocompleteEnabled, setAutocompleteEnabled, ollamaOnline,
     openFile,
+    revealTarget, clearRevealTarget,
   } = useAppStore();
 
   const editorRef       = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
@@ -765,6 +766,24 @@ export function MonacoEditor({ path }: Props) {
 
   // Reset markdown view mode when switching files
   useEffect(() => { setMdView('edit'); }, [path]);
+
+  // ── Reveal a target line (from search results, go-to-symbol) ───────────────
+  useEffect(() => {
+    if (!revealTarget || revealTarget.path !== path) return;
+    const editor = editorRef.current;
+    if (!editor || content === null) return; // wait until content is loaded
+    const { line, column } = revealTarget;
+    // Defer to next frame so the model is in place.
+    const id = requestAnimationFrame(() => {
+      try {
+        editor.revealLineInCenter(line);
+        editor.setPosition({ lineNumber: line, column: column || 1 });
+        editor.focus();
+      } catch { /* ignore */ }
+      clearRevealTarget();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [revealTarget, path, content, clearRevealTarget]);
 
   // ── Monaco lifecycle ──────────────────────────────────────────────────────
   const handleBeforeMount: BeforeMount = useCallback((monaco) => {

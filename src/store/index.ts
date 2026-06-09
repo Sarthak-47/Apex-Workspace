@@ -47,6 +47,9 @@ interface AppState {
   openFiles: string[];
   openFile: (path: string) => void;
   closeFile: (path: string) => void;
+  revealTarget: { path: string; line: number; column: number } | null;
+  openFileAt: (path: string, line: number, column?: number) => void;
+  clearRevealTarget: () => void;
 
   // Unsaved file tracking (not persisted)
   unsavedFiles: string[];
@@ -225,6 +228,16 @@ export const useAppStore = create<AppState>()(
         }
         set({ activeFile: path });
       },
+      // Open a file and reveal a specific line (used by search results, go-to-symbol).
+      revealTarget: null,
+      openFileAt: (path, line, column) => {
+        const { openFiles } = get();
+        if (!openFiles.includes(path)) {
+          set({ openFiles: [...openFiles, path] });
+        }
+        set({ activeFile: path, revealTarget: { path, line, column: column ?? 1 } });
+      },
+      clearRevealTarget: () => set({ revealTarget: null }),
       closeFile: (path) => {
         const { openFiles, activeFile, unsavedFiles } = get();
         const next = openFiles.filter((f) => f !== path);

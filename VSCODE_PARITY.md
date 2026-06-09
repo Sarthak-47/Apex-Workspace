@@ -20,7 +20,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ➕ **Beyond VS Code:** AI agent, knowledge vault, codebase index, MCP servers
 
 ## Tier 1 — Core IDE parity (achievable, high value)
-- ⬜ **Global search & replace across files** — results tree, regex, include/exclude globs, replace-in-files (ripgrep in Rust). *Current search view is a placeholder.*
+- ✅ **Global search & replace across files** — results tree (collapsible per file), match highlighting, click-to-open at line, case/whole-word/regex toggles, include/exclude globs, replace-all. Rust `search_files` backend; web build searches via the File System Access API.
 - ⬜ **Split editors / editor groups** — side-by-side, drag tabs between groups, pinned & preview tabs
 - ⬜ **Diff editor** — compare files, compare vs git HEAD, merge-conflict resolution
 - ⬜ **Problems panel** — aggregated diagnostics with jump-to

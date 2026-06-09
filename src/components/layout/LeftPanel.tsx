@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useAppStore } from "@/store";
+import { searchWorkspace, replaceAll, totalMatches, type SearchFileResult } from "@/lib/search";
 import {
   listDir, openFolderDialog, openFileDialog, deletePath, renamePath,
   createFile, createDir, revealInExplorer, activateWorkspace,
@@ -797,34 +798,188 @@ function ConnectedNodes({ workspacePath, onOpen }: { workspacePath: string; onOp
   );
 }
 
-// ─── Search view (simple inline file search) ──────────────────────────────────
+// ─── Search & Replace view (VS Code-style) ────────────────────────────────────
+
+function ToggleBtn({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} title={title}
+      style={{
+        width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 4, cursor: 'pointer', fontSize: 10, fontFamily: 'JetBrains Mono, monospace',
+        background: active ? '#6366F133' : 'transparent',
+        border: active ? '1px solid #6366F1' : '1px solid transparent',
+        color: active ? '#A5B4FC' : '#6A6A85',
+      }}
+      className={active ? '' : 'hover:!bg-[#1E1E2E]'}>
+      {children}
+    </button>
+  );
+}
+
+function MatchLine({ text, start, end, onClick }: { text: string; start: number; end: number; onClick: () => void }) {
+  // Trim leading whitespace for display, shifting the highlight range to match.
+  const trimmed = text.replace(/^\s+/, '');
+  const shift = text.length - trimmed.length;
+  const s = Math.max(0, start - shift);
+  const e = Math.max(s, end - shift);
+  return (
+    <div onClick={onClick}
+      style={{ display: 'flex', alignItems: 'center', padding: '2px 8px 2px 26px', cursor: 'pointer', fontSize: 11, whiteSpace: 'pre', overflow: 'hidden', textOverflow: 'ellipsis', color: '#9A9AB5' }}
+      className="hover:bg-[#18181F]">
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {trimmed.slice(0, s)}
+        <span style={{ background: '#6366F155', color: '#E2E2EC', borderRadius: 2 }}>{trimmed.slice(s, e)}</span>
+        {trimmed.slice(e, e + 200)}
+      </span>
+    </div>
+  );
+}
 
 function SearchView() {
-  const { workspacePath } = useAppStore();
+  const { workspacePath, openFileAt, addToast } = useAppStore();
   const [query, setQuery] = useState('');
+  const [replace, setReplace] = useState('');
+  const [showReplace, setShowReplace] = useState(false);
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [wholeWord, setWholeWord] = useState(false);
+  const [isRegex, setIsRegex] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [includes, setIncludes] = useState('');
+  const [excludes, setExcludes] = useState('');
+  const [results, setResults] = useState<SearchFileResult[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
+  const opts = useMemo(
+    () => ({ query, caseSensitive, wholeWord, isRegex, includes, excludes }),
+    [query, caseSensitive, wholeWord, isRegex, includes, excludes],
+  );
+
+  useEffect(() => {
+    if (!workspacePath || !query) { setResults([]); setError(null); setBusy(false); return; }
+    let cancel = false;
+    setBusy(true);
+    const t = setTimeout(async () => {
+      try {
+        const r = await searchWorkspace(workspacePath, opts);
+        if (!cancel) { setResults(r); setError(null); }
+      } catch (e) {
+        if (!cancel) { setResults([]); setError(e instanceof Error ? e.message : String(e)); }
+      } finally { if (!cancel) setBusy(false); }
+    }, 250);
+    return () => { cancel = true; clearTimeout(t); };
+  }, [opts, workspacePath, query]);
+
+  const fileCount = results.length;
+  const matchCount = totalMatches(results);
+  const relPath = (p: string) => (workspacePath ? p.replace(workspacePath, '').replace(/^[\\/]/, '') : p);
+
+  const toggleFile = (p: string) =>
+    setCollapsed((s) => { const n = new Set(s); n.has(p) ? n.delete(p) : n.add(p); return n; });
+
+  const doReplaceAll = async () => {
+    if (!results.length || !workspacePath) return;
+    const n = await replaceAll(results, opts, replace);
+    addToast(`Replaced ${n} occurrence${n === 1 ? '' : 's'} across ${results.length} file${results.length === 1 ? '' : 's'}`, 'success');
+    try { setResults(await searchWorkspace(workspacePath, opts)); } catch { /* noop */ }
+  };
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-      <div style={{ padding: '8px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '0 8px', height: 28 }}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#4A4A65" strokeWidth="1.5" style={{ flexShrink: 0 }}>
-            <circle cx="5.5" cy="5.5" r="4"/><line x1="9" y1="9" x2="11" y2="11"/>
+      <div style={{ padding: '8px 8px 6px', flexShrink: 0, display: 'flex', gap: 4 }}>
+        {/* Expand/collapse replace row */}
+        <button onClick={() => setShowReplace((v) => !v)} title="Toggle Replace"
+          style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: '#6A6A85' }}>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.4"
+            style={{ transform: showReplace ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+            <polyline points="3.5,2 6.5,5 3.5,8"/>
           </svg>
-          <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)}
-            placeholder="Search files…"
-            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 12, color: '#E2E2EC', fontFamily: 'inherit' }} />
+        </button>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {/* Search input + toggles */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#0A0A0F', border: `1px solid ${error ? '#C4422D' : '#252535'}`, borderRadius: 5, padding: '0 6px', height: 28 }}>
+            <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search"
+              style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', fontSize: 12, color: '#E2E2EC', fontFamily: 'inherit' }} />
+            <ToggleBtn active={caseSensitive} onClick={() => setCaseSensitive((v) => !v)} title="Match Case">Aa</ToggleBtn>
+            <ToggleBtn active={wholeWord} onClick={() => setWholeWord((v) => !v)} title="Match Whole Word">\b</ToggleBtn>
+            <ToggleBtn active={isRegex} onClick={() => setIsRegex((v) => !v)} title="Use Regular Expression">.*</ToggleBtn>
+          </div>
+
+          {/* Replace input */}
+          {showReplace && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '0 6px', height: 28 }}>
+                <input value={replace} onChange={(e) => setReplace(e.target.value)}
+                  placeholder="Replace"
+                  style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none', fontSize: 12, color: '#E2E2EC', fontFamily: 'inherit' }} />
+              </div>
+              <button onClick={doReplaceAll} disabled={!results.length} title="Replace All"
+                style={{ width: 26, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5, cursor: results.length ? 'pointer' : 'default', background: results.length ? '#1A1A3A' : 'transparent', border: '1px solid #252535', color: results.length ? '#A5B4FC' : '#4A4A65' }}>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><path d="M2 7a5 5 0 0 1 8.5-3.5L12 5"/><polyline points="12,2 12,5 9,5"/><line x1="5" y1="10" x2="11" y2="10"/></svg>
+              </button>
+            </div>
+          )}
         </div>
       </div>
-      <div style={{ padding: '0 8px 4px', fontSize: 10, color: '#4A4A65' }}>
-        {workspacePath ? 'Use Ctrl+P for quick file open' : 'Open a folder to search'}
+
+      {/* Filters toggle */}
+      <div style={{ padding: '0 8px 4px 24px', flexShrink: 0 }}>
+        <button onClick={() => setShowFilters((v) => !v)}
+          style={{ fontSize: 10, color: '#6A6A85', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          className="hover:!text-[#A5B4FC]">
+          {showFilters ? '▾' : '▸'} files to include / exclude
+        </button>
+        {showFilters && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+            <input value={includes} onChange={(e) => setIncludes(e.target.value)} placeholder="include e.g. *.ts, src/**"
+              style={{ background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '4px 8px', fontSize: 11, color: '#E2E2EC', outline: 'none' }} />
+            <input value={excludes} onChange={(e) => setExcludes(e.target.value)} placeholder="exclude e.g. *.test.ts"
+              style={{ background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '4px 8px', fontSize: 11, color: '#E2E2EC', outline: 'none' }} />
+          </div>
+        )}
       </div>
-      {/* Tip: press Ctrl+P for the full command palette */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, padding: 16 }}>
-        <kbd style={{ fontSize: 11, color: '#6366F1', background: '#1A1A3A', padding: '4px 10px', borderRadius: 5, border: '1px solid #6366F130', fontFamily: 'JetBrains Mono, monospace' }}>Ctrl+P</kbd>
-        <span style={{ fontSize: 11, color: '#4A4A65', textAlign: 'center' }}>Quick open any file</span>
+
+      {/* Summary */}
+      <div style={{ padding: '2px 10px 6px', fontSize: 10, color: '#6A6A85', flexShrink: 0 }}>
+        {!workspacePath ? 'Open a folder to search'
+          : error ? <span style={{ color: '#E2776A' }}>{error}</span>
+          : busy ? 'Searching…'
+          : query ? `${matchCount} result${matchCount === 1 ? '' : 's'} in ${fileCount} file${fileCount === 1 ? '' : 's'}`
+          : 'Type to search across files'}
+      </div>
+
+      {/* Results */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+        {results.map((file) => {
+          const isCollapsed = collapsed.has(file.path);
+          return (
+            <div key={file.path}>
+              <div onClick={() => toggleFile(file.path)}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', cursor: 'pointer', position: 'sticky', top: 0, background: '#0D0D14' }}
+                className="hover:bg-[#16161F]">
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#6A6A85" strokeWidth="1.4"
+                  style={{ flexShrink: 0, transform: isCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.1s' }}>
+                  <polyline points="3.5,2 6.5,5 3.5,8"/>
+                </svg>
+                <FileIcon ext={(file.path.split('/').pop() ?? '').split('.').pop() ?? null} />
+                <span style={{ fontSize: 11, color: '#C7C7D9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {file.path.split('/').pop()}
+                </span>
+                <span style={{ fontSize: 10, color: '#6A6A85', flexShrink: 0 }} title={relPath(file.path)}>{file.matches.length}</span>
+              </div>
+              {!isCollapsed && file.matches.map((m, i) => (
+                <MatchLine key={i} text={m.text} start={m.start} end={m.end}
+                  onClick={() => openFileAt(file.path, m.line, m.start + 1)} />
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
