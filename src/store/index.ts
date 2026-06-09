@@ -51,6 +51,8 @@ interface AppState {
   closeOtherFiles: (keep: string) => void;
   closeFilesToRight: (path: string) => void;
   closeAllFiles: () => void;
+  pinnedFiles: string[];
+  togglePin: (path: string) => void;
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
@@ -278,26 +280,33 @@ export const useAppStore = create<AppState>()(
         files.splice(to, 0, moved);
         set({ openFiles: files });
       },
-      // Bulk close actions keep any unsaved files open (avoid silent data loss).
+      // Bulk close actions keep any unsaved OR pinned files open.
       closeOtherFiles: (keep) => {
-        const { openFiles, unsavedFiles } = get();
-        const next = openFiles.filter((f) => f === keep || unsavedFiles.includes(f));
+        const { openFiles, unsavedFiles, pinnedFiles } = get();
+        const keepers = (f: string) => f === keep || unsavedFiles.includes(f) || pinnedFiles.includes(f);
+        const next = openFiles.filter(keepers);
         set({ openFiles: next, activeFile: keep });
       },
       closeFilesToRight: (path) => {
-        const { openFiles, unsavedFiles, activeFile } = get();
+        const { openFiles, unsavedFiles, pinnedFiles, activeFile } = get();
         const idx = openFiles.indexOf(path);
         if (idx === -1) return;
-        const next = openFiles.filter((f, i) => i <= idx || unsavedFiles.includes(f));
+        const next = openFiles.filter((f, i) => i <= idx || unsavedFiles.includes(f) || pinnedFiles.includes(f));
         set({ openFiles: next, activeFile: next.includes(activeFile ?? '') ? activeFile : path });
       },
       closeAllFiles: () => {
-        const { openFiles, unsavedFiles, activeFile } = get();
-        const next = openFiles.filter((f) => unsavedFiles.includes(f));
+        const { openFiles, unsavedFiles, pinnedFiles, activeFile } = get();
+        const next = openFiles.filter((f) => unsavedFiles.includes(f) || pinnedFiles.includes(f));
         set({ openFiles: next, activeFile: next.includes(activeFile ?? '') ? activeFile : (next[0] ?? null) });
       },
+      pinnedFiles: [],
+      togglePin: (path) => set((s) => ({
+        pinnedFiles: s.pinnedFiles.includes(path)
+          ? s.pinnedFiles.filter((p) => p !== path)
+          : [...s.pinnedFiles, path],
+      })),
       closeFile: (path) => {
-        const { openFiles, activeFile, unsavedFiles } = get();
+        const { openFiles, activeFile, unsavedFiles, pinnedFiles } = get();
         const next = openFiles.filter((f) => f !== path);
         const newActive =
           activeFile === path ? (next[next.length - 1] ?? null) : activeFile;
@@ -305,6 +314,7 @@ export const useAppStore = create<AppState>()(
           openFiles: next,
           activeFile: newActive,
           unsavedFiles: unsavedFiles.filter((f) => f !== path),
+          pinnedFiles: pinnedFiles.filter((f) => f !== path),
         });
       },
 

@@ -14,6 +14,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
   const {
     openFiles, activeFile, unsavedFiles, setActiveFile, rightPaneFile, setRightPaneFile,
     reorderOpenFiles, closeOtherFiles, closeFilesToRight, closeAllFiles,
+    pinnedFiles, togglePin,
   } = useAppStore();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
@@ -40,11 +41,13 @@ function TabBar({ onRequestClose }: TabBarProps) {
       flexShrink: 0,
       overflow: 'hidden',
     }}>
-      {openFiles.map((path, idx) => {
+      {[...openFiles.filter((f) => pinnedFiles.includes(f)), ...openFiles.filter((f) => !pinnedFiles.includes(f))].map((path) => {
+        const idx       = openFiles.indexOf(path);
         const name      = path.split('/').pop() ?? path;
         const ext       = name.split('.').pop()?.toLowerCase() ?? '';
         const active    = path === activeFile;
         const unsaved   = unsavedFiles.includes(path);
+        const pinned    = pinnedFiles.includes(path);
         const iconColor = getIconColor(ext);
 
         return (
@@ -95,6 +98,14 @@ function TabBar({ onRequestClose }: TabBarProps) {
             }}>
               {name}
             </span>
+
+            {/* Pin indicator — click to unpin */}
+            {pinned && (
+              <button onClick={(e) => { e.stopPropagation(); togglePin(path); }} title="Unpin"
+                style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', padding: 0, display: 'flex', marginLeft: 1 }}>
+                <svg width="11" height="11" viewBox="0 0 14 14" fill="currentColor"><path d="M9.5 1.5 12.5 4.5 10 7l.5 2.5L8 8 4 12l-.5-.5L7 7.5 5 6l-.5-.5 2.5-.5 2.5-2.5Z"/></svg>
+              </button>
+            )}
 
             {/* Unsaved amber dot — only when dirty */}
             {unsaved && (
@@ -166,6 +177,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
             ['Close to the Right', () => closeFilesToRight(menu.path)],
             ['Close All', () => closeAllFiles()],
             ['—', null],
+            [pinnedFiles.includes(menu.path) ? 'Unpin' : 'Pin', () => togglePin(menu.path)],
             ['Open to the Side', () => setRightPaneFile(menu.path)],
             ['—', null],
             ['Copy Path', () => navigator.clipboard?.writeText(menu.path).catch(() => {})],
