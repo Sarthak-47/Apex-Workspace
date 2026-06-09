@@ -79,9 +79,13 @@ npm run tauri build    # native installer in src-tauri/target/release/bundle/
 
 Tauri 2 · Rust · React 19 · TypeScript · Vite · Tailwind v4 · Zustand · Monaco · xterm.js + portable-pty · Vercel AI SDK + ollama-ai-provider · d3-force · `notify` (file watching) · `keyring` (OS keychain) · `reqwest` · `chrono`.
 
-## Privacy
+## Privacy & security
 
-Everything is local by default. Models run on your GPU via Ollama. Tokens (Gmail, Fireflies) live in the OS keychain. No telemetry, ever. Cloud BYOK is optional.
+Everything is local by default. Models run on your GPU via Ollama. Tokens (Gmail, Fireflies) live in the OS keychain. No telemetry, ever. Cloud BYOK is optional. Shell commands are fail-closed (always approval-gated). See [`SECURITY.md`](SECURITY.md).
+
+## Roadmap
+
+The path from 0.1 to 1.0 is reliability and trust, not more features — see [`ROADMAP.md`](ROADMAP.md).
 
 ## License
 

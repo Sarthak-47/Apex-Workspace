@@ -248,11 +248,14 @@ function buildTools(
       }),
       execute: async ({ command, timeout }) => {
         const decide = opts.onRequestBash;
-        if (decide) {
-          const decision = await decide(command);
-          if (decision === 'deny') {
-            return `Command denied by user: ${command}`;
-          }
+        // Fail-closed: never execute a shell command without an explicit approval
+        // path. If no approver is wired, deny rather than run unprompted.
+        if (!decide) {
+          return `Command blocked: no approval handler is available, so shell execution is disabled for safety. Command was: ${command}`;
+        }
+        const decision = await decide(command);
+        if (decision === 'deny') {
+          return `Command denied by user: ${command}`;
         }
         const runId = (globalThis.crypto?.randomUUID?.() ?? `bash-${Date.now()}`);
         opts.onBashRun?.(runId);
