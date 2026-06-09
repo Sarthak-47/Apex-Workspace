@@ -988,6 +988,57 @@ function SearchView() {
   );
 }
 
+// ─── Open Editors (currently open tabs) ───────────────────────────────────────
+
+function OpenEditors() {
+  const { openFiles, activeFile, unsavedFiles, setActiveFile, closeFile, closeAllFiles } = useAppStore();
+  const [open, setOpen] = useState(true);
+  if (openFiles.length === 0) return null;
+
+  return (
+    <div style={{ flexShrink: 0, borderBottom: '1px solid #1A1A28', display: 'flex', flexDirection: 'column', maxHeight: 160, overflow: 'hidden' }}>
+      <div onClick={() => setOpen((o) => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', cursor: 'pointer', flexShrink: 0 }}
+        className="hover:bg-[#16161F] group">
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#6A6A85" strokeWidth="1.4"
+          style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.1s' }}>
+          <polyline points="3.5,2 6.5,5 3.5,8" />
+        </svg>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#6A6A85', letterSpacing: '0.1em' }}>OPEN EDITORS</span>
+        <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto' }}>{openFiles.length}</span>
+        <button onClick={(e) => { e.stopPropagation(); closeAllFiles(); }} title="Close all editors"
+          style={{ opacity: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#6A6A85', padding: 0, display: 'flex' }}
+          className="group-hover:!opacity-100">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9" /><line x1="9" y1="2" x2="2" y2="9" /></svg>
+        </button>
+      </div>
+      {open && (
+        <div style={{ overflowY: 'auto', minHeight: 0 }}>
+          {openFiles.map((path) => {
+            const name = path.split(/[\\/]/).pop() ?? path;
+            const active = path === activeFile;
+            const unsaved = unsavedFiles.includes(path);
+            return (
+              <div key={path} onClick={() => setActiveFile(path)} title={path}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 10px 2px 22px', cursor: 'pointer', background: active ? '#1A1A3A' : 'transparent' }}
+                className="hover:bg-[#18181F] group/oe">
+                <FileIcon ext={name.split('.').pop() ?? null} />
+                <span style={{ fontSize: 11, color: active ? '#E2E2EC' : '#9A9AB5', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                {unsaved && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B', flexShrink: 0 }} />}
+                <button onClick={(e) => { e.stopPropagation(); closeFile(path); }} title="Close"
+                  style={{ opacity: unsaved ? 0 : 0, background: 'none', border: 'none', cursor: 'pointer', color: '#6A6A85', padding: 0, display: 'flex', width: 12, height: 12, alignItems: 'center', justifyContent: 'center' }}
+                  className="group-hover/oe:!opacity-100">
+                  <svg width="9" height="9" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9" /><line x1="9" y1="2" x2="2" y2="9" /></svg>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Outline (symbols for the active file) ────────────────────────────────────
 
 const SYMBOL_COLOR: Record<SymbolKind, string> = {
@@ -1254,6 +1305,7 @@ export function LeftPanel() {
       {/* ── Explorer view ─────────────────────────────────────────────── */}
       {leftPanelView === 'explorer' && (
         <>
+          <OpenEditors />
           <div style={{ flex: '0 0 58%', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
             {workspacePath ? (
               <FileTree

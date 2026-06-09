@@ -49,6 +49,8 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ⬜ Support a subset: custom themes, icon themes, snippets
 
 ## Tier 5 — SCM depth & the long tail
+- ✅ **Open Editors** view — Explorer section listing open tabs (switch, close, close-all, unsaved dot)
+- ✅ **File explorer context menu** — New File/Folder, Rename, Delete, Copy Path, Reveal (already present)
 - ⬜ Stage/unstage **hunks** · inline **git blame** · branch / stash / PR UI · multiple SCM providers
 - ✅ Graphical **settings editor** — Settings dialog reads/writes persisted store values (font size, word wrap, minimap, line numbers apply + survive reload; LSP enable + server paths) · **per-workspace `.vscode/settings.json`** applied on folder open (editor.fontSize/wordWrap/minimap/lineNumbers/formatOnSave, files.autoSave)
 - ⬜ **Keybindings editor**
