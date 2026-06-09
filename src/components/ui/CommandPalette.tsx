@@ -4,6 +4,7 @@ import { listAllFiles, gitLog, type DirEntry, type GitCommit } from "@/lib/tauri
 import { listVault, type VaultNote } from "@/lib/vault";
 import { loadTasks, type ApexTask } from "@/lib/tasks";
 import { loadWorkspaceSymbols, type WorkspaceSymbol } from "@/lib/symbols";
+import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { MentionIcon } from "@/components/ui/Icons";
 
 type Source = 'Commands' | 'Files' | 'Knowledge' | 'Git' | 'Tasks' | 'Symbols';
@@ -99,6 +100,7 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:autocomplete', title: 'Editor: Toggle Inline AI Autocomplete', run: run(() => store.setAutocompleteEnabled(!store.autocompleteEnabled)) },
       { id: 'c:cookbook', title: 'Models: Open Cookbook', run: run(() => store.setCookbookOpen(true)) },
       { id: 'c:compare', title: 'Models: Blind Compare', run: run(() => store.setCompareOpen(true)) },
+      ...THEME_OPTIONS.map((t) => ({ id: 'theme:' + t.value, title: `Color Theme: ${t.label}`, run: run(() => store.setEditorTheme(t.value)) })),
     ];
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store]);
