@@ -24,6 +24,7 @@ import { IntelPanel } from "@/components/layout/IntelPanel";
 import { TerminalPanel } from "@/components/layout/TerminalPanel";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { Toaster } from "@/components/ui/Toaster";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 export default function App() {
   const {
@@ -303,12 +304,12 @@ export default function App() {
     <div className={cls}>
       <Titlebar />
       <ModeBar />
-      <LeftNav />
-      <LeftPanel />
-      <CenterArea />
-      <IntelPanel />
-      <TerminalPanel />
-      <StatusBar />
+      <ErrorBoundary name="Navigation"><LeftNav /></ErrorBoundary>
+      <ErrorBoundary name="Side Panel"><LeftPanel /></ErrorBoundary>
+      <ErrorBoundary name="Editor"><CenterArea /></ErrorBoundary>
+      <ErrorBoundary name="AI Panel"><IntelPanel /></ErrorBoundary>
+      <ErrorBoundary name="Terminal" compact><TerminalPanel /></ErrorBoundary>
+      <ErrorBoundary name="Status Bar" compact><StatusBar /></ErrorBoundary>
       <Toaster />
       {commandPaletteOpen && <CommandPalette onClose={() => setCommandPaletteOpen(false)} />}
       {settingsOpen && <SettingsDialog />}
