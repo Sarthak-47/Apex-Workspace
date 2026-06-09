@@ -331,23 +331,30 @@ function CloseBtn({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
 
-interface TermTab { id: string; label: string }
+interface TermTab { id: string; label: string; panes: number }
 
 // ─── TerminalPanel ────────────────────────────────────────────────────────────
 
 export function TerminalPanel() {
   const { terminalOpen, toggleTerminal, terminalHeight, setTerminalHeight, workspacePath } = useAppStore();
 
-  const [tabs, setTabs]         = useState<TermTab[]>([{ id: 'tab-0', label: isTauri() ? 'shell' : 'mock' }]);
+  const [tabs, setTabs]         = useState<TermTab[]>([{ id: 'tab-0', label: isTauri() ? 'shell' : 'mock', panes: 1 }]);
   const [activeTabId, setActive] = useState('tab-0');
   const counter = useRef(1);
 
   const addTab = useCallback(() => {
     const id    = `tab-${counter.current++}`;
     const label = isTauri() ? 'shell' : 'mock';
-    setTabs(prev => [...prev, { id, label }]);
+    setTabs(prev => [...prev, { id, label, panes: 1 }]);
     setActive(id);
   }, []);
+
+  // Split the active terminal into side-by-side panes (toggle 1 ↔ 2, max 3).
+  const splitActive = useCallback(() => {
+    setTabs(prev => prev.map(t => t.id === activeTabId
+      ? { ...t, panes: t.panes >= 3 ? 1 : t.panes + 1 }
+      : t));
+  }, [activeTabId]);
 
   const closeTab = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -433,6 +440,15 @@ export function TerminalPanel() {
 
         <div style={{ flex: 1 }} />
 
+        {/* Split terminal */}
+        <button onClick={splitActive} title="Split terminal (side by side)"
+          style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', flexShrink: 0 }}
+          className="hover:!text-[#E2E2EC] hover:!bg-[#18181F] transition-colors">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="1.5" y="2" width="11" height="10" rx="1.5"/><line x1="7" y1="2" x2="7" y2="12"/>
+          </svg>
+        </button>
+
         {/* Collapse */}
         <button onClick={toggleTerminal} title="Collapse terminal"
           style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', flexShrink: 0 }}
@@ -444,13 +460,20 @@ export function TerminalPanel() {
       </div>
 
       {/* ── Terminal panes (all mounted, show/hide with CSS) ───────────────── */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         {tabs.map(tab => (
-          <XtermPane
-            key={tab.id}
-            visible={tab.id === activeTabId}
-            workspacePath={workspacePath}
-          />
+          <div key={tab.id}
+            style={{
+              position: 'absolute', inset: 0,
+              display: tab.id === activeTabId ? 'flex' : 'none',
+              flexDirection: 'row',
+            }}>
+            {Array.from({ length: tab.panes }).map((_, i) => (
+              <div key={i} style={{ flex: 1, minWidth: 0, borderLeft: i > 0 ? '1px solid #1A1A28' : 'none', position: 'relative' }}>
+                <XtermPane visible={tab.id === activeTabId} workspacePath={workspacePath} />
+              </div>
+            ))}
+          </div>
         ))}
       </div>
     </div>
