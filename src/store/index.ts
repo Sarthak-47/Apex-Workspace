@@ -153,6 +153,14 @@ interface AppState {
   // Editor preferences (persisted)
   editorTheme: string;
   setEditorTheme: (theme: string) => void;
+  editorFontSize: number;
+  setEditorFontSize: (v: number) => void;
+  editorWordWrap: boolean;
+  setEditorWordWrap: (v: boolean) => void;
+  editorMinimap: boolean;
+  setEditorMinimap: (v: boolean) => void;
+  editorLineNumbers: boolean;
+  setEditorLineNumbers: (v: boolean) => void;
   autoSave: boolean;
   setAutoSave: (v: boolean) => void;
   formatOnSave: boolean;
@@ -404,6 +412,14 @@ export const useAppStore = create<AppState>()(
       // Editor preferences
       editorTheme: 'apex-dark',
       setEditorTheme: (theme) => set({ editorTheme: theme }),
+      editorFontSize: 13,
+      setEditorFontSize: (v) => set({ editorFontSize: Math.max(10, Math.min(24, v)) }),
+      editorWordWrap: false,
+      setEditorWordWrap: (v) => set({ editorWordWrap: v }),
+      editorMinimap: true,
+      setEditorMinimap: (v) => set({ editorMinimap: v }),
+      editorLineNumbers: true,
+      setEditorLineNumbers: (v) => set({ editorLineNumbers: v }),
       autoSave: false,
       setAutoSave: (v) => set({ autoSave: v }),
       formatOnSave: false,
@@ -517,6 +533,10 @@ export const useAppStore = create<AppState>()(
         terminalHeight: s.terminalHeight,
         ollamaSelectedModel: s.ollamaSelectedModel,
         editorTheme: s.editorTheme,
+        editorFontSize: s.editorFontSize,
+        editorWordWrap: s.editorWordWrap,
+        editorMinimap: s.editorMinimap,
+        editorLineNumbers: s.editorLineNumbers,
         autoSave: s.autoSave,
         formatOnSave: s.formatOnSave,
         lspEnabled: s.lspEnabled,

@@ -118,12 +118,12 @@ const LSP_SERVERS: { id: string; label: string; placeholder: string }[] = [
 ];
 
 function EditorTab() {
-  const { editorTheme, setEditorTheme, lspEnabled, setLspEnabled, lspServerPaths, setLspServerPath } = useAppStore();
-  const [tabSize, setTabSize]           = useState(2);
-  const [fontSize, setFontSize]         = useState(13);
-  const [wordWrap, setWordWrap]         = useState(false);
-  const [minimap, setMinimap]           = useState(true);
-  const [lineNums, setLineNums]         = useState(true);
+  const {
+    editorTheme, setEditorTheme, lspEnabled, setLspEnabled, lspServerPaths, setLspServerPath,
+    editorFontSize, setEditorFontSize, editorWordWrap, setEditorWordWrap,
+    editorMinimap, setEditorMinimap, editorLineNumbers, setEditorLineNumbers,
+  } = useAppStore();
+  const [tabSize, setTabSize] = useState(2);
 
   const lspInp: React.CSSProperties = {
     width: '100%', background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5,
@@ -138,16 +138,16 @@ function EditorTab() {
           <Select value={editorTheme} options={THEME_OPTIONS} onChange={setEditorTheme} />
         </Field>
         <Field label="Font size">
-          <NumberInput value={fontSize} min={10} max={24} onChange={setFontSize} />
+          <NumberInput value={editorFontSize} min={10} max={24} onChange={setEditorFontSize} />
         </Field>
-        <Field label="Minimap"><Toggle value={minimap} onChange={setMinimap} /></Field>
-        <Field label="Line numbers"><Toggle value={lineNums} onChange={setLineNums} /></Field>
+        <Field label="Minimap"><Toggle value={editorMinimap} onChange={setEditorMinimap} /></Field>
+        <Field label="Line numbers"><Toggle value={editorLineNumbers} onChange={setEditorLineNumbers} /></Field>
       </Section>
       <Section title="Formatting">
         <Field label="Tab size">
           <NumberInput value={tabSize} min={1} max={8} onChange={setTabSize} />
         </Field>
-        <Field label="Word wrap"><Toggle value={wordWrap} onChange={setWordWrap} /></Field>
+        <Field label="Word wrap"><Toggle value={editorWordWrap} onChange={setEditorWordWrap} /></Field>
       </Section>
       <Section title="Language Servers (LSP)">
         <Field label="Enable language servers"><Toggle value={lspEnabled} onChange={setLspEnabled} /></Field>

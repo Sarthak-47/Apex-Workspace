@@ -50,7 +50,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 
 ## Tier 5 — SCM depth & the long tail
 - ⬜ Stage/unstage **hunks** · inline **git blame** · branch / stash / PR UI · multiple SCM providers
-- ⬜ Graphical **settings editor** + per-workspace `settings.json`
+- ◐ Graphical **settings editor** — Settings dialog now reads/writes persisted store values (font size, word wrap, minimap, line numbers actually apply + survive reload; LSP enable + server paths); per-workspace `settings.json` todo
 - ⬜ **Keybindings editor**
 - ⬜ **Test Explorer**
 - ⬜ **Multi-root workspaces** (`.code-workspace`)

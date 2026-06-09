@@ -710,9 +710,6 @@ interface Props {
 export function MonacoEditor({ path }: Props) {
   const [content, setContent]   = useState<string | null>(null);
   const [loading, setLoading]   = useState(true);
-  const [wordWrap, setWordWrap] = useState(false);
-  const [minimap, setMinimap]   = useState(true);
-  const [fontSize, setFontSize] = useState(13);
   const [mdView, setMdView]     = useState<'edit' | 'split' | 'preview'>('edit');
   const [liveContent, setLiveContent] = useState('');
 
@@ -727,7 +724,18 @@ export function MonacoEditor({ path }: Props) {
     autocompleteEnabled, setAutocompleteEnabled, ollamaOnline,
     openFile,
     revealTarget, clearRevealTarget,
+    editorWordWrap, setEditorWordWrap,
+    editorMinimap, setEditorMinimap,
+    editorFontSize, setEditorFontSize,
+    editorLineNumbers,
   } = useAppStore();
+
+  // Editor display prefs now live in the (persisted) store; keep the local
+  // names + functional-setter shape so existing handlers stay unchanged.
+  const wordWrap = editorWordWrap, minimap = editorMinimap, fontSize = editorFontSize;
+  const setWordWrap = (v: boolean | ((p: boolean) => boolean)) => setEditorWordWrap(typeof v === 'function' ? v(editorWordWrap) : v);
+  const setMinimap  = (v: boolean | ((p: boolean) => boolean)) => setEditorMinimap(typeof v === 'function' ? v(editorMinimap) : v);
+  const setFontSize = (v: number | ((p: number) => number)) => setEditorFontSize(typeof v === 'function' ? v(editorFontSize) : v);
 
   const editorRef       = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
   const dirtyRef        = useRef(false);
@@ -782,8 +790,9 @@ export function MonacoEditor({ path }: Props) {
       minimap: { enabled: minimap, scale: 1, renderCharacters: false },
       fontSize,
       lineHeight: Math.round(fontSize * 1.6),
+      lineNumbers: editorLineNumbers ? 'on' : 'off',
     });
-  }, [wordWrap, minimap, fontSize]);
+  }, [wordWrap, minimap, fontSize, editorLineNumbers]);
 
   // ── Load file content on path change ─────────────────────────────────────
   useEffect(() => {
@@ -1009,7 +1018,7 @@ export function MonacoEditor({ path }: Props) {
               padding: { top: 12, bottom: 24 },
               minimap: { enabled: minimap, scale: 1, renderCharacters: false },
               scrollBeyondLastLine: false,
-              lineNumbers: 'on',
+              lineNumbers: editorLineNumbers ? 'on' : 'off',
               lineNumbersMinChars: 3,
               glyphMargin: false,
               folding: true,
