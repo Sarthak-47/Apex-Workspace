@@ -39,6 +39,17 @@ Every other AI coding tool starts every session from zero. It doesn't know why y
 
 **Extensible** — MCP (Model Context Protocol) tool servers (Exa web search, GitHub, any community server).
 
+## Download
+
+Grab the latest Windows build from the [**Releases**](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) page:
+
+| Installer | Size | Notes |
+|---|---|---|
+| [`APEX_0.1.0_x64-setup.exe`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | ~6.7 MB | NSIS installer (recommended) |
+| [`APEX_0.1.0_x64_en-US.msi`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | ~8.5 MB | MSI for managed/enterprise installs |
+
+The app is unsigned, so Windows SmartScreen may warn on first launch — choose **More info → Run anyway**. APEX still needs [Ollama](https://ollama.com) running locally (see Prerequisites below).
+
 ## Getting started
 
 ### Prerequisites
