@@ -47,6 +47,7 @@ interface AppState {
   openFiles: string[];
   openFile: (path: string) => void;
   closeFile: (path: string) => void;
+  reorderOpenFiles: (from: number, to: number) => void;
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
@@ -257,6 +258,13 @@ export const useAppStore = create<AppState>()(
       clearRevealTarget: () => set({ revealTarget: null }),
       rightPaneFile: null,
       setRightPaneFile: (path) => set({ rightPaneFile: path }),
+      reorderOpenFiles: (from, to) => {
+        const files = [...get().openFiles];
+        if (from < 0 || from >= files.length || to < 0 || to >= files.length || from === to) return;
+        const [moved] = files.splice(from, 1);
+        files.splice(to, 0, moved);
+        set({ openFiles: files });
+      },
       closeFile: (path) => {
         const { openFiles, activeFile, unsavedFiles } = get();
         const next = openFiles.filter((f) => f !== path);

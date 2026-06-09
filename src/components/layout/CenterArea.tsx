@@ -11,7 +11,8 @@ interface TabBarProps {
 }
 
 function TabBar({ onRequestClose }: TabBarProps) {
-  const { openFiles, activeFile, unsavedFiles, setActiveFile, rightPaneFile, setRightPaneFile } = useAppStore();
+  const { openFiles, activeFile, unsavedFiles, setActiveFile, rightPaneFile, setRightPaneFile, reorderOpenFiles } = useAppStore();
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   if (openFiles.length === 0) return null;
 
   return (
@@ -24,7 +25,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
       flexShrink: 0,
       overflow: 'hidden',
     }}>
-      {openFiles.map((path) => {
+      {openFiles.map((path, idx) => {
         const name      = path.split('/').pop() ?? path;
         const ext       = name.split('.').pop()?.toLowerCase() ?? '';
         const active    = path === activeFile;
@@ -34,6 +35,11 @@ function TabBar({ onRequestClose }: TabBarProps) {
         return (
           <div
             key={path}
+            draggable
+            onDragStart={() => setDragIdx(idx)}
+            onDragOver={(e) => { e.preventDefault(); }}
+            onDrop={(e) => { e.preventDefault(); if (dragIdx !== null) reorderOpenFiles(dragIdx, idx); setDragIdx(null); }}
+            onDragEnd={() => setDragIdx(null)}
             onClick={() => setActiveFile(path)}
             style={{
               height: 36,
