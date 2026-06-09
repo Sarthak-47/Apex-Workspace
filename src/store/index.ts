@@ -63,6 +63,9 @@ interface AppState {
   intelPanelWidth: number;
   terminalOpen: boolean;
   terminalHeight: number;
+  problemsOpen: boolean;
+  toggleProblems: () => void;
+  setProblemsOpen: (v: boolean) => void;
 
   toggleLeftPanel: () => void;
   toggleIntelPanel: () => void;
@@ -277,6 +280,9 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ intelPanelOpen: !s.intelPanelOpen })),
       toggleTerminal: () =>
         set((s) => ({ terminalOpen: !s.terminalOpen })),
+      problemsOpen: false,
+      toggleProblems: () => set((s) => ({ problemsOpen: !s.problemsOpen })),
+      setProblemsOpen: (v) => set({ problemsOpen: v }),
       setLeftPanelWidth: (w) => set({ leftPanelWidth: w }),
       setIntelPanelWidth: (w) => set({ intelPanelWidth: w }),
       setTerminalHeight: (h) => set({ terminalHeight: h }),

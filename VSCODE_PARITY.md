@@ -23,11 +23,11 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ✅ **Global search & replace across files** — results tree (collapsible per file), match highlighting, click-to-open at line, case/whole-word/regex toggles, include/exclude globs, replace-all. Rust `search_files` backend; web build searches via the File System Access API.
 - ⬜ **Split editors / editor groups** — side-by-side, drag tabs between groups, pinned & preview tabs
 - ◐ **Diff editor** — Monaco side-by-side compare with read-only **compare mode** (HEAD vs Working Tree from the Git panel) + AI-review mode; arbitrary file-to-file compare & merge-conflict resolution still todo
-- ⬜ **Problems panel** — aggregated diagnostics with jump-to
+- ✅ **Problems panel** — live Monaco diagnostics (errors/warnings/info) for the open file, severity icons, click-to-jump; status-bar counts are live and toggle the panel
 - ◐ **Outline / symbols** — Go-to-Symbol in file done (Ctrl+Shift+O, Monaco quick outline) + Go-to-Line (Ctrl+G); persistent Outline sidebar and workspace symbol (Ctrl+T) still todo
 - ⬜ **Tasks runner** (`tasks.json`)
 - ◐ **Format** — Format Document (Shift+Alt+F) + **Format-on-save** toggle done · ✅ Auto-save · Emmet & Snippets todo
-- ⬜ **Multiple terminals** — split, tabs, shell profiles
+- ◐ **Multiple terminals** — tabs (add / close / rename / switch, each its own pty) ✅; split-panes & shell profiles todo
 - ⬜ **Timeline / local file history**
 
 ## Tier 2 — Language intelligence (the big subsystem) 🔶

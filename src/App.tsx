@@ -23,6 +23,7 @@ import { CenterArea } from "@/components/layout/CenterArea";
 import { IntelPanel } from "@/components/layout/IntelPanel";
 import { TerminalPanel } from "@/components/layout/TerminalPanel";
 import { StatusBar } from "@/components/layout/StatusBar";
+import { ProblemsPanel } from "@/components/layout/ProblemsPanel";
 import { Toaster } from "@/components/ui/Toaster";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
@@ -319,6 +320,7 @@ export default function App() {
       <ErrorBoundary name="Editor"><CenterArea /></ErrorBoundary>
       <ErrorBoundary name="AI Panel"><IntelPanel /></ErrorBoundary>
       <ErrorBoundary name="Terminal" compact><TerminalPanel /></ErrorBoundary>
+      <ErrorBoundary name="Problems" compact><ProblemsPanel /></ErrorBoundary>
       <ErrorBoundary name="Status Bar" compact><StatusBar /></ErrorBoundary>
       <Toaster />
       {commandPaletteOpen && <CommandPalette onClose={() => setCommandPaletteOpen(false)} />}

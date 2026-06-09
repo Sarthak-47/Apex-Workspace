@@ -1,5 +1,6 @@
 import { useAppStore } from "@/store";
 import { getLang } from "@/components/editor/MonacoEditor";
+import { useMarkers } from "@/lib/useMarkers";
 
 const LANG_LABELS: Record<string, string> = {
   typescript: 'TypeScript', javascript: 'JavaScript',
@@ -38,8 +39,9 @@ export function StatusBar() {
     ollamaOnline, ollamaModels, gitBranch,
     cursorLine, cursorCol, editorFileSize,
     vimMode, indexProgress, autocompleteEnabled,
-    setCookbookOpen, setCompareOpen,
+    setCookbookOpen, setCompareOpen, toggleProblems,
   } = useAppStore();
+  const { errors, warnings } = useMarkers();
 
   const fmtSize = (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`;
 
@@ -61,11 +63,15 @@ export function StatusBar() {
 
       <Divider />
 
-      <SbItem>
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" style={{ opacity: 0.8 }}>
-          <circle cx="5" cy="5" r="4"/><line x1="5" y1="3" x2="5" y2="5"/><circle cx="5" cy="7" r="0.4" fill="white"/>
+      <SbItem onClick={toggleProblems} title="Toggle Problems panel">
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85 }}>
+          <circle cx="6" cy="6" r="4.5"/><line x1="6" y1="3.5" x2="6" y2="6.5"/><circle cx="6" cy="8.5" r="0.4" fill="white"/>
         </svg>
-        0 errors
+        {errors}
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.85, marginLeft: 4 }}>
+          <path d="M6 1.5 11 10.5H1L6 1.5Z"/><line x1="6" y1="5" x2="6" y2="7.5"/><circle cx="6" cy="9" r="0.4" fill="white"/>
+        </svg>
+        {warnings}
       </SbItem>
 
       <Divider />
