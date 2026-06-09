@@ -50,6 +50,9 @@ interface AppState {
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
+  // Split editor (second group, right pane)
+  rightPaneFile: string | null;
+  setRightPaneFile: (path: string | null) => void;
 
   // Unsaved file tracking (not persisted)
   unsavedFiles: string[];
@@ -243,6 +246,8 @@ export const useAppStore = create<AppState>()(
         set({ activeFile: path, revealTarget: { path, line, column: column ?? 1 } });
       },
       clearRevealTarget: () => set({ revealTarget: null }),
+      rightPaneFile: null,
+      setRightPaneFile: (path) => set({ rightPaneFile: path }),
       closeFile: (path) => {
         const { openFiles, activeFile, unsavedFiles } = get();
         const next = openFiles.filter((f) => f !== path);

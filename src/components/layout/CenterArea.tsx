@@ -11,7 +11,7 @@ interface TabBarProps {
 }
 
 function TabBar({ onRequestClose }: TabBarProps) {
-  const { openFiles, activeFile, unsavedFiles, setActiveFile } = useAppStore();
+  const { openFiles, activeFile, unsavedFiles, setActiveFile, rightPaneFile, setRightPaneFile } = useAppStore();
   if (openFiles.length === 0) return null;
 
   return (
@@ -113,6 +113,24 @@ function TabBar({ onRequestClose }: TabBarProps) {
           </div>
         );
       })}
+
+      <div style={{ flex: 1 }} />
+
+      {/* Split editor toggle */}
+      <button
+        onClick={() => setRightPaneFile(rightPaneFile ? null : activeFile)}
+        title={rightPaneFile ? 'Close split' : 'Split editor right'}
+        style={{
+          height: 36, width: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'none', border: 'none', borderLeft: '1px solid #252535', cursor: 'pointer',
+          color: rightPaneFile ? '#6366F1' : '#4A4A65',
+        }}
+        className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors"
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1.5" y="2" width="11" height="10" rx="1.5"/><line x1="7" y1="2" x2="7" y2="12"/>
+        </svg>
+      </button>
     </div>
   );
 }
@@ -397,9 +415,31 @@ function EmptyState() {
 }
 
 // ─── Center Area ──────────────────────────────────────────────────────────────
+function SplitPane({ path, onClose }: { path: string; onClose: () => void }) {
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, borderLeft: '1px solid #1A1A28' }}>
+      <div style={{ height: 30, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', background: '#0D0D16', borderBottom: '1px solid #1A1A28', flexShrink: 0 }}>
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="#6A6A85" strokeWidth="1.3"><path d="M4 1h5l3 3v9H2V1Z"/><polyline points="9,1 9,4 12,4"/></svg>
+        <span style={{ fontSize: 11, color: '#C7C7D9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{path.split(/[\\/]/).pop()}</span>
+        <button onClick={onClose} title="Close split"
+          style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: '#6A6A85' }}
+          className="hover:!text-[#E2E2EC]">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9"/><line x1="9" y1="2" x2="2" y2="9"/></svg>
+        </button>
+      </div>
+      <MonacoEditor path={path} />
+    </div>
+  );
+}
+
 export function CenterArea() {
-  const { activeFile, unsavedFiles, closeFile } = useAppStore();
+  const { activeFile, unsavedFiles, closeFile, rightPaneFile, setRightPaneFile, openFiles } = useAppStore();
   const [closeTarget, setCloseTarget] = useState<string | null>(null);
+
+  // If the split file is no longer open, collapse the split.
+  useEffect(() => {
+    if (rightPaneFile && !openFiles.includes(rightPaneFile)) setRightPaneFile(null);
+  }, [rightPaneFile, openFiles, setRightPaneFile]);
 
   const handleRequestClose = (path: string) => {
     if (unsavedFiles.includes(path)) {
@@ -424,11 +464,18 @@ export function CenterArea() {
       <TabBar onRequestClose={handleRequestClose} />
 
       {activeFile ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-          <Breadcrumb path={activeFile} />
-          <ContextRibbon activeFile={activeFile} />
-          {/* Monaco remounts cleanly on path change via key={path} inside component */}
-          <MonacoEditor path={activeFile} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, overflow: 'hidden' }}>
+          {/* Primary group */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+            <Breadcrumb path={activeFile} />
+            <ContextRibbon activeFile={activeFile} />
+            {/* Monaco remounts cleanly on path change via key={path} inside component */}
+            <MonacoEditor path={activeFile} />
+          </div>
+          {/* Second group (split) */}
+          {rightPaneFile && rightPaneFile !== activeFile && (
+            <SplitPane path={rightPaneFile} onClose={() => setRightPaneFile(null)} />
+          )}
         </div>
       ) : (
         <EmptyState />
