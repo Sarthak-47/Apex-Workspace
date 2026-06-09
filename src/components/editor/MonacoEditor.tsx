@@ -507,6 +507,7 @@ interface ToolbarProps {
   fontSize: number;
   editorTheme: string;
   autoSave: boolean;
+  formatOnSave: boolean;
   vimMode: boolean;
   autocomplete: boolean;
   ollamaOnline: boolean;
@@ -519,15 +520,16 @@ interface ToolbarProps {
   onFontDecrease: () => void;
   onThemeChange: (t: string) => void;
   onAutoSaveToggle: () => void;
+  onFormatOnSaveToggle: () => void;
   onVimToggle: () => void;
   onAutocompleteToggle: () => void;
 }
 
 function EditorToolbar({
-  language, wordWrap, minimap, fontSize, editorTheme, autoSave, vimMode,
+  language, wordWrap, minimap, fontSize, editorTheme, autoSave, formatOnSave, vimMode,
   autocomplete, ollamaOnline, isMarkdown, mdView, onMdViewChange,
   onWordWrapToggle, onMinimapToggle, onFontIncrease, onFontDecrease,
-  onThemeChange, onAutoSaveToggle, onVimToggle, onAutocompleteToggle,
+  onThemeChange, onAutoSaveToggle, onFormatOnSaveToggle, onVimToggle, onAutocompleteToggle,
 }: ToolbarProps) {
   const btn = (active: boolean, onClick: () => void, children: React.ReactNode, title: string) => (
     <button
@@ -591,6 +593,16 @@ function EditorToolbar({
           Auto
         </>
       ), 'Toggle auto-save (1s delay)')}
+
+      {/* Format on save */}
+      {btn(formatOnSave, onFormatOnSaveToggle, (
+        <>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="2" y1="3" x2="10" y2="3"/><line x1="2" y1="6" x2="7" y2="6"/><line x1="2" y1="9" x2="9" y2="9"/>
+          </svg>
+          Format
+        </>
+      ), 'Format on save (also Shift+Alt+F)')}
 
       <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 3px' }} />
 
@@ -692,6 +704,7 @@ export function MonacoEditor({ path }: Props) {
     pendingFileEdit, setPendingFileEdit,
     editorTheme, setEditorTheme,
     autoSave, setAutoSave,
+    formatOnSave, setFormatOnSave,
     vimMode, setVimMode,
     setEditorCursor, setEditorFileSize,
     autocompleteEnabled, setAutocompleteEnabled, ollamaOnline,
@@ -805,11 +818,29 @@ export function MonacoEditor({ path }: Props) {
       if (model) setEditorFileSize(new TextEncoder().encode(model.getValue()).length);
     });
 
-    // Ctrl+S → save
+    // Ctrl+S → save (optionally format first)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
+      if (useAppStore.getState().formatOnSave) {
+        try { await editor.getAction('editor.action.formatDocument')?.run(); } catch { /* no formatter */ }
+      }
       try { await writeFile(path, editor.getValue()); } catch { /* browser no-op */ }
       dirtyRef.current = false;
       markFileSaved(path);
+    });
+
+    // Ctrl+G → go to line
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyG, () => {
+      editor.getAction('editor.action.gotoLine')?.run();
+    });
+
+    // Ctrl+Shift+O → go to symbol (quick outline)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyO, () => {
+      editor.getAction('editor.action.quickOutline')?.run();
+    });
+
+    // Shift+Alt+F → format document
+    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => {
+      editor.getAction('editor.action.formatDocument')?.run();
     });
 
     // Ctrl+= → font increase
@@ -871,6 +902,7 @@ export function MonacoEditor({ path }: Props) {
         fontSize={fontSize}
         editorTheme={editorTheme}
         autoSave={autoSave}
+        formatOnSave={formatOnSave}
         vimMode={vimMode}
         autocomplete={autocompleteEnabled}
         ollamaOnline={ollamaOnline}
@@ -883,6 +915,7 @@ export function MonacoEditor({ path }: Props) {
         onFontDecrease={() => setFontSize(f => Math.max(f - 1, 10))}
         onThemeChange={setEditorTheme}
         onAutoSaveToggle={() => setAutoSave(!autoSave)}
+        onFormatOnSaveToggle={() => setFormatOnSave(!formatOnSave)}
         onVimToggle={() => setVimMode(!vimMode)}
         onAutocompleteToggle={() => setAutocompleteEnabled(!autocompleteEnabled)}
       />

@@ -24,9 +24,9 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ⬜ **Split editors / editor groups** — side-by-side, drag tabs between groups, pinned & preview tabs
 - ⬜ **Diff editor** — compare files, compare vs git HEAD, merge-conflict resolution
 - ⬜ **Problems panel** — aggregated diagnostics with jump-to
-- ⬜ **Outline view** + Go-to-Symbol in file (Ctrl+Shift+O) and workspace (Ctrl+T)
+- ◐ **Outline / symbols** — Go-to-Symbol in file done (Ctrl+Shift+O, Monaco quick outline) + Go-to-Line (Ctrl+G); persistent Outline sidebar and workspace symbol (Ctrl+T) still todo
 - ⬜ **Tasks runner** (`tasks.json`)
-- ⬜ **Format-on-save** · **Auto-save** · **Emmet** · **Snippets**
+- ◐ **Format** — Format Document (Shift+Alt+F) + **Format-on-save** toggle done · ✅ Auto-save · Emmet & Snippets todo
 - ⬜ **Multiple terminals** — split, tabs, shell profiles
 - ⬜ **Timeline / local file history**
 

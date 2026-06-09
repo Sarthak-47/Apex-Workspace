@@ -144,6 +144,8 @@ interface AppState {
   setEditorTheme: (theme: string) => void;
   autoSave: boolean;
   setAutoSave: (v: boolean) => void;
+  formatOnSave: boolean;
+  setFormatOnSave: (v: boolean) => void;
 
   // Cursor position + file size (not persisted)
   cursorLine: number;
@@ -373,6 +375,8 @@ export const useAppStore = create<AppState>()(
       setEditorTheme: (theme) => set({ editorTheme: theme }),
       autoSave: false,
       setAutoSave: (v) => set({ autoSave: v }),
+      formatOnSave: false,
+      setFormatOnSave: (v) => set({ formatOnSave: v }),
 
       // Cursor position + file size
       cursorLine: 1,
@@ -479,6 +483,7 @@ export const useAppStore = create<AppState>()(
         ollamaSelectedModel: s.ollamaSelectedModel,
         editorTheme: s.editorTheme,
         autoSave: s.autoSave,
+        formatOnSave: s.formatOnSave,
         vimMode: s.vimMode,
         recentWorkspaces: s.recentWorkspaces,
         selectedAgentId: s.selectedAgentId,
