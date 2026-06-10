@@ -7,7 +7,7 @@
   --color-surface-1:       #111118;
   --color-surface-2:       #18181F;
   --color-surface-3:       #1E1E2E;
-  --color-accent:          #6366F1;
+  --color-accent:          var(--accent);
   --color-accent-hover:    #7C7FFF;
   --color-accent-subtle:   #1A1A3A;
   --color-border:          #252535;
@@ -30,6 +30,7 @@
   --left-panel-width:  220px;
   --intel-panel-width: 300px;
   --terminal-height:   188px;
+  --accent:            #6366F1;  /* user-customizable accent color */
   color-scheme: dark;
 }
 
@@ -55,7 +56,7 @@ html, body, #root {
 ::-webkit-scrollbar-thumb { background: #252535; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #4A4A65; }
 ::selection { background: rgba(99,102,241,0.28); color: #E2E2EC; }
-:focus-visible { outline: 1px solid #6366F1; outline-offset: 1px; }
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
 
 /* ── App Layout Grid ──────────────────────────────────────────────────────── */
 /*
@@ -154,7 +155,7 @@ body.resizing * { transition: none !important; user-select: none !important; }
 @keyframes gs { 0%{background-position:0%} 100%{background-position:200%} }
 .grad-line {
   height: 2px; flex-shrink: 0;
-  background: linear-gradient(90deg, #6366F1, #C084FC, #6366F1);
+  background: linear-gradient(90deg, var(--accent), #C084FC, var(--accent));
   background-size: 200%;
   animation: gs 1.5s linear infinite;
 }
@@ -163,7 +164,7 @@ body.resizing * { transition: none !important; user-select: none !important; }
 @keyframes bl { 0%,100%{opacity:1} 50%{opacity:0} }
 .blink {
   display: inline-block; width: 8px; height: 14px;
-  background: #6366F1; animation: bl 600ms step-end infinite;
+  background: var(--accent); animation: bl 600ms step-end infinite;
   vertical-align: text-bottom; margin-left: 1px;
 }
 
@@ -177,14 +178,14 @@ body.resizing * { transition: none !important; user-select: none !important; }
 .apex-md-preview p { margin: 8px 0; }
 .apex-md-preview ul, .apex-md-preview ol { margin: 8px 0; padding-left: 22px; }
 .apex-md-preview li { margin: 3px 0; }
-.apex-md-preview a { color: #6366F1; text-decoration: none; }
+.apex-md-preview a { color: var(--accent); text-decoration: none; }
 .apex-md-preview a:hover { text-decoration: underline; }
 .apex-md-preview a.apex-wikilink { color: #818CF8; border-bottom: 1px dashed #6366F180; cursor: pointer; }
 .apex-md-preview a.apex-wikilink:hover { background: #1A1A3A; border-radius: 2px; }
 .apex-md-preview code { background: #18181F; border: 1px solid #252535; border-radius: 3px; padding: 1px 5px; font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: #93C5FD; }
 .apex-md-preview pre { background: #090910; border: 1px solid #252535; border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
 .apex-md-preview pre code { background: none; border: none; padding: 0; color: #8888A8; }
-.apex-md-preview blockquote { border-left: 3px solid #6366F1; margin: 10px 0; padding: 2px 14px; color: #8888A8; }
+.apex-md-preview blockquote { border-left: 3px solid var(--accent); margin: 10px 0; padding: 2px 14px; color: #8888A8; }
 .apex-md-preview hr { border: none; border-top: 1px solid #1A1A28; margin: 16px 0; }
 .apex-md-preview table { border-collapse: collapse; margin: 10px 0; }
 .apex-md-preview th, .apex-md-preview td { border: 1px solid #252535; padding: 5px 10px; font-size: 13px; }

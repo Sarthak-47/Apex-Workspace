@@ -13,7 +13,7 @@ export function AgentsPage() {
   const createAgent = () => {
     const id = 'agent-' + Date.now().toString(36);
     const agent: AgentDef = {
-      id, name: 'New Agent', description: 'A custom agent', color: '#6366F1', icon: 'coder',
+      id, name: 'New Agent', description: 'A custom agent', color: 'var(--accent)', icon: 'coder',
       systemPrompt: 'You are a helpful assistant embedded in a local-first IDE.',
       tools: ['read_file', 'list_directory', 'search_files'], temperature: 0.4,
     };
@@ -29,7 +29,7 @@ export function AgentsPage() {
   };
 
   const actions = (
-    <button onClick={createAgent} style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>+ New Agent</button>
+    <button onClick={createAgent} style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>+ New Agent</button>
   );
 
   return (
@@ -79,7 +79,7 @@ export function AgentsPage() {
                     const on = editing.tools.includes(t);
                     return (
                       <button key={t} onClick={() => toggleTool(t)}
-                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', background: on ? '#1A1A3A' : 'transparent', border: `1px solid ${on ? '#6366F1' : '#252535'}`, color: on ? '#A5B4FC' : '#6A6A85' }}>
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', background: on ? '#1A1A3A' : 'transparent', border: `1px solid ${on ? 'var(--accent)' : '#252535'}`, color: on ? '#A5B4FC' : '#6A6A85' }}>
                         {t}
                       </button>
                     );
@@ -89,7 +89,7 @@ export function AgentsPage() {
               <Field label={`Temperature: ${editing.temperature ?? 0.4}`}>
                 <input type="range" min={0} max={1} step={0.05} value={editing.temperature ?? 0.4}
                   onChange={(e) => updateUserAgent(editing.id, { temperature: parseFloat(e.target.value) })}
-                  style={{ width: 240, accentColor: '#6366F1' }} />
+                  style={{ width: 240, accentColor: 'var(--accent)' }} />
               </Field>
               <button onClick={() => { deleteUserAgent(editing.id); setEditId(null); }}
                 style={{ marginTop: 12, height: 30, padding: '0 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: 'transparent', border: '1px solid #C4422D60', color: '#E2776A' }}>

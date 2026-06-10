@@ -6,7 +6,7 @@ import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 const TYPE_CONFIG = {
   info: {
     icon: <Info size={14} strokeWidth={1.8} />,
-    color: "#6366F1",
+    color: "var(--accent)",
     bg: "#1A1A3A",
     border: "#6366F140",
   },

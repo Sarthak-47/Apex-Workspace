@@ -67,7 +67,7 @@ export function DiffReview() {
           flexShrink: 0,
         }}>
           {/* Diff icon */}
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
             <path d="M4 1H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V5l-4-4H4z"/>
             <polyline points="9,1 9,5 14,5"/>
             <line x1="5" y1="8" x2="11" y2="8"/><line x1="5" y1="11" x2="9" y2="11"/>
@@ -81,7 +81,7 @@ export function DiffReview() {
           {/* Column labels */}
           <div style={{ flex: 1 }} />
           <span style={{ fontSize: 10, color: '#4A4A65', background: '#18181F', padding: '2px 8px', borderRadius: 3 }}>{leftLabel}</span>
-          <span style={{ fontSize: 10, color: '#6366F1', background: '#1A1A3A', border: '1px solid #6366F130', padding: '2px 8px', borderRadius: 3 }}>{rightLabel}</span>
+          <span style={{ fontSize: 10, color: 'var(--accent)', background: '#1A1A3A', border: '1px solid #6366F130', padding: '2px 8px', borderRadius: 3 }}>{rightLabel}</span>
           <div style={{ width: 1, height: 20, background: '#252535', margin: '0 6px' }} />
 
           {/* Close / Cancel */}
@@ -97,7 +97,7 @@ export function DiffReview() {
           {!isCompare && (
             <button
               onClick={handleAccept}
-              style={{ height: 30, padding: '0 16px', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: 'white' }}
+              style={{ height: 30, padding: '0 16px', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: 'var(--accent)', border: 'none', color: 'white' }}
               className="hover:!bg-[#7C7FFF] transition-colors"
             >
               ✓ Accept Changes

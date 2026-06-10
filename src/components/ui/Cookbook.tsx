@@ -96,7 +96,7 @@ export function Cookbook() {
                     <button onClick={() => abort.current[m.name]?.abort()} style={{ fontSize: 10, color: '#EF4444', background: 'none', border: '1px solid #EF444440', borderRadius: 5, padding: '4px 9px', cursor: 'pointer', flexShrink: 0 }}>Cancel</button>
                   ) : (
                     <button onClick={() => pull(m.name)} disabled={!ollamaOnline}
-                      style={{ fontSize: 11, fontWeight: 600, color: ollamaOnline ? '#fff' : '#4A4A65', background: ollamaOnline ? '#6366F1' : '#1A1A3A', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: ollamaOnline ? 'pointer' : 'not-allowed', flexShrink: 0 }}>
+                      style={{ fontSize: 11, fontWeight: 600, color: ollamaOnline ? '#fff' : '#4A4A65', background: ollamaOnline ? 'var(--accent)' : '#1A1A3A', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: ollamaOnline ? 'pointer' : 'not-allowed', flexShrink: 0 }}>
                       Pull
                     </button>
                   )}
@@ -104,7 +104,7 @@ export function Cookbook() {
                 {prog && (
                   <div style={{ marginTop: 8 }}>
                     <div style={{ height: 4, background: '#252535', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', background: prog.pct < 0 ? '#EF4444' : '#6366F1', borderRadius: 2, width: `${Math.max(2, prog.pct)}%`, transition: 'width 0.3s' }} />
+                      <div style={{ height: '100%', background: prog.pct < 0 ? '#EF4444' : 'var(--accent)', borderRadius: 2, width: `${Math.max(2, prog.pct)}%`, transition: 'width 0.3s' }} />
                     </div>
                     <div style={{ fontSize: 9, color: '#6C6C8A', marginTop: 3 }}>{prog.pct < 0 ? 'Pull failed' : `${prog.status} ${prog.pct}%`}</div>
                   </div>

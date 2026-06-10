@@ -68,7 +68,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
               gap: 5,
               cursor: 'pointer',
               borderRight: '1px solid #252535',
-              borderTop: active ? '2px solid #6366F1' : '2px solid transparent',
+              borderTop: active ? '2px solid var(--accent)' : '2px solid transparent',
               borderBottom: active ? '1px solid #0A0A0F' : 'none',
               background: active ? '#0A0A0F' : '#111118',
               marginBottom: active ? -1 : 0,
@@ -102,7 +102,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
             {/* Pin indicator — click to unpin */}
             {pinned && (
               <button onClick={(e) => { e.stopPropagation(); togglePin(path); }} title="Unpin"
-                style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', padding: 0, display: 'flex', marginLeft: 1 }}>
+                style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 0, display: 'flex', marginLeft: 1 }}>
                 <svg width="11" height="11" viewBox="0 0 14 14" fill="currentColor"><path d="M9.5 1.5 12.5 4.5 10 7l.5 2.5L8 8 4 12l-.5-.5L7 7.5 5 6l-.5-.5 2.5-.5 2.5-2.5Z"/></svg>
               </button>
             )}
@@ -156,7 +156,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
         style={{
           height: 36, width: 34, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: 'none', border: 'none', borderLeft: '1px solid #252535', cursor: 'pointer',
-          color: rightPaneFile ? '#6366F1' : '#4A4A65',
+          color: rightPaneFile ? 'var(--accent)' : '#4A4A65',
         }}
         className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors"
       >

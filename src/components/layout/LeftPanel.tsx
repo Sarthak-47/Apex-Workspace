@@ -174,7 +174,7 @@ function CreatingInput({ depth, type, value, onChange, onSubmit, onCancel }: {
     <div style={{
       height: 26, display: 'flex', alignItems: 'center',
       paddingLeft: depth * 12 + 24, paddingRight: 8, gap: 5, flexShrink: 0,
-      background: '#1A1A3A', borderLeft: '2px solid #6366F1',
+      background: '#1A1A3A', borderLeft: '2px solid var(--accent)',
     }}>
       {type === 'file'
         ? <FileIcon ext={null} />
@@ -248,7 +248,7 @@ function TreeNode({
       }}
       onBlur={() => onRenameSubmit(entry)}
       onClick={e => e.stopPropagation()}
-      style={{ flex: 1, fontSize: 12, background: '#0A0A0F', border: '1px solid #6366F1', borderRadius: 3,
+      style={{ flex: 1, fontSize: 12, background: '#0A0A0F', border: '1px solid var(--accent)', borderRadius: 3,
         color: '#E2E2EC', padding: '1px 4px', outline: 'none', fontFamily: 'inherit' }} />
   ) : (
     <span style={{ fontSize: 12, color: isActive ? '#E2E2EC' : (entry.is_dir && isOpen ? '#E2E2EC' : '#C0C0D0'),
@@ -274,7 +274,7 @@ function TreeNode({
           }}
           className={!isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}>
           {isLoading
-            ? <div style={{ width: 10, height: 10, flexShrink: 0, border: '1.5px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            ? <div style={{ width: 10, height: 10, flexShrink: 0, border: '1.5px solid #252535', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
             : <Chevron open={isOpen} />
           }
           <FolderIcon open={isOpen} />
@@ -334,7 +334,7 @@ function TreeNode({
         height: 26, display: 'flex', alignItems: 'center',
         paddingLeft: indent + 14, paddingRight: 8, gap: 5, cursor: 'pointer',
         background: isActive ? '#1A1A3A' : isFocused ? '#1E1E2E' : 'transparent',
-        borderLeft: isActive ? '2px solid #6366F1' : isFocused ? '2px solid #6366F130' : '2px solid transparent',
+        borderLeft: isActive ? '2px solid var(--accent)' : isFocused ? '2px solid #6366F130' : '2px solid transparent',
         outline: 'none', flexShrink: 0,
       }}
       className={!isActive && !isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}>
@@ -621,7 +621,7 @@ function FileTree({
         style={{ overflowY: 'auto', flex: 1, outline: 'none' }}>
         {rootLoading && (
           <div style={{ padding: '16px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 12, height: 12, border: '1.5px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+            <div style={{ width: 12, height: 12, border: '1.5px solid #252535', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
             <span style={{ fontSize: 11, color: '#4A4A65' }}>Loading…</span>
           </div>
         )}
@@ -707,8 +707,8 @@ function NoWorkspace({ onOpen }: { onOpen: () => void }) {
         <p style={{ fontSize: 11, color: '#4A4A65', textAlign: 'center', lineHeight: 1.6 }}>No folder open</p>
         <button onClick={onOpen}
           style={{ height: 28, padding: '0 14px', borderRadius: 5, fontSize: 11, fontWeight: 500, cursor: 'pointer',
-            background: '#1A1A3A', border: '1px solid #6366F160', color: '#6366F1', transition: 'all 120ms' }}
-          className="hover:!bg-[#252552] hover:!border-[#6366F1] transition-all">
+            background: '#1A1A3A', border: '1px solid #6366F160', color: 'var(--accent)', transition: 'all 120ms' }}
+          className="hover:!bg-[#252552] hover:!border-[var(--accent)] transition-all">
           Open Folder
         </button>
       </div>
@@ -810,7 +810,7 @@ function ToggleBtn({ active, onClick, title, children }: { active: boolean; onCl
         width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderRadius: 4, cursor: 'pointer', fontSize: 10, fontFamily: 'JetBrains Mono, monospace',
         background: active ? '#6366F133' : 'transparent',
-        border: active ? '1px solid #6366F1' : '1px solid transparent',
+        border: active ? '1px solid var(--accent)' : '1px solid transparent',
         color: active ? '#A5B4FC' : '#6A6A85',
       }}
       className={active ? '' : 'hover:!bg-[#1E1E2E]'}>
@@ -1042,8 +1042,8 @@ function OpenEditors() {
 // ─── Outline (symbols for the active file) ────────────────────────────────────
 
 const SYMBOL_COLOR: Record<SymbolKind, string> = {
-  class: '#EE9D28', interface: '#6366F1', function: '#B180D7', method: '#B180D7',
-  type: '#4EC9B0', enum: '#EE9D28', struct: '#EE9D28', trait: '#6366F1',
+  class: '#EE9D28', interface: 'var(--accent)', function: '#B180D7', method: '#B180D7',
+  type: '#4EC9B0', enum: '#EE9D28', struct: '#EE9D28', trait: 'var(--accent)',
   constant: '#4FC1FF', heading: '#8888A8',
 };
 const SYMBOL_GLYPH: Record<SymbolKind, string> = {
@@ -1175,7 +1175,7 @@ function Timeline({ activeFile }: { activeFile: string | null }) {
               title="Compare with current"
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 10px 3px 24px', cursor: 'pointer', fontSize: 11 }}
               className="hover:bg-[#18181F] group">
-              <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="#6366F1" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.8 }}>
+              <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="var(--accent)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.8 }}>
                 <circle cx="7" cy="7" r="5.5" /><polyline points="7,4 7,7 9.5,8.5" />
               </svg>
               <span style={{ color: '#C7C7D9', flex: 1 }}>{i === 0 ? 'Latest' : relTime(e.ts)}</span>

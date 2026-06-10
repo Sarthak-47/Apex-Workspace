@@ -129,7 +129,7 @@ export function GraphView({ notes, onOpen }: Props) {
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Highlight…"
           style={{ height: 24, width: 110, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 4, color: '#E2E2EC', fontSize: 11, padding: '0 7px', outline: 'none' }} />
         {focus && (
-          <button onClick={() => setFocus(null)} style={{ height: 24, padding: '0 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1' }}>Exit focus</button>
+          <button onClick={() => setFocus(null)} style={{ height: 24, padding: '0 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: 'var(--accent)' }}>Exit focus</button>
         )}
         <div style={{ flex: 1 }} />
         <button onClick={() => setTransform({ x: 0, y: 0, k: 1 })} title="Reset view" style={{ height: 24, padding: '0 8px', borderRadius: 4, fontSize: 10, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>Reset</button>
@@ -171,7 +171,7 @@ export function GraphView({ notes, onOpen }: Props) {
               const sh = shapePath(style.shape, n.x, n.y!, r);
               const common = {
                 fill: style.color, fillOpacity: 0.85,
-                stroke: isMatch ? '#fff' : focus === n.id ? '#6366F1' : '#0A0A0F',
+                stroke: isMatch ? '#fff' : focus === n.id ? 'var(--accent)' : '#0A0A0F',
                 strokeWidth: isMatch || focus === n.id ? 2.5 : 1.5,
                 style: { cursor: 'pointer' as const },
                 onClick: () => { onOpen(n.path); },

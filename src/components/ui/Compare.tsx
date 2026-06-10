@@ -59,7 +59,7 @@ export function Compare() {
 
   const Panel = ({ side }: { side: Side }) => (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: '#0A0A0F', border: '1px solid #1A1A28', borderRadius: 8, overflow: 'hidden' }}>
-      <div style={{ height: 28, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #1A1A28', fontSize: 11, fontWeight: 600, color: revealed ? '#8888A8' : '#6366F1' }}>
+      <div style={{ height: 28, display: 'flex', alignItems: 'center', padding: '0 10px', borderBottom: '1px solid #1A1A28', fontSize: 11, fontWeight: 600, color: revealed ? '#8888A8' : 'var(--accent)' }}>
         {revealed ? sideModel(side) : `Model ${side}`}
         {revealed && <span style={{ marginLeft: 'auto', fontSize: 9, color: '#4A4A65' }}>{compareWins[sideModel(side)] ?? 0} wins</span>}
       </div>
@@ -103,13 +103,13 @@ export function Compare() {
             {running ? (
               <button onClick={() => abortRef.current?.abort()} style={{ ...btn, background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}>Stop</button>
             ) : (
-              <button onClick={run} disabled={!ollamaOnline || !prompt.trim()} style={{ ...btn, background: ollamaOnline && prompt.trim() ? '#6366F1' : '#1A1A3A', border: 'none', color: ollamaOnline && prompt.trim() ? '#fff' : '#4A4A65' }}>Run both</button>
+              <button onClick={run} disabled={!ollamaOnline || !prompt.trim()} style={{ ...btn, background: ollamaOnline && prompt.trim() ? 'var(--accent)' : '#1A1A3A', border: 'none', color: ollamaOnline && prompt.trim() ? '#fff' : '#4A4A65' }}>Run both</button>
             )}
             {out.A && out.B && !running && !revealed && (
               <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
-                <button onClick={() => pick('A')} style={{ ...btn, background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1' }}>A is better</button>
+                <button onClick={() => pick('A')} style={{ ...btn, background: '#1A1A3A', border: '1px solid #6366F140', color: 'var(--accent)' }}>A is better</button>
                 <button onClick={() => pick('tie')} style={{ ...btn, background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>Tie</button>
-                <button onClick={() => pick('B')} style={{ ...btn, background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1' }}>B is better</button>
+                <button onClick={() => pick('B')} style={{ ...btn, background: '#1A1A3A', border: '1px solid #6366F140', color: 'var(--accent)' }}>B is better</button>
               </div>
             )}
             {revealed && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#22C55E' }}>Revealed — pick logged</span>}

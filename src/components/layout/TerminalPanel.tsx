@@ -10,14 +10,14 @@ import { isTauri } from "@/lib/tauri";
 const APEX_THEME = {
   background:          '#090910',
   foreground:          '#C0C0D0',
-  cursor:              '#6366F1',
+  cursor:              'var(--accent)',
   cursorAccent:        '#090910',
   selectionBackground: '#25255280',
   black:               '#090910', brightBlack:   '#252535',
   red:                 '#EF4444', brightRed:     '#F87171',
   green:               '#22C55E', brightGreen:   '#4ADE80',
   yellow:              '#F59E0B', brightYellow:  '#FCD34D',
-  blue:                '#3B82F6', brightBlue:    '#6366F1',
+  blue:                '#3B82F6', brightBlue:    'var(--accent)',
   magenta:             '#A78BFA', brightMagenta: '#C084FC',
   cyan:                '#06B6D4', brightCyan:    '#67E8F9',
   white:               '#C0C0D0', brightWhite:   '#E2E2EC',
@@ -413,7 +413,7 @@ export function TerminalPanel() {
               }}
               className={!isActive ? 'hover:!text-[#8888A8] transition-colors' : ''}
             >
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke={isActive ? '#6366F1' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke={isActive ? 'var(--accent)' : 'currentColor'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="1" y="1" width="10" height="10" rx="1.5"/>
                 <polyline points="3,4.5 5.5,6 3,7.5"/><line x1="6.5" y1="7.5" x2="9" y2="7.5"/>
               </svg>
@@ -422,7 +422,7 @@ export function TerminalPanel() {
                     onKeyDown={e => { if (e.key === 'Enter') submitRename(); if (e.key === 'Escape') setRenamingId(null); }}
                     onBlur={submitRename}
                     onClick={e => e.stopPropagation()}
-                    style={{ width: 60, fontSize: 11, background: '#0A0A0F', border: '1px solid #6366F1', borderRadius: 3, color: '#E2E2EC', padding: '1px 4px', outline: 'none' }} />
+                    style={{ width: 60, fontSize: 11, background: '#0A0A0F', border: '1px solid var(--accent)', borderRadius: 3, color: '#E2E2EC', padding: '1px 4px', outline: 'none' }} />
                 : <span>{tab.label}</span>
               }
               {tabs.length > 1 && <CloseBtn onClick={e => closeTab(tab.id, e)} />}

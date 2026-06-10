@@ -40,12 +40,12 @@ export function UpdateBanner() {
       background: '#15151E', border: '1px solid #6366F140', borderRadius: 8,
       boxShadow: '0 12px 32px rgba(0,0,0,0.6)', maxWidth: 320,
     }}>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <path d="M8 11V3"/><polyline points="5 6 8 3 11 6"/><line x1="3" y1="13" x2="13" y2="13"/>
       </svg>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 600 }}>Update available — v{update.version}</div>
-        <a href={update.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#6366F1', textDecoration: 'none' }}>View release →</a>
+        <a href={update.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>View release →</a>
       </div>
       <button onClick={() => setDismissed(true)} style={{ background: 'none', border: 'none', color: '#4A4A65', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
     </div>

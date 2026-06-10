@@ -57,9 +57,9 @@ export function ModeBar() {
               alignItems: 'center',
               gap: 6,
               cursor: 'pointer',
-              border: active ? '1px solid #6366F1' : '1px solid transparent',
+              border: active ? '1px solid var(--accent)' : '1px solid transparent',
               background: active ? '#1A1A3A' : 'transparent',
-              color: active ? '#6366F1' : '#4A4A65',
+              color: active ? 'var(--accent)' : '#4A4A65',
               transition: 'all 0.15s',
             }}
             className={!active ? 'hover:!text-[#8888A8]' : ''}

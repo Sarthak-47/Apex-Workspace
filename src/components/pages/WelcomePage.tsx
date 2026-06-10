@@ -7,8 +7,8 @@ function ActionCard({ title, desc, icon, onClick }: { title: string; desc: strin
   return (
     <button onClick={onClick}
       style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 10, background: "#13131B", border: "1px solid #252535", cursor: "pointer", textAlign: "left", width: "100%" }}
-      className="hover:!border-[#6366F1] hover:!bg-[#16162a] transition-colors">
-      <span style={{ flexShrink: 0, color: "#6366F1", display: "flex" }}>{icon}</span>
+      className="hover:!border-[var(--accent)] hover:!bg-[#16162a] transition-colors">
+      <span style={{ flexShrink: 0, color: "var(--accent)", display: "flex" }}>{icon}</span>
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#E6E6F0" }}>{title}</span>
         <span style={{ display: "block", fontSize: 11, color: "#6A6A85", marginTop: 1 }}>{desc}</span>

@@ -87,7 +87,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <button
             onClick={this.reset}
             style={{
-              fontSize: 11, color: "#fff", background: "#6366F1",
+              fontSize: 11, color: "#fff", background: "var(--accent)",
               border: "none", borderRadius: 6, padding: "5px 12px", cursor: "pointer",
             }}
           >

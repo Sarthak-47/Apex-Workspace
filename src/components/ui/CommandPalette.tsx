@@ -56,7 +56,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       <span>{text.slice(0, idx)}</span>
-      <span style={{ color: '#6366F1', fontWeight: 700 }}>{text.slice(idx, idx + query.length)}</span>
+      <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{text.slice(idx, idx + query.length)}</span>
       <span>{text.slice(idx + query.length)}</span>
     </>
   );
@@ -250,7 +250,7 @@ export function CommandPalette({ onClose }: Props) {
             <button key={s} onClick={() => setEnabled(e => ({ ...e, [s]: !e[s] }))}
               style={{ height: 20, padding: '0 9px', borderRadius: 10, fontSize: 10, cursor: 'pointer',
                 background: enabled[s] ? '#1A1A3A' : 'transparent', border: `1px solid ${enabled[s] ? '#6366F140' : '#252535'}`,
-                color: enabled[s] ? '#6366F1' : '#4A4A65' }}>
+                color: enabled[s] ? 'var(--accent)' : '#4A4A65' }}>
               {s}
             </button>
           ))}
@@ -279,13 +279,13 @@ export function CommandPalette({ onClose }: Props) {
                     height: 42, display: 'flex', alignItems: 'center',
                     padding: '0 14px', gap: 10, cursor: 'pointer',
                     background: isSelected ? '#1A1A3A' : 'transparent',
-                    borderLeft: isSelected ? '2px solid #6366F1' : '2px solid transparent',
+                    borderLeft: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
                     transition: 'background 60ms',
                   }}
                 >
                   {entry.source === 'Files'
                     ? <FileIcon ext={entry.ext ?? null} />
-                    : <span style={{ width: 15, display: 'flex', justifyContent: 'center', flexShrink: 0, color: entry.source === 'Git' ? '#8888A8' : '#6366F1' }}><MentionIcon kind={entry.source === 'Git' ? 'git' : 'knowledge'} size={13} /></span>}
+                    : <span style={{ width: 15, display: 'flex', justifyContent: 'center', flexShrink: 0, color: entry.source === 'Git' ? '#8888A8' : 'var(--accent)' }}><MentionIcon kind={entry.source === 'Git' ? 'git' : 'knowledge'} size={13} /></span>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <Highlight text={entry.title} query={query} />
@@ -295,7 +295,7 @@ export function CommandPalette({ onClose }: Props) {
                     </div>
                   </div>
                   {isSelected && (
-                    <kbd style={{ fontSize: 10, color: '#6366F1', background: '#1A1A3A', padding: '2px 6px', borderRadius: 3, flexShrink: 0, border: '1px solid #6366F130', fontFamily: 'JetBrains Mono,monospace' }}>
+                    <kbd style={{ fontSize: 10, color: 'var(--accent)', background: '#1A1A3A', padding: '2px 6px', borderRadius: 3, flexShrink: 0, border: '1px solid #6366F130', fontFamily: 'JetBrains Mono,monospace' }}>
                       ↵
                     </kbd>
                   )}

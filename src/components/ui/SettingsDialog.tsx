@@ -35,7 +35,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
     <button onClick={() => onChange(!value)}
       style={{
         width: 36, height: 20, borderRadius: 10, position: 'relative',
-        background: value ? '#6366F1' : '#252535',
+        background: value ? 'var(--accent)' : '#252535',
         border: 'none', cursor: 'pointer', transition: 'background 150ms',
         flexShrink: 0,
       }}>
@@ -214,12 +214,44 @@ const APP_THEMES = [
   { value: 'catppuccin',  label: 'Catppuccin Mocha' },
 ];
 
+const ACCENT_PRESETS = [
+  { name: 'Indigo', color: '#6366F1' },
+  { name: 'Blue', color: '#3B82F6' },
+  { name: 'Violet', color: '#8B5CF6' },
+  { name: 'Pink', color: '#EC4899' },
+  { name: 'Rose', color: '#F43F5E' },
+  { name: 'Orange', color: '#F97316' },
+  { name: 'Amber', color: '#F59E0B' },
+  { name: 'Emerald', color: '#10B981' },
+  { name: 'Teal', color: '#14B8A6' },
+  { name: 'Cyan', color: '#06B6D4' },
+];
+
 function ThemesTab() {
-  const { editorTheme, setEditorTheme } = useAppStore();
+  const { editorTheme, setEditorTheme, accentColor, setAccentColor } = useAppStore();
   const [appTheme, setAppTheme] = useState('apex-dark');
 
   return (
     <div>
+      <Section title="Accent Color">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          {ACCENT_PRESETS.map((p) => {
+            const active = accentColor.toLowerCase() === p.color.toLowerCase();
+            return (
+              <button key={p.color} onClick={() => setAccentColor(p.color)} title={p.name}
+                style={{ width: 30, height: 30, borderRadius: 8, cursor: 'pointer', background: p.color, border: active ? '2px solid #fff' : '2px solid transparent', boxShadow: active ? `0 0 0 2px ${p.color}` : 'none' }} />
+            );
+          })}
+        </div>
+        <Field label="Custom">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="color" value={accentColor} onChange={(e) => setAccentColor(e.target.value)}
+              style={{ width: 36, height: 28, padding: 0, border: '1px solid #252535', borderRadius: 5, background: 'none', cursor: 'pointer' }} />
+            <input value={accentColor} onChange={(e) => setAccentColor(e.target.value)} spellCheck={false}
+              style={{ width: 110, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#C0C0D0', fontSize: 12, padding: '5px 8px', outline: 'none', fontFamily: '"JetBrains Mono",monospace' }} />
+          </div>
+        </Field>
+      </Section>
       <Section title="Application Theme">
         <Field label="App theme">
           <Select value={appTheme} options={APP_THEMES} onChange={setAppTheme} />
@@ -267,7 +299,7 @@ const EMPTY_AGENT = (): AgentDef => ({
   id: `agent-${Date.now()}`,
   name: '',
   description: '',
-  color: '#6366F1',
+  color: 'var(--accent)',
   icon: 'custom',
   systemPrompt: '',
   tools: [...ALL_TOOLS],
@@ -305,7 +337,7 @@ function AgentForm({ draft, onChange }: { draft: AgentDef; onChange: (a: AgentDe
                   fontSize: 10, padding: '3px 8px', borderRadius: 4, cursor: 'pointer',
                   background: on ? '#1A1A3A' : 'transparent',
                   border: `1px solid ${on ? '#6366F140' : '#252535'}`,
-                  color: on ? '#6366F1' : '#4A4A65', fontFamily: 'JetBrains Mono,monospace',
+                  color: on ? 'var(--accent)' : '#4A4A65', fontFamily: 'JetBrains Mono,monospace',
                 }}>
                 {t}
               </button>
@@ -376,7 +408,7 @@ function McpSection() {
                 <div style={{ fontSize: 9, color: '#4A4A65', fontFamily: '"JetBrains Mono",monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cfg.command} {cfg.args.join(' ')}</div>
               </div>
               <button onClick={() => toggle(cfg)} disabled={busy === cfg.name}
-                style={{ height: 24, padding: '0 10px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer', background: cfg.enabled ? '#2D1515' : '#1A1A3A', border: `1px solid ${cfg.enabled ? '#EF444440' : '#6366F140'}`, color: cfg.enabled ? '#EF4444' : '#6366F1' }}>
+                style={{ height: 24, padding: '0 10px', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer', background: cfg.enabled ? '#2D1515' : '#1A1A3A', border: `1px solid ${cfg.enabled ? '#EF444440' : '#6366F140'}`, color: cfg.enabled ? '#EF4444' : 'var(--accent)' }}>
                 {busy === cfg.name ? '…' : cfg.enabled ? 'Stop' : 'Start'}
               </button>
               {!['exa', 'github'].includes(cfg.name) && (
@@ -398,7 +430,7 @@ function McpSection() {
             {tools[cfg.name] && tools[cfg.name].length > 0 && (
               <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {tools[cfg.name].map(t => (
-                  <span key={t.name} title={t.description} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 4, background: '#1A1A3A', border: '1px solid #6366F130', color: '#6366F1', fontFamily: '"JetBrains Mono",monospace' }}>{t.name}</span>
+                  <span key={t.name} title={t.description} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 4, background: '#1A1A3A', border: '1px solid #6366F130', color: 'var(--accent)', fontFamily: '"JetBrains Mono",monospace' }}>{t.name}</span>
                 ))}
               </div>
             )}
@@ -412,11 +444,11 @@ function McpSection() {
             <input value={draft.args.join(' ')} onChange={e => setDraft({ ...draft, args: e.target.value.split(/\s+/).filter(Boolean) })} placeholder="args (space-separated)" style={inputStyle} />
             <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
               <button onClick={() => setAdding(false)} style={{ height: 26, padding: '0 10px', borderRadius: 5, fontSize: 11, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>Cancel</button>
-              <button onClick={addServer} style={{ height: 26, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>Add</button>
+              <button onClick={addServer} style={{ height: 26, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>Add</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setAdding(true)} style={{ height: 28, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1' }}>+ Add MCP Server</button>
+          <button onClick={() => setAdding(true)} style={{ height: 28, borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: 'var(--accent)' }}>+ Add MCP Server</button>
         )}
       </div>
       <p style={{ fontSize: 10, color: '#4A4A65', marginTop: 8, lineHeight: 1.5 }}>
@@ -469,7 +501,7 @@ function AITab() {
                   <AgentForm draft={draft} onChange={setDraft} />
                   <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
                     <button onClick={cancel} style={btn('transparent', '#252535', '#8888A8')}>Cancel</button>
-                    <button onClick={save} style={btn('#6366F1', '#6366F1', '#fff')}>Save</button>
+                    <button onClick={save} style={btn('var(--accent)', 'var(--accent)', '#fff')}>Save</button>
                   </div>
                 </div>
               ) : (
@@ -492,13 +524,13 @@ function AITab() {
               <AgentForm draft={draft} onChange={setDraft} />
               <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
                 <button onClick={cancel} style={btn('transparent', '#252535', '#8888A8')}>Cancel</button>
-                <button onClick={save} style={btn('#6366F1', '#6366F1', '#fff')}>Create Agent</button>
+                <button onClick={save} style={btn('var(--accent)', 'var(--accent)', '#fff')}>Create Agent</button>
               </div>
             </div>
           )}
 
           {!editingId && (
-            <button onClick={startNew} style={{ ...btn('#1A1A3A', '#6366F140', '#6366F1'), height: 30, marginTop: 4 }}>
+            <button onClick={startNew} style={{ ...btn('#1A1A3A', '#6366F140', 'var(--accent)'), height: 30, marginTop: 4 }}>
               + New Agent
             </button>
           )}
@@ -635,7 +667,7 @@ function ConnectionsTab() {
 
         {!status.connected ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button onClick={() => setGuide(g => !g)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: '#6366F1', fontSize: 11, cursor: 'pointer', padding: 0 }}>
+            <button onClick={() => setGuide(g => !g)} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', padding: 0 }}>
               {guide ? '▾' : '▸'} How to get a Google OAuth Client ID
             </button>
             {guide && (
@@ -650,7 +682,7 @@ function ConnectionsTab() {
             <Field label="Client ID"><input style={inputStyle} value={clientId} onChange={e => setClientId(e.target.value)} placeholder="xxxx.apps.googleusercontent.com" /></Field>
             <Field label="Client Secret"><input style={inputStyle} type="password" value={clientSecret} onChange={e => setClientSecret(e.target.value)} placeholder="GOCSPX-…" /></Field>
             <button onClick={connect} disabled={busy}
-              style={{ height: 32, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff', marginTop: 4 }}>
+              style={{ height: 32, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: 'var(--accent)', border: 'none', color: '#fff', marginTop: 4 }}>
               {busy ? 'Connecting…' : 'Connect Gmail'}
             </button>
           </div>
@@ -661,7 +693,7 @@ function ConnectionsTab() {
             </Field>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={sync} disabled={busy}
-                style={{ flex: 1, height: 32, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>
+                style={{ flex: 1, height: 32, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>
                 {busy ? 'Syncing…' : 'Sync Now'}
               </button>
               <button onClick={disconnect}
@@ -712,7 +744,7 @@ function CalendarPanel() {
         )}
       </div>
       {status.connected && (
-        <button onClick={sync} disabled={busy} style={{ height: 30, width: '100%', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>
+        <button onClick={sync} disabled={busy} style={{ height: 30, width: '100%', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>
           {busy ? 'Syncing…' : 'Sync Calendar'}
         </button>
       )}
@@ -768,13 +800,13 @@ function FirefliesPanel() {
       {!status.connected ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Field label="API key"><input style={inputStyle} type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Fireflies API key (fireflies.ai → Settings)" /></Field>
-          <button onClick={connect} disabled={busy} style={{ height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>
+          <button onClick={connect} disabled={busy} style={{ height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>
             {busy ? 'Saving…' : 'Save Key'}
           </button>
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={sync} disabled={busy} style={{ flex: 1, height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>
+          <button onClick={sync} disabled={busy} style={{ flex: 1, height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>
             {busy ? 'Syncing…' : 'Sync Meetings'}
           </button>
           <button onClick={disconnect} style={{ height: 30, padding: '0 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}>Disconnect</button>
@@ -801,7 +833,7 @@ export function SettingsBody() {
             style={{
               width: '100%', height: 32, display: 'flex', alignItems: 'center', padding: '0 16px',
               background: activeTab === tab.id ? '#18181F' : 'none',
-              borderLeft: `2px solid ${activeTab === tab.id ? '#6366F1' : 'transparent'}`,
+              borderLeft: `2px solid ${activeTab === tab.id ? 'var(--accent)' : 'transparent'}`,
               borderTop: 'none', borderRight: 'none', borderBottom: 'none',
               cursor: 'pointer', color: activeTab === tab.id ? '#E2E2EC' : '#8888A8',
               fontSize: 12, textAlign: 'left', transition: 'all 100ms',

@@ -92,7 +92,7 @@ function BranchPicker({ branch }: { branch: string }) {
               <button key={b} onClick={() => switchTo(b)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', textAlign: 'left', padding: '5px 12px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: b === branch ? '#A5B4FC' : '#C7C7D9' }}
                 className="hover:!bg-[#1E1E2E]">
-                <span style={{ width: 8, color: '#6366F1' }}>{b === branch ? '●' : ''}</span>{b}
+                <span style={{ width: 8, color: 'var(--accent)' }}>{b === branch ? '●' : ''}</span>{b}
               </button>
             ))}
           </div>
@@ -135,7 +135,7 @@ export function StatusBar() {
   return (
     <div
       className="app-statusbar flex items-center"
-      style={{ height: 26, background: '#6366F1', flexShrink: 0 }}
+      style={{ height: 26, background: 'var(--accent)', flexShrink: 0 }}
     >
       {/* ── Left ──────────────────────────────────────────────────────── */}
       <BranchPicker branch={gitBranch || 'main'} />

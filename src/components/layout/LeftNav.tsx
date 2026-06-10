@@ -68,9 +68,9 @@ function NavIcon({ icon, active, title, onClick }: { icon: React.ReactNode; acti
         width: 40, height: 40,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderRadius: 4, cursor: onClick ? 'pointer' : 'default',
-        color: active ? '#6366F1' : '#8888A8',
+        color: active ? 'var(--accent)' : '#8888A8',
         background: active ? '#1A1A3A' : 'transparent',
-        borderLeft: active ? '2px solid #6366F1' : '2px solid transparent',
+        borderLeft: active ? '2px solid var(--accent)' : '2px solid transparent',
         position: 'relative', transition: 'all 0.12s', flexShrink: 0,
       }}
       className={!active ? 'hover:!bg-[#18181F] hover:!text-[#E2E2EC]' : ''}

@@ -208,7 +208,7 @@ const THEMES: Record<string, ThemeData> = {
       'editor.wordHighlightBackground':         '#6366F130',
       'editorLineNumber.foreground':            '#4A4A65',
       'editorLineNumber.activeForeground':      '#8888A8',
-      'editorCursor.foreground':                '#6366F1',
+      'editorCursor.foreground':                'var(--accent)',
       'editorCursor.background':                '#0A0A0F',
       'editorIndentGuide.background1':          '#1A1A28',
       'editorIndentGuide.activeBackground1':    '#252535',
@@ -225,7 +225,7 @@ const THEMES: Record<string, ThemeData> = {
       'editorSuggestWidget.foreground':         '#E2E2EC',
       'editorSuggestWidget.selectedBackground': '#1A1A3A',
       'editorSuggestWidget.selectedForeground': '#E2E2EC',
-      'editorSuggestWidget.highlightForeground':'#6366F1',
+      'editorSuggestWidget.highlightForeground':'var(--accent)',
       'input.background':                       '#1A1A28',
       'input.border':                           '#252535',
       'input.foreground':                       '#E2E2EC',
@@ -237,7 +237,7 @@ const THEMES: Record<string, ThemeData> = {
       'minimapSlider.activeBackground':         '#6366F140',
       'editorGutter.background':                '#0A0A0F',
       'editorOverviewRuler.border':             '#00000000',
-      'peekView.border':                        '#6366F1',
+      'peekView.border':                        'var(--accent)',
       'peekViewEditor.background':              '#111118',
       'peekViewResult.background':              '#0D0D16',
       'peekViewTitle.background':               '#1A1A3A',
@@ -557,7 +557,7 @@ function EditorToolbar({
         cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
         border: active ? '1px solid #6366F140' : '1px solid transparent',
         background: active ? '#1A1A3A' : 'transparent',
-        color: active ? '#6366F1' : '#4A4A65',
+        color: active ? 'var(--accent)' : '#4A4A65',
         transition: 'all 120ms', flexShrink: 0, lineHeight: 1,
       }}
       className={active ? '' : 'hover:!text-[#8888A8] hover:!bg-white/5'}
@@ -694,7 +694,7 @@ function EditorToolbar({
       <div style={{ width: 1, height: 14, background: '#1A1A28', margin: '0 6px' }} />
 
       {/* Language badge */}
-      <span style={{ fontSize: 10, color: '#6366F1', fontWeight: 500, letterSpacing: '0.02em' }}>
+      <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 500, letterSpacing: '0.02em' }}>
         {LANG_LABELS[language] ?? language}
       </span>
     </div>
@@ -993,7 +993,7 @@ export function MonacoEditor({ path }: Props) {
       {loading ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0A0A0F' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 24, height: 24, border: '2px solid #252535', borderTopColor: '#6366F1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            <div style={{ width: 24, height: 24, border: '2px solid #252535', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
             <span style={{ fontSize: 12, color: '#4A4A65' }}>Loading…</span>
           </div>
         </div>
@@ -1053,7 +1053,7 @@ export function MonacoEditor({ path }: Props) {
           <div ref={vimStatusRef} style={{
             display: vimMode ? 'flex' : 'none',
             height: 24, alignItems: 'center', padding: '0 8px',
-            background: '#6366F1', color: '#fff', fontSize: 12,
+            background: 'var(--accent)', color: '#fff', fontSize: 12,
             fontFamily: '"JetBrains Mono", monospace',
             position: 'absolute', bottom: 0, left: 0, right: 0,
           }} />

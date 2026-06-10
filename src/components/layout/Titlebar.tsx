@@ -83,7 +83,7 @@ function WorkspaceMenu() {
         style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: workspacePath ? '#C7C7D9' : '#8888A8', background: 'transparent', border: 'none', cursor: 'pointer', padding: '3px 6px', borderRadius: 5 }}
         title="Manage workspace"
       >
-        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#6366F1" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="var(--accent)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
           <path d="M1.5 4.2c0-.6.4-1 1-1h3l1.2 1.3h4.6c.6 0 1 .4 1 1v5.3c0 .6-.4 1-1 1H2.5c-.6 0-1-.4-1-1V4.2Z"/>
         </svg>
         <span>{name}</span>

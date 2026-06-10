@@ -93,7 +93,7 @@ function PlanResponse({ content, streaming }: { content: string; streaming?: boo
   const done = checked.size;
 
   return (
-    <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+    <div style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
       {/* Intro text */}
       {intro && <p style={{ marginBottom: 10, color: '#C0C0D0' }}>{intro}</p>}
 
@@ -132,7 +132,7 @@ function PlanResponse({ content, streaming }: { content: string; streaming?: boo
                 border: `1px solid ${isDone ? '#22C55E40' : '#6366F130'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 9, fontWeight: 700,
-                color: isDone ? '#22C55E' : '#6366F1',
+                color: isDone ? '#22C55E' : 'var(--accent)',
               }}>
                 {step.number}
               </span>
@@ -167,7 +167,7 @@ function PlanResponse({ content, streaming }: { content: string; streaming?: boo
           <span style={{ fontSize: 10, color: done === steps.length ? '#22C55E' : '#4A4A65' }}>
             {done === steps.length ? '✓ all done' : `${done}/${steps.length}`}
           </span>
-          {streaming && <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom' }} />}
+          {streaming && <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: 'var(--accent)', verticalAlign: 'text-bottom' }} />}
         </div>
       )}
     </div>
@@ -241,7 +241,7 @@ function Code({
         {/* Apply to file — shown for non-shell code when a file is active */}
         {onApply && (
           <button onClick={apply}
-            style={{ fontSize: 10, color: applied ? '#22C55E' : '#6366F1', cursor: 'pointer', background: applied ? '#0A1F0A' : '#1A1A3A', border: `1px solid ${applied ? '#22C55E30' : '#6366F130'}`, borderRadius: 3, padding: '2px 7px', fontFamily: 'inherit', transition: 'all 0.15s' }}
+            style={{ fontSize: 10, color: applied ? '#22C55E' : 'var(--accent)', cursor: 'pointer', background: applied ? '#0A1F0A' : '#1A1A3A', border: `1px solid ${applied ? '#22C55E30' : '#6366F130'}`, borderRadius: 3, padding: '2px 7px', fontFamily: 'inherit', transition: 'all 0.15s' }}
             className="hover:!bg-[#252552] transition-colors">
             {applied ? '✓ Applied' : 'Apply to file'}
           </button>
@@ -299,17 +299,17 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
   if (msg.streaming) {
     const looksLikePlan = hasPlanStructure(msg.content);
     return (
-      <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+      <div style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
         {hasCalls && msg.toolCalls!.map(tc => <ToolCallView key={tc.id} call={tc} />)}
         {msg.content && (looksLikePlan
           ? <PlanResponse content={msg.content} streaming />
           : <>
               <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</span>
-              <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom', marginLeft: 2 }} />
+              <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: 'var(--accent)', verticalAlign: 'text-bottom', marginLeft: 2 }} />
             </>
         )}
         {!msg.content && msg.streaming && !hasCalls && (
-          <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: '#6366F1', verticalAlign: 'text-bottom' }} />
+          <span className="blink" style={{ display: 'inline-block', width: 7, height: 13, background: 'var(--accent)', verticalAlign: 'text-bottom' }} />
         )}
       </div>
     );
@@ -318,7 +318,7 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
   // Completed plan response
   if (msg.isPlan || hasPlanStructure(msg.content)) {
     return (
-      <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+      <div style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
         {hasCalls && msg.toolCalls!.map(tc => <ToolCallView key={tc.id} call={tc} />)}
         <PlanResponse content={msg.content} />
       </div>
@@ -329,7 +329,7 @@ function MessageBubble({ msg, activeFile, onApplyCode, onRunCommand }: BubblePro
   const blocks = parseBlocks(msg.content);
 
   return (
-    <div style={{ borderLeft: '2px solid #6366F1', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
+    <div style={{ borderLeft: '2px solid var(--accent)', paddingLeft: 12, fontSize: 13, color: '#E2E2EC', lineHeight: 1.6 }}>
       {msg.contextSources && msg.contextSources.length > 0 && <ContextSources sources={msg.contextSources} />}
       {hasCalls && msg.toolCalls!.map(tc => <ToolCallView key={tc.id} call={tc} />)}
       {blocks.map((block, i) => {
@@ -385,7 +385,7 @@ function ToolCallView({ call }: { call: ToolCallBlock }) {
         {call.status === 'calling' ? (
           <div style={{
             width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-            border: '2px solid #6366F1', borderTopColor: 'transparent',
+            border: '2px solid var(--accent)', borderTopColor: 'transparent',
             animation: 'spin 0.6s linear infinite',
           }} />
         ) : call.status === 'error' ? (
@@ -401,7 +401,7 @@ function ToolCallView({ call }: { call: ToolCallBlock }) {
         </span>
         {argSummary && (
           <span style={{
-            fontSize: 11, color: '#6366F1',
+            fontSize: 11, color: 'var(--accent)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
             fontFamily: '"JetBrains Mono",monospace',
           }}>
@@ -439,7 +439,7 @@ function ContextSources({ sources }: { sources: SearchResult[] }) {
   return (
     <div style={{ margin: '2px 0 6px' }}>
       <button onClick={() => setOpen(o => !o)}
-        style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#6366F1', fontSize: 10, padding: 0 }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 10, padding: 0 }}>
         <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5"
           style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.12s' }}>
           <polyline points="2,1 6,4 2,7"/>
@@ -546,7 +546,7 @@ function ContextPanel() {
       {indexProgress && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ height: 4, background: '#252535', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: '100%', background: '#6366F1', borderRadius: 2, transition: 'width 0.2s', width: `${indexProgress.total ? (indexProgress.done / indexProgress.total) * 100 : 0}%` }} />
+            <div style={{ height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.2s', width: `${indexProgress.total ? (indexProgress.done / indexProgress.total) * 100 : 0}%` }} />
           </div>
           <div style={{ fontSize: 10, color: '#6C6C8A', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {indexProgress.file || 'Finalizing…'} ({indexProgress.done}/{indexProgress.total})
@@ -563,7 +563,7 @@ function ContextPanel() {
           </button>
         ) : (
           <button onClick={runIndex} disabled={!ollamaOnline}
-            style={{ flex: 1, height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: ollamaOnline ? 'pointer' : 'not-allowed', background: ollamaOnline ? '#6366F1' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>
+            style={{ flex: 1, height: 30, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: ollamaOnline ? 'pointer' : 'not-allowed', background: ollamaOnline ? 'var(--accent)' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>
             {stats && stats.chunks > 0 ? 'Re-index' : 'Build Index'}
           </button>
         )}
@@ -587,7 +587,7 @@ function ContextPanel() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <span style={{ fontSize: 12, color: '#C0C0D0' }}>Inject context into chat</span>
         <button onClick={() => setContextInjectionEnabled(!contextInjectionEnabled)}
-          style={{ width: 36, height: 20, borderRadius: 10, position: 'relative', background: contextInjectionEnabled ? '#6366F1' : '#252535', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+          style={{ width: 36, height: 20, borderRadius: 10, position: 'relative', background: contextInjectionEnabled ? 'var(--accent)' : '#252535', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
           <span style={{ position: 'absolute', top: 2, left: contextInjectionEnabled ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#E2E2EC', transition: 'left 150ms' }} />
         </button>
       </div>
@@ -673,7 +673,7 @@ function EmailPanel() {
                   <div style={{ fontSize: 9, color: '#4A4A65' }}>{ev.date} {ev.time} · {ev.attendees.length} attendee{ev.attendees.length === 1 ? '' : 's'}</div>
                 </div>
                 <button onClick={() => prep(ev)} disabled={prepping === ev.path || !ollamaOnline} title="Generate a meeting prep brief"
-                  style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: ollamaOnline ? '#6366F1' : '#4A4A65', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 5, padding: '3px 9px', cursor: ollamaOnline ? 'pointer' : 'default' }}>
+                  style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: ollamaOnline ? 'var(--accent)' : '#4A4A65', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 5, padding: '3px 9px', cursor: ollamaOnline ? 'pointer' : 'default' }}>
                   {prepping === ev.path ? '…' : 'Prep'}
                 </button>
               </div>
@@ -701,7 +701,7 @@ function EmailPanel() {
       ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
           <button onClick={() => { setSelected(null); setDraft(''); }}
-            style={{ alignSelf: 'flex-start', margin: '4px 12px', background: 'none', border: 'none', color: '#6366F1', fontSize: 11, cursor: 'pointer', padding: 0 }}>← All threads</button>
+            style={{ alignSelf: 'flex-start', margin: '4px 12px', background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11, cursor: 'pointer', padding: 0 }}>← All threads</button>
           <div style={{ padding: '0 12px', flexShrink: 0 }}>
             <div style={{ fontSize: 13, color: '#E2E2EC', fontWeight: 600 }}>{selected.subject}</div>
             <div style={{ fontSize: 10, color: '#4A4A65', margin: '2px 0 8px' }}>{selected.participants.join(', ')}</div>
@@ -711,7 +711,7 @@ function EmailPanel() {
           </div>
           <div style={{ padding: '0 12px 6px', flexShrink: 0 }}>
             <button onClick={doDraft} disabled={drafting || !ollamaOnline}
-              style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: drafting || !ollamaOnline ? 'default' : 'pointer', background: ollamaOnline ? '#6366F1' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>
+              style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: drafting || !ollamaOnline ? 'default' : 'pointer', background: ollamaOnline ? 'var(--accent)' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>
               {drafting ? 'Drafting…' : 'Draft Reply'}
             </button>
           </div>
@@ -720,7 +720,7 @@ function EmailPanel() {
               <textarea value={draft} onChange={e => setDraft(e.target.value)}
                 style={{ flex: 1, minHeight: 100, background: '#18181F', border: '1px solid #252535', borderRadius: 6, color: '#E2E2EC', fontSize: 12, padding: 8, outline: 'none', resize: 'none', fontFamily: 'inherit', lineHeight: 1.5 }} />
               <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                <button onClick={copyDraft} style={{ flex: 1, height: 26, borderRadius: 5, fontSize: 11, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1' }}>Copy</button>
+                <button onClick={copyDraft} style={{ flex: 1, height: 26, borderRadius: 5, fontSize: 11, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: 'var(--accent)' }}>Copy</button>
                 <button onClick={saveDraftNote} style={{ flex: 1, height: 26, borderRadius: 5, fontSize: 11, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' }}>Save draft</button>
               </div>
               <p style={{ fontSize: 9, color: '#4A4A65', marginTop: 6 }}>Sending is not automated — copy into Gmail to send.</p>
@@ -735,7 +735,7 @@ function EmailPanel() {
 // ─── Tasks tab — background jobs ──────────────────────────────────────────────
 
 const JOB_STATUS_COLOR: Record<string, string> = {
-  idle: '#4A4A65', running: '#6366F1', done: '#22C55E', error: '#EF4444', disabled: '#4A4A65',
+  idle: '#4A4A65', running: 'var(--accent)', done: '#22C55E', error: '#EF4444', disabled: '#4A4A65',
 };
 
 function relTime(t: number | null): string {
@@ -770,8 +770,8 @@ function BackgroundTasksPanel() {
         {(() => {
           const running = JOB_DEFS.filter(d => jobs[d.id]?.status === 'running').length;
           return running > 0 ? (
-            <span style={{ fontSize: 10, color: '#6366F1', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', border: '2px solid #6366F1', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite' }} />
+            <span style={{ fontSize: 10, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', border: '2px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite' }} />
               {running} running
             </span>
           ) : null;
@@ -787,7 +787,7 @@ function BackgroundTasksPanel() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px' }}>
                 {/* status dot / spinner */}
                 {running ? (
-                  <div style={{ width: 9, height: 9, borderRadius: '50%', border: '2px solid #6366F1', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite', flexShrink: 0 }} />
+                  <div style={{ width: 9, height: 9, borderRadius: '50%', border: '2px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.6s linear infinite', flexShrink: 0 }} />
                 ) : (
                   <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: rt.enabled ? JOB_STATUS_COLOR[rt.status] : '#2A2A3D' }} />
                 )}
@@ -804,7 +804,7 @@ function BackgroundTasksPanel() {
                 </button>
                 {/* enable toggle */}
                 <button onClick={() => toggleJobEnabled(def.id)} title={rt.enabled ? 'Disable' : 'Enable'}
-                  style={{ width: 30, height: 18, borderRadius: 9, position: 'relative', background: rt.enabled ? '#6366F1' : '#252535', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                  style={{ width: 30, height: 18, borderRadius: 9, position: 'relative', background: rt.enabled ? 'var(--accent)' : '#252535', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
                   <span style={{ position: 'absolute', top: 2, left: rt.enabled ? 14 : 2, width: 14, height: 14, borderRadius: '50%', background: '#E2E2EC', transition: 'left 150ms' }} />
                 </button>
                 {/* expand logs */}
@@ -877,7 +877,7 @@ function NoteHistory({ note, workspace, onClose, onRestored }: { note: VaultNote
                   {v.when.replace('T', ' ').slice(0, 16)}
                 </span>
                 <button onClick={() => openFile(v.path)} style={{ fontSize: 9, color: '#8888A8', background: 'transparent', border: '1px solid #252535', borderRadius: 4, padding: '2px 7px', cursor: 'pointer' }}>View</button>
-                <button onClick={() => restore(v.path)} style={{ fontSize: 9, color: '#6366F1', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 4, padding: '2px 7px', cursor: 'pointer' }}>Restore</button>
+                <button onClick={() => restore(v.path)} style={{ fontSize: 9, color: 'var(--accent)', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 4, padding: '2px 7px', cursor: 'pointer' }}>Restore</button>
               </div>
             ))}
         </div>
@@ -1087,7 +1087,7 @@ function KnowledgePanel() {
           {(['list', 'graph'] as const).map(v => (
             <button key={v} onClick={() => setKview(v)} title={v === 'list' ? 'List view' : 'Graph view'}
               style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                background: kview === v ? '#1A1A3A' : 'transparent', border: 'none', color: kview === v ? '#6366F1' : '#4A4A65' }}>
+                background: kview === v ? '#1A1A3A' : 'transparent', border: 'none', color: kview === v ? 'var(--accent)' : '#4A4A65' }}>
               {v === 'list'
                 ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="2" y1="3" x2="11" y2="3"/><line x1="2" y1="6.5" x2="11" y2="6.5"/><line x1="2" y1="10" x2="11" y2="10"/></svg>
                 : <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="3" cy="3.5" r="1.8"/><circle cx="10" cy="4" r="1.8"/><circle cx="6" cy="10" r="1.8"/><line x1="3.6" y1="4.8" x2="5.4" y2="8.7"/><line x1="4.6" y1="3.6" x2="8.4" y2="3.9"/><line x1="9.3" y1="5.5" x2="6.6" y2="8.6"/></svg>}
@@ -1095,12 +1095,12 @@ function KnowledgePanel() {
           ))}
         </div>
         <button onClick={() => setPicker(p => !p)} title="New note"
-          style={{ width: 28, height: 28, borderRadius: 5, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          style={{ width: 28, height: 28, borderRadius: 5, cursor: 'pointer', background: '#1A1A3A', border: '1px solid #6366F140', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><line x1="6.5" y1="2" x2="6.5" y2="11"/><line x1="2" y1="6.5" x2="11" y2="6.5"/></svg>
         </button>
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <button onClick={() => setManage(m => !m)} title="Vault management"
-            style={{ width: 28, height: 28, borderRadius: 5, cursor: 'pointer', background: manage ? '#1A1A3A' : 'transparent', border: '1px solid #252535', color: manage ? '#6366F1' : '#4A4A65', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ width: 28, height: 28, borderRadius: 5, cursor: 'pointer', background: manage ? '#1A1A3A' : 'transparent', border: '1px solid #252535', color: manage ? 'var(--accent)' : '#4A4A65', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="7" cy="7" r="2"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.8 2.8l1.4 1.4M9.8 9.8l1.4 1.4M11.2 2.8l-1.4 1.4M4.2 9.8l-1.4 1.4"/></svg>
           </button>
           {manage && (
@@ -1129,7 +1129,7 @@ function KnowledgePanel() {
           {(['all', ...CATEGORIES.map(c => c.id)] as const).map(c => (
             <button key={c} onClick={() => setCatFilter(c as NoteCategory | 'all')}
               style={{ height: 20, padding: '0 8px', borderRadius: 10, fontSize: 9, cursor: 'pointer', textTransform: 'capitalize',
-                background: catFilter === c ? '#1A1A3A' : 'transparent', border: `1px solid ${catFilter === c ? '#6366F140' : '#252535'}`, color: catFilter === c ? '#6366F1' : '#8888A8' }}>
+                background: catFilter === c ? '#1A1A3A' : 'transparent', border: `1px solid ${catFilter === c ? '#6366F140' : '#252535'}`, color: catFilter === c ? 'var(--accent)' : '#8888A8' }}>
               {c}
             </button>
           ))}
@@ -1151,7 +1151,7 @@ function KnowledgePanel() {
                 onKeyDown={e => { if (e.key === 'Enter') submitNew(); if (e.key === 'Escape') { setCreating(null); setNewName(''); } }}
                 placeholder={`New ${creating} name…`}
                 style={{ flex: 1, height: 28, background: '#18181F', border: '1px solid #252535', borderRadius: 5, color: '#E2E2EC', fontSize: 12, padding: '0 8px', outline: 'none' }} />
-              <button onClick={submitNew} style={{ height: 28, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: '#fff' }}>Create</button>
+              <button onClick={submitNew} style={{ height: 28, padding: '0 12px', borderRadius: 5, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>Create</button>
             </div>
           ) : liveForm ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1169,7 +1169,7 @@ function KnowledgePanel() {
                   const on = liveForm.sources.includes(src);
                   return (
                     <button key={src} onClick={() => setLiveForm({ ...liveForm, sources: on ? liveForm.sources.filter(s => s !== src) : [...liveForm.sources, src] })}
-                      style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, cursor: 'pointer', background: on ? '#1A1A3A' : 'transparent', border: `1px solid ${on ? '#6366F140' : '#252535'}`, color: on ? '#6366F1' : '#4A4A65' }}>
+                      style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, cursor: 'pointer', background: on ? '#1A1A3A' : 'transparent', border: `1px solid ${on ? '#6366F140' : '#252535'}`, color: on ? 'var(--accent)' : '#4A4A65' }}>
                       {src}
                     </button>
                   );
@@ -1215,18 +1215,18 @@ function KnowledgePanel() {
             <button onClick={cancelExtract} style={{ height: 24, padding: '0 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', background: '#2D1515', border: '1px solid #EF444440', color: '#EF4444' }}>Stop</button>
           ) : (
             <button onClick={runExtract} disabled={!ollamaOnline}
-              style={{ height: 24, padding: '0 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: ollamaOnline ? 'pointer' : 'not-allowed', background: ollamaOnline ? '#6366F1' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>Extract</button>
+              style={{ height: 24, padding: '0 10px', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: ollamaOnline ? 'pointer' : 'not-allowed', background: ollamaOnline ? 'var(--accent)' : '#1A1A3A', border: 'none', color: ollamaOnline ? '#fff' : '#4A4A65' }}>Extract</button>
           )}
         </div>
         {recommended && !extracting && (
           <div style={{ fontSize: 9, color: '#4A4A65', marginTop: 5 }}>
-            Recommended <b style={{ color: '#6366F1' }}>{recommended.level}</b> ({recommended.humanSenders} human senders detected)
+            Recommended <b style={{ color: 'var(--accent)' }}>{recommended.level}</b> ({recommended.humanSenders} human senders detected)
           </div>
         )}
         {exProgress && (
           <div style={{ marginTop: 6 }}>
             <div style={{ height: 3, background: '#252535', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: '#6366F1', borderRadius: 2, transition: 'width 0.2s', width: `${exProgress.totalBatches ? (exProgress.batch / exProgress.totalBatches) * 100 : 0}%` }} />
+              <div style={{ height: '100%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.2s', width: `${exProgress.totalBatches ? (exProgress.batch / exProgress.totalBatches) * 100 : 0}%` }} />
             </div>
             <div style={{ fontSize: 9, color: '#6C6C8A', marginTop: 3 }}>
               {exProgress.phase} · batch {exProgress.batch}/{exProgress.totalBatches}
@@ -1269,7 +1269,7 @@ function KnowledgePanel() {
                   )}
                   {bl > 0 && (
                     <span title={`${bl} backlink${bl > 1 ? 's' : ''}`}
-                      style={{ fontSize: 9, color: '#6366F1', background: '#1A1A3A', borderRadius: 8, padding: '1px 6px', flexShrink: 0, fontFamily: '"JetBrains Mono",monospace' }}>
+                      style={{ fontSize: 9, color: 'var(--accent)', background: '#1A1A3A', borderRadius: 8, padding: '1px 6px', flexShrink: 0, fontFamily: '"JetBrains Mono",monospace' }}>
                       ↩ {bl}
                     </span>
                   )}
@@ -1293,10 +1293,10 @@ function KnowledgePanel() {
 function EmptyState({ ollamaOnline }: { ollamaOnline: boolean }) {
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '0 20px' }}>
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke={ollamaOnline ? '#6366F1' : '#4A4A65'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke={ollamaOnline ? 'var(--accent)' : '#4A4A65'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="16" cy="16" r="13"/>
         <path d="M11 12a5 5 0 0 1 10 0c0 3-3 4-5 6"/>
-        <circle cx="16" cy="23" r="0.8" fill={ollamaOnline ? '#6366F1' : '#4A4A65'}/>
+        <circle cx="16" cy="23" r="0.8" fill={ollamaOnline ? 'var(--accent)' : '#4A4A65'}/>
       </svg>
       <p style={{ fontSize: 12, color: '#4A4A65', textAlign: 'center', lineHeight: 1.6, margin: 0 }}>
         {ollamaOnline
@@ -1759,9 +1759,9 @@ export function IntelPanel() {
             style={{
               height: 26, padding: '0 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
               cursor: 'pointer', display: 'flex', alignItems: 'center',
-              border: intelTab === tab ? '1px solid #6366F1' : '1px solid transparent',
+              border: intelTab === tab ? '1px solid var(--accent)' : '1px solid transparent',
               background: intelTab === tab ? '#1A1A3A' : 'transparent',
-              color: intelTab === tab ? '#6366F1' : '#4A4A65',
+              color: intelTab === tab ? 'var(--accent)' : '#4A4A65',
               textTransform: 'capitalize', whiteSpace: 'nowrap', transition: 'all 0.12s',
             }}
             className={intelTab !== tab ? 'hover:!text-[#8888A8] hover:!bg-[#18181F]' : ''}
@@ -1937,7 +1937,7 @@ export function IntelPanel() {
         {/* Attached file badge */}
         {attachedFile && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px', marginBottom: 6, background: '#18181F', border: '1px solid #252535', borderRadius: 4 }}>
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#6366F1" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="var(--accent)" strokeWidth="1.5" style={{ flexShrink: 0 }}>
               <path d="M7 1H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4z"/><polyline points="7,1 7,4 10,4"/>
             </svg>
             <span style={{ fontSize: 10, color: '#8888A8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: '"JetBrains Mono",monospace' }}>
@@ -1971,7 +1971,7 @@ export function IntelPanel() {
                       display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer',
                       background: i === mention.index ? '#1A1A3A' : 'transparent',
                     }}>
-                    <span style={{ display: 'flex', color: it.group === 'Knowledge' ? '#6366F1' : '#8888A8' }}><MentionIcon kind={it.kind} size={12} /></span>
+                    <span style={{ display: 'flex', color: it.group === 'Knowledge' ? 'var(--accent)' : '#8888A8' }}><MentionIcon kind={it.kind} size={12} /></span>
                     <span style={{ fontSize: 12, color: '#E2E2EC', fontFamily: it.group === 'Knowledge' ? 'inherit' : '"JetBrains Mono",monospace' }}>{it.label}</span>
                     <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{it.detail}</span>
                   </div>
@@ -2025,7 +2025,7 @@ export function IntelPanel() {
             disabled={!activeFile || !!attachedFile}
             title={activeFile ? `Attach ${activeFile.split(/[\\/]/).pop()}` : 'Open a file to attach'}
             style={{
-              color: activeFile && !attachedFile ? '#6366F1' : '#4A4A65',
+              color: activeFile && !attachedFile ? 'var(--accent)' : '#4A4A65',
               background: 'none', border: 'none', cursor: activeFile && !attachedFile ? 'pointer' : 'default',
               padding: 2, lineHeight: 1, opacity: !activeFile || !!attachedFile ? 0.4 : 1,
             }}
@@ -2044,7 +2044,7 @@ export function IntelPanel() {
               display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px',
               borderRadius: 3, border: `1px solid ${planMode ? '#6366F130' : 'transparent'}`,
               background: planMode ? '#1A1A3A' : 'none',
-              color: planMode ? '#6366F1' : '#4A4A65',
+              color: planMode ? 'var(--accent)' : '#4A4A65',
               cursor: 'pointer', fontSize: 10, fontWeight: planMode ? 600 : 400,
               transition: 'all 0.15s',
             }}
@@ -2144,7 +2144,7 @@ export function IntelPanel() {
               title="Send (Enter)"
               style={{
                 marginLeft: 'auto', width: 30, height: 30,
-                background: input.trim() && ollamaOnline ? '#6366F1' : '#1A1A3A',
+                background: input.trim() && ollamaOnline ? 'var(--accent)' : '#1A1A3A',
                 borderRadius: 6, border: 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: input.trim() && ollamaOnline ? 'pointer' : 'default',
@@ -2197,7 +2197,7 @@ function WebPreviewPanel() {
           className="focus:!border-[#6366F160]"
         />
         <button onClick={navigate}
-          style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 4, cursor: 'pointer', color: '#6366F1', flexShrink: 0 }}>
+          style={{ width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1A1A3A', border: '1px solid #6366F140', borderRadius: 4, cursor: 'pointer', color: 'var(--accent)', flexShrink: 0 }}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="1" y1="5" x2="9" y2="5"/><polyline points="6,2 9,5 6,8"/>
           </svg>
@@ -2227,7 +2227,7 @@ function WebPreviewPanel() {
               height: 20, padding: '0 7px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
               background: url.includes(`:${p}`) ? '#1A1A3A' : 'none',
               border: `1px solid ${url.includes(`:${p}`) ? '#6366F140' : '#252535'}`,
-              color: url.includes(`:${p}`) ? '#6366F1' : '#4A4A65',
+              color: url.includes(`:${p}`) ? 'var(--accent)' : '#4A4A65',
               fontFamily: '"JetBrains Mono", monospace',
             }}>
             :{p}

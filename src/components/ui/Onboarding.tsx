@@ -18,10 +18,10 @@ export function Onboarding() {
 
   const dot = (active: boolean) => ({
     width: 7, height: 7, borderRadius: '50%',
-    background: active ? '#6366F1' : '#252535', transition: 'background 150ms',
+    background: active ? 'var(--accent)' : '#252535', transition: 'background 150ms',
   });
 
-  const primaryBtn: React.CSSProperties = { height: 34, padding: '0 18px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: '#6366F1', border: 'none', color: '#fff' };
+  const primaryBtn: React.CSSProperties = { height: 34, padding: '0 18px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' };
   const ghostBtn: React.CSSProperties = { height: 34, padding: '0 14px', borderRadius: 7, fontSize: 13, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#8888A8' };
 
   const Status = ({ ok, label }: { ok: boolean; label: string }) => (

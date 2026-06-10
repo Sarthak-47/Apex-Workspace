@@ -83,7 +83,7 @@ export function MarkdownPreview({ path, content, onNavigate }: Props) {
       {backlinks.length > 0 && (
         <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid #1A1A28' }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: '#4A4A65', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#6366F1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 6h5a2 2 0 0 0 0-4H6"/><polyline points="6,1 4,3 6,5"/>
             </svg>
             {backlinks.length} Backlink{backlinks.length > 1 ? 's' : ''}
@@ -91,7 +91,7 @@ export function MarkdownPreview({ path, content, onNavigate }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {backlinks.map(b => (
               <div key={b.path} onClick={() => onNavigate(b.path)}
-                style={{ fontSize: 13, color: '#6366F1', cursor: 'pointer', padding: '4px 8px', borderRadius: 5, background: '#0F0F16', border: '1px solid #1A1A28' }}
+                style={{ fontSize: 13, color: 'var(--accent)', cursor: 'pointer', padding: '4px 8px', borderRadius: 5, background: '#0F0F16', border: '1px solid #1A1A28' }}
                 className="hover:!bg-[#1A1A3A] transition-colors">
                 ↩ {b.title}
               </div>

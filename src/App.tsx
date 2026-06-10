@@ -332,6 +332,11 @@ export default function App() {
     document.documentElement.style.setProperty('--intel-panel-width', `${intelPanelWidth}px`);
   }, [intelPanelWidth]);
 
+  const accentColor = useAppStore((s) => s.accentColor);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', accentColor);
+  }, [accentColor]);
+
   useEffect(() => {
     document.documentElement.style.setProperty('--terminal-height', `${terminalHeight}px`);
   }, [terminalHeight]);

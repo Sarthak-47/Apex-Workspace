@@ -68,7 +68,7 @@ export function KeyboardShortcuts() {
         <div style={{ padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px 28px' }}>
           {GROUPS.map(g => (
             <div key={g.title}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#6366F1', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{g.title}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{g.title}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {g.items.map(([k, label]) => (
                   <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

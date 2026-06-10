@@ -170,6 +170,8 @@ interface AppState {
   // Editor preferences (persisted)
   editorTheme: string;
   setEditorTheme: (theme: string) => void;
+  accentColor: string;
+  setAccentColor: (c: string) => void;
   editorFontSize: number;
   setEditorFontSize: (v: number) => void;
   editorWordWrap: boolean;
@@ -472,6 +474,8 @@ export const useAppStore = create<AppState>()(
       // Editor preferences
       editorTheme: 'apex-dark',
       setEditorTheme: (theme) => set({ editorTheme: theme }),
+      accentColor: '#6366F1',
+      setAccentColor: (c) => set({ accentColor: c }),
       editorFontSize: 13,
       setEditorFontSize: (v) => set({ editorFontSize: Math.max(10, Math.min(24, v)) }),
       editorWordWrap: false,
@@ -595,6 +599,7 @@ export const useAppStore = create<AppState>()(
         previewUrl: s.previewUrl,
         ollamaSelectedModel: s.ollamaSelectedModel,
         editorTheme: s.editorTheme,
+        accentColor: s.accentColor,
         editorFontSize: s.editorFontSize,
         editorWordWrap: s.editorWordWrap,
         editorMinimap: s.editorMinimap,

@@ -417,10 +417,10 @@ export function GitPanel() {
               height: 28, padding: '0 14px', borderRadius: 5, fontSize: 12, cursor: 'pointer',
               background: commitMsg.trim() && staged.length > 0 ? '#1A1A3A' : '#111118',
               border: `1px solid ${commitMsg.trim() && staged.length > 0 ? '#6366F160' : '#1A1A28'}`,
-              color: commitMsg.trim() && staged.length > 0 ? '#6366F1' : '#4A4A65',
+              color: commitMsg.trim() && staged.length > 0 ? 'var(--accent)' : '#4A4A65',
               transition: 'all 120ms',
             }}
-            className={commitMsg.trim() && staged.length > 0 ? 'hover:!bg-[#252552] hover:!border-[#6366F1] transition-all' : ''}
+            className={commitMsg.trim() && staged.length > 0 ? 'hover:!bg-[#252552] hover:!border-[var(--accent)] transition-all' : ''}
           >
             {committing ? 'Committing…' : `Commit ${staged.length > 0 ? `(${staged.length})` : ''}`}
           </button>

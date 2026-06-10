@@ -63,7 +63,7 @@ export const BUILTIN_AGENTS: AgentDef[] = [
     id: 'coder',
     name: 'Coder',
     description: 'Full tools — writes and edits code',
-    color: '#6366F1',
+    color: 'var(--accent)',
     icon: 'coder',
     systemPrompt: CODER_PROMPT,
     tools: [...ALL_TOOLS],

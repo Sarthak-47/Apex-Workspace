@@ -33,7 +33,7 @@ function StashControl({ workspace }: { workspace: string }) {
   );
 }
 
-const LANE = "#6366F1";
+const LANE = "var(--accent)";
 
 function CommitGraph({ commits }: { commits: GitCommit[] }) {
   if (commits.length === 0) {
