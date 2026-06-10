@@ -1,13 +1,39 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store";
 
-const QUICK_PORTS = [3000, 5173, 8080, 4321, 5000, 8000];
+const QUICK_PORTS = [3000, 5173, 8080, 4321, 5000, 8000, 4200, 1420];
+
+/** A dev server is "live" if a no-cors fetch resolves (opaque) rather than rejecting. */
+async function isPortLive(port: number, timeoutMs = 1200): Promise<boolean> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    await fetch(`http://localhost:${port}`, { mode: 'no-cors', signal: ctrl.signal });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 export function PreviewPage() {
   const { previewUrl, setPreviewUrl } = useAppStore();
   const [draft, setDraft] = useState(previewUrl);
   const [reloadKey, setReloadKey] = useState(0);
+  const [livePorts, setLivePorts] = useState<Set<number>>(new Set());
+  const [scanning, setScanning] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
+
+  const scan = useCallback(async () => {
+    setScanning(true);
+    const results = await Promise.all(QUICK_PORTS.map(async (p) => [p, await isPortLive(p)] as const));
+    setLivePorts(new Set(results.filter(([, live]) => live).map(([p]) => p)));
+    setScanning(false);
+  }, []);
+
+  // Auto-detect running dev servers on mount.
+  useEffect(() => { scan(); }, [scan]);
 
   const go = (url: string) => {
     let u = url.trim();
@@ -38,15 +64,24 @@ export function PreviewPage() {
         </button>
       </div>
 
-      {/* Quick ports */}
+      {/* Quick ports + auto-detect */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderBottom: '1px solid #1A1A28', flexShrink: 0 }}>
-        <span style={{ fontSize: 10, color: '#6A6A85', marginRight: 2 }}>Quick:</span>
-        {QUICK_PORTS.map((p) => (
-          <button key={p} onClick={() => setPort(p)}
-            style={{ fontSize: 11, padding: '2px 9px', borderRadius: 5, background: previewUrl.includes(`:${p}`) ? '#1A1A3A' : 'transparent', border: '1px solid #252535', color: previewUrl.includes(`:${p}`) ? '#A5B4FC' : '#8888A8', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace' }}>
-            {p}
-          </button>
-        ))}
+        <span style={{ fontSize: 10, color: '#6A6A85', marginRight: 2 }}>Ports:</span>
+        {QUICK_PORTS.map((p) => {
+          const live = livePorts.has(p);
+          const active = previewUrl.includes(`:${p}`);
+          return (
+            <button key={p} onClick={() => setPort(p)} title={live ? 'Dev server detected' : `localhost:${p}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '2px 9px', borderRadius: 5, background: active ? '#1A1A3A' : 'transparent', border: `1px solid ${live ? '#22C55E55' : '#252535'}`, color: active ? '#A5B4FC' : (live ? '#9AE6B4' : '#8888A8'), cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace' }}>
+              {live && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', boxShadow: '0 0 5px #22C55E88' }} />}
+              {p}
+            </button>
+          );
+        })}
+        <button onClick={scan} disabled={scanning} title="Re-scan for dev servers"
+          style={{ marginLeft: 'auto', fontSize: 10, padding: '3px 9px', borderRadius: 5, background: 'transparent', border: '1px solid #252535', color: scanning ? '#4A4A65' : '#8888A8', cursor: scanning ? 'default' : 'pointer' }}>
+          {scanning ? 'Scanning…' : '⟳ Scan'}
+        </button>
       </div>
 
       {/* Frame */}

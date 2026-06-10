@@ -51,6 +51,10 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ◐ Substitute already present: **MCP servers** (AI-native equivalent of extensions)
 - ⬜ Support a subset: custom themes, icon themes, snippets
 
+## Multi-page app (Terax-inspired) ✅
+- ✅ Activity-bar page router; Code page = the IDE (unchanged), full pages for Welcome / Source Control / Web Preview / AI Agents / Knowledge / Models / Settings
+- ✅ **Web Preview** with live **dev-server auto-detect** (no-cors port probe) + commit **graph** on Source Control
+
 ## Tier 5 — SCM depth & the long tail
 - ✅ **Open Editors** view — Explorer section listing open tabs (switch, close, close-all, unsaved dot)
 - ✅ **File explorer context menu** — New File/Folder, Rename, Delete, Copy Path, Reveal (already present)
