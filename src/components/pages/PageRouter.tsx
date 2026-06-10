@@ -4,6 +4,7 @@ import { WelcomePage } from "./WelcomePage";
 import { SourceControlPage } from "./SourceControlPage";
 import { ModelsPage } from "./ModelsPage";
 import { PreviewPage } from "./PreviewPage";
+import { AgentsPage } from "./AgentsPage";
 
 function Placeholder({ title, subtitle }: { title: string; subtitle: string }) {
   return (
@@ -23,7 +24,7 @@ export function PageRouter({ page }: { page: AppPage }) {
     case "welcome": return <WelcomePage />;
     case "source-control": return <SourceControlPage />;
     case "preview": return <PreviewPage />;
-    case "agents": return <Placeholder title="AI Agents" subtitle="Create and manage custom agents" />;
+    case "agents": return <AgentsPage />;
     case "knowledge": return <Placeholder title="Knowledge" subtitle="Your knowledge vault & graph" />;
     case "models": return <ModelsPage />;
     case "settings": return <Placeholder title="Settings" subtitle="Workspace & editor preferences" />;
