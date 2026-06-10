@@ -61,6 +61,8 @@ interface AppState {
   // Top-level page (activity-bar navigation)
   appPage: AppPage;
   setAppPage: (p: AppPage) => void;
+  previewUrl: string;
+  setPreviewUrl: (u: string) => void;
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
@@ -338,6 +340,8 @@ export const useAppStore = create<AppState>()(
       toggleZen: () => set((s) => ({ zenMode: !s.zenMode })),
       appPage: 'code',
       setAppPage: (p) => set({ appPage: p }),
+      previewUrl: 'http://localhost:3000',
+      setPreviewUrl: (u) => set({ previewUrl: u }),
 
       // Unsaved tracking
       unsavedFiles: [],
@@ -588,6 +592,7 @@ export const useAppStore = create<AppState>()(
         terminalOpen: s.terminalOpen,
         terminalHeight: s.terminalHeight,
         terminalShell: s.terminalShell,
+        previewUrl: s.previewUrl,
         ollamaSelectedModel: s.ollamaSelectedModel,
         editorTheme: s.editorTheme,
         editorFontSize: s.editorFontSize,

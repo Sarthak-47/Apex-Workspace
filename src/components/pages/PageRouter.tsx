@@ -3,6 +3,7 @@ import { PageShell } from "./PageShell";
 import { WelcomePage } from "./WelcomePage";
 import { SourceControlPage } from "./SourceControlPage";
 import { ModelsPage } from "./ModelsPage";
+import { PreviewPage } from "./PreviewPage";
 
 function Placeholder({ title, subtitle }: { title: string; subtitle: string }) {
   return (
@@ -21,7 +22,7 @@ export function PageRouter({ page }: { page: AppPage }) {
   switch (page) {
     case "welcome": return <WelcomePage />;
     case "source-control": return <SourceControlPage />;
-    case "preview": return <Placeholder title="Web Preview" subtitle="Preview your local dev servers" />;
+    case "preview": return <PreviewPage />;
     case "agents": return <Placeholder title="AI Agents" subtitle="Create and manage custom agents" />;
     case "knowledge": return <Placeholder title="Knowledge" subtitle="Your knowledge vault & graph" />;
     case "models": return <ModelsPage />;
