@@ -6,6 +6,7 @@ import { loadTasks, type ApexTask } from "@/lib/tasks";
 import { loadWorkspaceSymbols, type WorkspaceSymbol } from "@/lib/symbols";
 import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { ensureProjectMemory } from "@/lib/workspace";
+import { openFolderDialog, createWorkspaceFolder } from "@/lib/tauri";
 import { MentionIcon } from "@/components/ui/Icons";
 
 type Source = 'Commands' | 'Files' | 'Knowledge' | 'Git' | 'Tasks' | 'Symbols';
@@ -91,6 +92,9 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:zen', title: 'View: Toggle Zen Mode', run: run(() => store.toggleZen()) },
       { id: 'c:split', title: 'View: Split Editor', run: run(() => store.activeFile && store.setRightPaneFile(store.activeFile)) },
       { id: 'c:reopen', title: 'File: Reopen Closed Editor', run: run(() => store.reopenClosedFile()) },
+      { id: 'c:openfolder', title: 'File: Open Folder…', run: () => { (async () => { const p = await openFolderDialog(); if (p) { store.setWorkspacePath(p); store.setAppPage('code'); } })(); onClose(); } },
+      { id: 'c:newfolder', title: 'File: New Folder…', run: () => { (async () => { const p = await createWorkspaceFolder(); if (p) { store.setWorkspacePath(p); store.setAppPage('code'); } })(); onClose(); } },
+      { id: 'c:closefolder', title: 'File: Close Folder', run: run(() => { store.setWorkspacePath(null); store.setAppPage('welcome'); }) },
       { id: 'c:settings', title: 'Preferences: Open Settings', run: run(() => store.setSettingsOpen(true)) },
       { id: 'c:shortcuts', title: 'Help: Keyboard Shortcuts', run: run(() => store.setShortcutsOpen(true)) },
       { id: 'c:wrap', title: 'Editor: Toggle Word Wrap', run: run(() => store.setEditorWordWrap(!store.editorWordWrap)) },

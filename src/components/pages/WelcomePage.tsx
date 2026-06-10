@@ -18,7 +18,7 @@ function ActionCard({ title, desc, icon, onClick }: { title: string; desc: strin
 }
 
 export function WelcomePage() {
-  const { recentWorkspaces, setWorkspacePath, setAppPage, ollamaOnline, ollamaModels } = useAppStore();
+  const { recentWorkspaces, setWorkspacePath, setAppPage, ollamaOnline, ollamaModels, removeRecentWorkspace, clearRecentWorkspaces } = useAppStore();
 
   const open = async () => { const p = await openFolderDialog(); if (p) { setWorkspacePath(p); setAppPage('code'); } };
   const create = async () => { const p = await createWorkspaceFolder(); if (p) { setWorkspacePath(p); setAppPage('code'); } };
@@ -56,21 +56,33 @@ export function WelcomePage() {
 
         {/* Recent */}
         <div style={{ marginTop: 36 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", color: "#6A6A85", marginBottom: 10 }}>RECENT</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", color: "#6A6A85" }}>RECENT</div>
+            {recentWorkspaces.length > 0 && (
+              <button onClick={clearRecentWorkspaces}
+                style={{ fontSize: 11, color: "#6A6A85", background: "none", border: "none", cursor: "pointer" }}
+                className="hover:!text-[#C7C7D9]">Clear</button>
+            )}
+          </div>
           {recentWorkspaces.length === 0 ? (
             <div style={{ fontSize: 12, color: "#4A4A65" }}>No recent workspaces yet — open a folder to begin.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {recentWorkspaces.map((p) => (
-                <button key={p} onClick={() => switchTo(p)} title={p}
-                  style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 10px", borderRadius: 6, background: "none", border: "none", cursor: "pointer", textAlign: "left", color: "#C7C7D9" }}
-                  className="hover:!bg-[#16161F]">
+                <div key={p} onClick={() => switchTo(p)} title={p}
+                  style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 10px", borderRadius: 6, cursor: "pointer", color: "#C7C7D9" }}
+                  className="group hover:!bg-[#16161F]">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#F59E0B" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                     <path d="M1 3.5a.8.8 0 0 1 .8-.8h2.07a.8.8 0 0 1 .565.234L5.33 3.83A.8.8 0 0 0 5.9 4.063H10.2a.8.8 0 0 1 .8.8v4.837a.8.8 0 0 1-.8.8H1.8a.8.8 0 0 1-.8-.8V3.5z"/>
                   </svg>
-                  <span style={{ fontSize: 13, color: "#E2E2EC" }}>{baseName(p)}</span>
-                  <span style={{ fontSize: 11, color: "#4A4A65", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p}</span>
-                </button>
+                  <span style={{ fontSize: 13, color: "#E2E2EC", flexShrink: 0 }}>{baseName(p)}</span>
+                  <span style={{ flex: 1, fontSize: 11, color: "#4A4A65", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p}</span>
+                  <button onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }} title="Remove from recents"
+                    style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", color: "#6A6A85", display: "flex", padding: 2, opacity: 0 }}
+                    className="group-hover:!opacity-100 hover:!text-[#E2E2EC]">
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="3.5" y1="3.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="3.5" x2="3.5" y2="10.5"/></svg>
+                  </button>
+                </div>
               ))}
             </div>
           )}

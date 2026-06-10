@@ -199,6 +199,8 @@ interface AppState {
 
   // Recent workspaces (persisted, max 10)
   recentWorkspaces: string[];
+  removeRecentWorkspace: (path: string) => void;
+  clearRecentWorkspaces: () => void;
 
   // Custom agents (persisted)
   selectedAgentId: string;
@@ -502,6 +504,8 @@ export const useAppStore = create<AppState>()(
 
       // Recent workspaces
       recentWorkspaces: [],
+      removeRecentWorkspace: (path) => set((s) => ({ recentWorkspaces: s.recentWorkspaces.filter((p) => p !== path) })),
+      clearRecentWorkspaces: () => set({ recentWorkspaces: [] }),
 
       // Custom agents
       selectedAgentId: 'coder',

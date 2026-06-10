@@ -40,9 +40,11 @@ function MenuRow({ icon, label, onClick, sub }: { icon: React.ReactNode; label: 
 }
 
 function WorkspaceMenu() {
-  const { workspacePath, setWorkspacePath, recentWorkspaces, addToast } = useAppStore();
+  const { workspacePath, setWorkspacePath, recentWorkspaces, addToast, removeRecentWorkspace, clearRecentWorkspaces, setAppPage } = useAppStore();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const onCloseFolder = () => { setOpen(false); setWorkspacePath(null); setAppPage('welcome'); };
 
   useEffect(() => {
     if (!open) return;
@@ -101,9 +103,14 @@ function WorkspaceMenu() {
           }}
         >
           {workspacePath && (
-            <div style={{ padding: '8px 12px', borderBottom: '1px solid #1E1E2E' }}>
-              <div style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 600 }}>{baseName(workspacePath)}</div>
-              <div style={{ fontSize: 10, color: '#4A4A65', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspacePath}</div>
+            <div style={{ padding: '9px 12px', borderBottom: '1px solid #1E1E2E', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 26, height: 26, flexShrink: 0, borderRadius: 7, background: 'color-mix(in srgb, var(--accent) 18%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--accent)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1.5 4.2c0-.6.4-1 1-1h3l1.2 1.3h4.6c.6 0 1 .4 1 1v5.3c0 .6-.4 1-1 1H2.5c-.6 0-1-.4-1-1V4.2Z"/></svg>
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: '#E2E2EC', fontWeight: 600 }}>{baseName(workspacePath)}</div>
+                <div style={{ fontSize: 10, color: '#4A4A65', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspacePath}</div>
+              </div>
             </div>
           )}
 
@@ -111,6 +118,7 @@ function WorkspaceMenu() {
             <MenuRow
               onClick={onOpenFolder}
               label="Open Folder…"
+              sub="Ctrl+O"
               icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1.5 4c0-.6.4-1 1-1h3l1.2 1.3h4.6c.6 0 1 .4 1 1v5c0 .6-.4 1-1 1H2.5c-.6 0-1-.4-1-1V4Z"/></svg>}
             />
             <MenuRow
@@ -118,20 +126,35 @@ function WorkspaceMenu() {
               label="New Folder…"
               icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1.5 4c0-.6.4-1 1-1h3l1.2 1.3h4.6c.6 0 1 .4 1 1v5c0 .6-.4 1-1 1H2.5c-.6 0-1-.4-1-1V4Z"/><line x1="7" y1="6" x2="7" y2="10"/><line x1="5" y1="8" x2="9" y2="8"/></svg>}
             />
+            {workspacePath && (
+              <MenuRow
+                onClick={onCloseFolder}
+                label="Close Folder"
+                icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1.5 4c0-.6.4-1 1-1h3l1.2 1.3h4.6c.6 0 1 .4 1 1v5c0 .6-.4 1-1 1H2.5c-.6 0-1-.4-1-1V4Z"/><line x1="5.5" y1="6.5" x2="8.5" y2="9.5"/><line x1="8.5" y1="6.5" x2="5.5" y2="9.5"/></svg>}
+              />
+            )}
           </div>
 
           {recents.length > 0 && (
             <>
-              <div style={{ fontSize: 9, letterSpacing: '0.08em', color: '#4A4A65', padding: '8px 12px 4px', borderTop: '1px solid #1E1E2E', marginTop: 4 }}>RECENT</div>
-              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px 4px', borderTop: '1px solid #1E1E2E', marginTop: 4 }}>
+                <span style={{ fontSize: 9, letterSpacing: '0.08em', color: '#4A4A65', flex: 1 }}>RECENT</span>
+                <button onClick={() => clearRecentWorkspaces()} className="hover:!text-[#E2776A]" style={{ fontSize: 9, color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Clear</button>
+              </div>
+              <div style={{ maxHeight: 220, overflowY: 'auto' }}>
                 {recents.map((p) => (
-                  <MenuRow
-                    key={p}
-                    onClick={() => switchTo(p)}
-                    label={baseName(p)}
-                    sub={p.length > 22 ? '…' + p.slice(-20) : p}
-                    icon={<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="5.5"/><polyline points="7,4 7,7 9,8.5"/></svg>}
-                  />
+                  <div key={p} className="no-drag group hover:bg-[#1E1E2E] transition-colors" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px 6px 12px', cursor: 'pointer' }}
+                    onClick={() => switchTo(p)} title={p}>
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#8888A8" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="7" cy="7" r="5.5"/><polyline points="7,4 7,7 9,8.5"/></svg>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: '#C7C7D9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{baseName(p)}</div>
+                      <div style={{ fontSize: 9.5, color: '#4A4A65', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p}</div>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }} title="Remove from recent"
+                      className="group-hover:!opacity-100 hover:!text-[#E2776A]" style={{ opacity: 0, flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', padding: 0, display: 'flex' }}>
+                      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9"/><line x1="9" y1="2" x2="2" y2="9"/></svg>
+                    </button>
+                  </div>
                 ))}
               </div>
             </>

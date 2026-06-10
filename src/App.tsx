@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
-import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync, calendarStatus, calendarSync, notify } from "@/lib/tauri";
+import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync, calendarStatus, calendarSync, notify, openFolderDialog } from "@/lib/tauri";
 import { indexFile } from "@/lib/codeindex";
 import { JOB_DEFS, nextRunFor, registerRunner, jobDef, type JobId } from "@/lib/jobs";
 import { runAllLiveNotes } from "@/lib/livenotes";
@@ -271,6 +271,14 @@ export default function App() {
       if (ctrl && e.shiftKey && (e.key === 'T' || e.key === 't')) {
         e.preventDefault();
         useAppStore.getState().reopenClosedFile();
+        return;
+      }
+      // Ctrl+O → open folder
+      if (ctrl && !e.shiftKey && (e.key === 'o' || e.key === 'O')) {
+        e.preventDefault();
+        openFolderDialog().then((p) => {
+          if (p) { const s = useAppStore.getState(); s.setWorkspacePath(p); s.setAppPage('code'); }
+        });
         return;
       }
       // Ctrl+, → settings
