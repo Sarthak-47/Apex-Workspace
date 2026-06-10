@@ -8,6 +8,7 @@ import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { ensureProjectMemory } from "@/lib/workspace";
 import { openFolderDialog, createWorkspaceFolder } from "@/lib/tauri";
 import { MentionIcon } from "@/components/ui/Icons";
+import { FileGlyph } from "@/lib/fileIcons";
 
 type Source = 'Commands' | 'Files' | 'Knowledge' | 'Git' | 'Tasks' | 'Symbols';
 
@@ -19,33 +20,6 @@ interface UResult {
   detail: string;
   ext?: string | null;
   action: () => void;
-}
-
-// ─── File icon (compact badge) ────────────────────────────────────────────────
-
-const EXT_COLOR: Record<string, string> = {
-  ts: '#3B82F6', tsx: '#06B6D4', js: '#F59E0B', jsx: '#F59E0B',
-  py: '#22C55E', rs: '#F97316', go: '#06B6D4', java: '#EF4444',
-  json: '#FACC15', md: '#94A3B8', css: '#A78BFA', scss: '#EC4899',
-  html: '#F87171', toml: '#FB923C', yaml: '#34D399', yml: '#34D399',
-  svg: '#FCD34D', sh: '#6EE7B7',
-};
-const EXT_LABEL: Record<string, string> = {
-  ts: 'TS', tsx: 'TX', js: 'JS', jsx: 'JX', py: 'PY', rs: 'RS',
-  go: 'GO', java: 'JV', json: '{}', md: 'MD', css: 'CS', scss: 'SC',
-  html: 'HT', toml: 'TM', yaml: 'YM', yml: 'YM', svg: 'SV', sh: 'SH',
-};
-
-function FileIcon({ ext }: { ext: string | null }) {
-  const e = ext?.toLowerCase() ?? '';
-  const color = EXT_COLOR[e] ?? '#8888A8';
-  const label = EXT_LABEL[e] ?? (e ? e.slice(0, 2).toUpperCase() : '?');
-  return (
-    <svg width="15" height="15" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
-      <rect width="13" height="13" rx="1.5" fill={color} opacity="0.15"/>
-      <text x="1.5" y="10" fontSize="7.5" fontWeight="700" fill={color} fontFamily="monospace">{label}</text>
-    </svg>
-  );
 }
 
 // ─── Highlight matched chars ──────────────────────────────────────────────────
@@ -288,7 +262,7 @@ export function CommandPalette({ onClose }: Props) {
                   }}
                 >
                   {entry.source === 'Files'
-                    ? <FileIcon ext={entry.ext ?? null} />
+                    ? <FileGlyph name={entry.title} size={15} />
                     : <span style={{ width: 15, display: 'flex', justifyContent: 'center', flexShrink: 0, color: entry.source === 'Git' ? '#8888A8' : 'var(--accent)' }}><MentionIcon kind={entry.source === 'Git' ? 'git' : 'knowledge'} size={13} /></span>}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

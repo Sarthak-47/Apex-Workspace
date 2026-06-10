@@ -49,7 +49,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 ## Tier 4 — Extensibility 🔴
 - ⬜ Full extension API + marketplace — **intentionally out of scope** (Microsoft-owned, enormous surface)
 - ◐ Substitute already present: **MCP servers** (AI-native equivalent of extensions)
-- ⬜ Support a subset: custom themes, icon themes, snippets
+- ◐ Support a subset: custom themes ✅, **icon theme** ✅ (`fileIcons.tsx` — shared Seti-style colored glyphs across Explorer, tabs, command palette & search; ~90 extensions + special filenames like package.json/tsconfig/Dockerfile/.gitignore/vite.config), snippets ✅
 
 ## Multi-page app (Terax-inspired) ✅
 - ✅ Activity-bar page router; Code page = the IDE (unchanged), full pages for Welcome / Source Control / Web Preview / AI Agents / Knowledge / Models / Settings

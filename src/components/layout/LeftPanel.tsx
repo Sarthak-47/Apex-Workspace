@@ -12,33 +12,9 @@ import { getLang } from "@/components/editor/MonacoEditor";
 import { GitPanel } from "@/components/layout/GitPanel";
 import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { CategoryIcon } from "@/components/ui/Icons";
+import { FileGlyph } from "@/lib/fileIcons";
 
 // ─── File type icon ────────────────────────────────────────────────────────────
-
-const EXT_COLOR: Record<string, string> = {
-  ts: '#3B82F6', tsx: '#06B6D4', js: '#F59E0B', jsx: '#F59E0B',
-  py: '#22C55E', rs: '#F97316', go: '#06B6D4', java: '#EF4444',
-  json: '#FACC15', md: '#94A3B8', css: '#A78BFA', scss: '#EC4899',
-  html: '#F87171', toml: '#FB923C', yaml: '#34D399', yml: '#34D399',
-  svg: '#FCD34D', sh: '#6EE7B7',
-};
-const EXT_LABEL: Record<string, string> = {
-  ts: 'TS', tsx: 'TX', js: 'JS', jsx: 'JX', py: 'PY', rs: 'RS',
-  go: 'GO', java: 'JV', json: '{}', md: 'MD', css: 'CS', scss: 'SC',
-  html: 'HT', toml: 'TM', yaml: 'YM', yml: 'YM', svg: 'SV', sh: 'SH',
-};
-
-function FileIcon({ ext }: { ext: string | null }) {
-  const e = ext?.toLowerCase() ?? '';
-  const color = EXT_COLOR[e] ?? '#8888A8';
-  const label = EXT_LABEL[e] ?? (e ? e.slice(0, 2).toUpperCase() : '?');
-  return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
-      <rect width="13" height="13" rx="1.5" fill={color} opacity="0.15"/>
-      <text x="1.5" y="10" fontSize="7.5" fontWeight="700" fill={color} fontFamily="monospace">{label}</text>
-    </svg>
-  );
-}
 
 function FolderIcon({ open }: { open: boolean }) {
   return (
@@ -177,7 +153,7 @@ function CreatingInput({ depth, type, value, onChange, onSubmit, onCancel }: {
       background: '#1A1A3A', borderLeft: '2px solid var(--accent)',
     }}>
       {type === 'file'
-        ? <FileIcon ext={null} />
+        ? <FileGlyph name={value || 'x'} />
         : <FolderIcon open={false} />
       }
       <input
@@ -338,7 +314,7 @@ function TreeNode({
         outline: 'none', flexShrink: 0,
       }}
       className={!isActive && !isFocused ? 'hover:bg-[#18181F] transition-colors' : ''}>
-      <FileIcon ext={entry.ext} />
+      <FileGlyph name={entry.name} />
       {nameCell}
     </div>
   );
@@ -970,7 +946,7 @@ function SearchView() {
                   style={{ flexShrink: 0, transform: isCollapsed ? 'none' : 'rotate(90deg)', transition: 'transform 0.1s' }}>
                   <polyline points="3.5,2 6.5,5 3.5,8"/>
                 </svg>
-                <FileIcon ext={(file.path.split('/').pop() ?? '').split('.').pop() ?? null} />
+                <FileGlyph name={file.path.split('/').pop() ?? ''} />
                 <span style={{ fontSize: 11, color: '#C7C7D9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {file.path.split('/').pop()}
                 </span>
@@ -1022,7 +998,7 @@ function OpenEditors() {
               <div key={path} onClick={() => setActiveFile(path)} title={path}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 10px 2px 22px', cursor: 'pointer', background: active ? '#1A1A3A' : 'transparent' }}
                 className="hover:bg-[#18181F] group/oe">
-                <FileIcon ext={name.split('.').pop() ?? null} />
+                <FileGlyph name={name} />
                 <span style={{ fontSize: 11, color: active ? '#E2E2EC' : '#9A9AB5', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                 {unsaved && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B', flexShrink: 0 }} />}
                 <button onClick={(e) => { e.stopPropagation(); closeFile(path); }} title="Close"

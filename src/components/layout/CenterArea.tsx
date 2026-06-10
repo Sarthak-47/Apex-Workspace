@@ -3,6 +3,7 @@ import { useAppStore } from "@/store";
 import { MonacoEditor } from "@/components/editor/MonacoEditor";
 import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { CategoryIcon } from "@/components/ui/Icons";
+import { FileGlyph } from "@/lib/fileIcons";
 
 // ─── Tab bar ──────────────────────────────────────────────────────────────────
 
@@ -44,11 +45,9 @@ function TabBar({ onRequestClose }: TabBarProps) {
       {[...openFiles.filter((f) => pinnedFiles.includes(f)), ...openFiles.filter((f) => !pinnedFiles.includes(f))].map((path) => {
         const idx       = openFiles.indexOf(path);
         const name      = path.split('/').pop() ?? path;
-        const ext       = name.split('.').pop()?.toLowerCase() ?? '';
         const active    = path === activeFile;
         const unsaved   = unsavedFiles.includes(path);
         const pinned    = pinnedFiles.includes(path);
-        const iconColor = getIconColor(ext);
 
         return (
           <div
@@ -79,12 +78,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
             }}
           >
             {/* File type icon */}
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0 }}>
-              <rect width="13" height="13" rx="1.5" fill={iconColor} opacity="0.15"/>
-              <text x="1.5" y="10" fontSize="7.5" fontWeight="700" fill={iconColor} fontFamily="monospace">
-                {getIconLabel(ext)}
-              </text>
-            </svg>
+            <FileGlyph name={name} />
 
             {/* Filename */}
             <span style={{
@@ -195,33 +189,6 @@ function TabBar({ onRequestClose }: TabBarProps) {
       )}
     </div>
   );
-}
-
-// Map extension → accent color & short label
-function getIconColor(ext: string): string {
-  const map: Record<string, string> = {
-    ts: '#3B82F6', tsx: '#06B6D4',
-    js: '#F59E0B', jsx: '#F59E0B',
-    py: '#22C55E', rs: '#F97316',
-    go: '#06B6D4', java: '#EF4444',
-    json: '#FACC15', md: '#94A3B8',
-    css: '#A78BFA', scss: '#EC4899',
-    html: '#F87171', toml: '#FB923C',
-    yaml: '#34D399', yml: '#34D399',
-    sh: '#6EE7B7',
-  };
-  return map[ext] ?? '#8888A8';
-}
-
-function getIconLabel(ext: string): string {
-  const map: Record<string, string> = {
-    ts: 'TS', tsx: 'TX', js: 'JS', jsx: 'JX',
-    py: 'PY', rs: 'RS', go: 'GO', java: 'JV',
-    json: '{}', md: 'MD', css: 'CS', scss: 'SC',
-    html: 'HT', toml: 'TM', yaml: 'YM', yml: 'YM',
-    sh: 'SH',
-  };
-  return map[ext] ?? (ext.slice(0, 2).toUpperCase() || '??');
 }
 
 // ─── Discard dialog ───────────────────────────────────────────────────────────
