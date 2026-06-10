@@ -1,6 +1,8 @@
 import type { AppPage } from "@/store";
 import { PageShell } from "./PageShell";
 import { WelcomePage } from "./WelcomePage";
+import { SourceControlPage } from "./SourceControlPage";
+import { ModelsPage } from "./ModelsPage";
 
 function Placeholder({ title, subtitle }: { title: string; subtitle: string }) {
   return (
@@ -18,11 +20,11 @@ function Placeholder({ title, subtitle }: { title: string; subtitle: string }) {
 export function PageRouter({ page }: { page: AppPage }) {
   switch (page) {
     case "welcome": return <WelcomePage />;
-    case "source-control": return <Placeholder title="Source Control" subtitle="Status, staging, history & commit graph" />;
+    case "source-control": return <SourceControlPage />;
     case "preview": return <Placeholder title="Web Preview" subtitle="Preview your local dev servers" />;
     case "agents": return <Placeholder title="AI Agents" subtitle="Create and manage custom agents" />;
     case "knowledge": return <Placeholder title="Knowledge" subtitle="Your knowledge vault & graph" />;
-    case "models": return <Placeholder title="Models" subtitle="Recommend, pull & compare local models" />;
+    case "models": return <ModelsPage />;
     case "settings": return <Placeholder title="Settings" subtitle="Workspace & editor preferences" />;
     default: return null;
   }
