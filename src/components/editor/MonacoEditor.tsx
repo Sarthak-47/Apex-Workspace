@@ -6,6 +6,7 @@ import { useAppStore } from '@/store';
 import { readFile, writeFile } from '@/lib/tauri';
 import { saveSnapshot } from '@/lib/history';
 import { setActiveEditor, setSaver } from '@/lib/editorBridge';
+import { registerMergeConflict } from '@/lib/mergeConflict';
 import { registerSnippets } from '@/lib/snippets';
 import { registerLspProviders, onDiagnostics, syncDocument, closeDocument, lspSeverityToMonaco } from '@/lib/lsp';
 import { emmetHTML, emmetCSS, emmetJSX } from 'emmet-monaco-es';
@@ -881,6 +882,9 @@ export function MonacoEditor({ path }: Props) {
     setActiveEditor(editor);
     setSaver(doSave);
     editor.onDidFocusEditorText(() => { setActiveEditor(editor); setSaver(doSave); });
+
+    // VS Code-style merge-conflict resolution (CodeLens + block decorations).
+    try { registerMergeConflict(editor, monaco); } catch { /* non-critical */ }
 
     // Ctrl+S → save (optionally format first)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, doSave);

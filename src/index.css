@@ -191,3 +191,12 @@ body.resizing * { transition: none !important; user-select: none !important; }
 .apex-md-preview th, .apex-md-preview td { border: 1px solid #252535; padding: 5px 10px; font-size: 13px; }
 .apex-md-preview th { background: #111118; color: #E2E2EC; }
 .apex-md-preview strong { color: #E2E2EC; font-weight: 700; }
+
+/* ── Merge-conflict blocks (VS Code-style) ─────────────────────────────── */
+.mc-current  { background: rgba(34,197,94,0.13); }
+.mc-incoming { background: rgba(56,139,253,0.15); }
+.mc-marker            { background: rgba(120,120,150,0.18); font-weight: 700; }
+.mc-marker-current    { background: rgba(34,197,94,0.24); }
+.mc-marker-incoming   { background: rgba(56,139,253,0.26); }
+.mc-gutter-current    { background: #22C55E; width: 3px !important; margin-left: 2px; }
+.mc-gutter-incoming   { background: #388BFD; width: 3px !important; margin-left: 2px; }

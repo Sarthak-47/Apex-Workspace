@@ -7,7 +7,11 @@ type Ed = MonacoEditor.IStandaloneCodeEditor;
 let active: Ed | null = null;
 let saver: (() => void) | null = null;
 
-export function setActiveEditor(e: Ed | null) { active = e; }
+export function setActiveEditor(e: Ed | null) {
+  active = e;
+  // Debug handle (also lets the menu bar / tooling reach the live editor).
+  (window as unknown as { __apexEditor?: Ed | null }).__apexEditor = e;
+}
 export function setSaver(fn: (() => void) | null) { saver = fn; }
 export function getActiveEditor() { return active; }
 
