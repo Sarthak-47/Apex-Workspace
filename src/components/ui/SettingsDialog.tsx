@@ -789,9 +789,45 @@ function FirefliesPanel() {
 
 // ─── SettingsDialog ───────────────────────────────────────────────────────────
 
+/** The tabbed settings content — reused by the modal and the full Settings page. */
+export function SettingsBody() {
+  const [activeTab, setActiveTab] = useState<Tab>('general');
+  return (
+    <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0, height: '100%' }}>
+      {/* Sidebar tabs */}
+      <div style={{ width: 150, background: '#0A0A0F', borderRight: '1px solid #1A1A28', padding: '8px 0', flexShrink: 0 }}>
+        {TABS.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            style={{
+              width: '100%', height: 32, display: 'flex', alignItems: 'center', padding: '0 16px',
+              background: activeTab === tab.id ? '#18181F' : 'none',
+              borderLeft: `2px solid ${activeTab === tab.id ? '#6366F1' : 'transparent'}`,
+              borderTop: 'none', borderRight: 'none', borderBottom: 'none',
+              cursor: 'pointer', color: activeTab === tab.id ? '#E2E2EC' : '#8888A8',
+              fontSize: 12, textAlign: 'left', transition: 'all 100ms',
+            }}
+            className={activeTab !== tab.id ? 'hover:!text-[#C0C0D0] hover:!bg-[#18181F]/50 transition-colors' : ''}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {/* Panel */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+        {activeTab === 'general'  && <GeneralTab />}
+        {activeTab === 'editor'   && <EditorTab />}
+        {activeTab === 'terminal' && <TerminalTab />}
+        {activeTab === 'ai'       && <AITab />}
+        {activeTab === 'connections' && <ConnectionsTab />}
+        {activeTab === 'themes'   && <ThemesTab />}
+        {activeTab === 'about'    && <AboutTab />}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsDialog() {
   const { settingsOpen, setSettingsOpen } = useAppStore();
-  const [activeTab, setActiveTab] = useState<Tab>('general');
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -830,37 +866,7 @@ export function SettingsDialog() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
-          {/* Sidebar tabs */}
-          <div style={{ width: 140, background: '#0A0A0F', borderRight: '1px solid #1A1A28', padding: '8px 0', flexShrink: 0 }}>
-            {TABS.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                style={{
-                  width: '100%', height: 32, display: 'flex', alignItems: 'center', padding: '0 14px',
-                  background: activeTab === tab.id ? '#18181F' : 'none',
-                  borderLeft: `2px solid ${activeTab === tab.id ? '#6366F1' : 'transparent'}`,
-                  borderTop: 'none', borderRight: 'none', borderBottom: 'none',
-                  cursor: 'pointer', color: activeTab === tab.id ? '#E2E2EC' : '#8888A8',
-                  fontSize: 12, textAlign: 'left', transition: 'all 100ms',
-                }}
-                className={activeTab !== tab.id ? 'hover:!text-[#C0C0D0] hover:!bg-[#18181F]/50 transition-colors' : ''}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Panel */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-            {activeTab === 'general'  && <GeneralTab />}
-            {activeTab === 'editor'   && <EditorTab />}
-            {activeTab === 'terminal' && <TerminalTab />}
-            {activeTab === 'ai'       && <AITab />}
-            {activeTab === 'connections' && <ConnectionsTab />}
-            {activeTab === 'themes'   && <ThemesTab />}
-            {activeTab === 'about'    && <AboutTab />}
-          </div>
-        </div>
+        <SettingsBody />
       </div>
     </div>
   );
