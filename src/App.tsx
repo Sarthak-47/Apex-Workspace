@@ -27,6 +27,7 @@ import { ProblemsPanel } from "@/components/layout/ProblemsPanel";
 import { Toaster } from "@/components/ui/Toaster";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { applyWorkspaceSettings } from "@/lib/workspaceSettings";
+import { PageRouter } from "@/components/pages/PageRouter";
 
 export default function App() {
   const {
@@ -329,6 +330,7 @@ export default function App() {
   }, [terminalHeight]);
 
   const zenMode = useAppStore((s) => s.zenMode);
+  const appPage = useAppStore((s) => s.appPage);
   const cls = [
     'app-grid',
     !leftPanelOpen && 'lp-hidden',
@@ -342,10 +344,18 @@ export default function App() {
       <Titlebar />
       <ModeBar />
       <ErrorBoundary name="Navigation"><LeftNav /></ErrorBoundary>
-      <ErrorBoundary name="Side Panel"><LeftPanel /></ErrorBoundary>
-      <ErrorBoundary name="Editor"><CenterArea /></ErrorBoundary>
-      <ErrorBoundary name="AI Panel"><IntelPanel /></ErrorBoundary>
-      <ErrorBoundary name="Terminal" compact><TerminalPanel /></ErrorBoundary>
+      {appPage === 'code' ? (
+        <>
+          <ErrorBoundary name="Side Panel"><LeftPanel /></ErrorBoundary>
+          <ErrorBoundary name="Editor"><CenterArea /></ErrorBoundary>
+          <ErrorBoundary name="AI Panel"><IntelPanel /></ErrorBoundary>
+          <ErrorBoundary name="Terminal" compact><TerminalPanel /></ErrorBoundary>
+        </>
+      ) : (
+        <div className="app-page">
+          <ErrorBoundary name="Page"><PageRouter page={appPage} /></ErrorBoundary>
+        </div>
+      )}
       <ErrorBoundary name="Problems" compact><ProblemsPanel /></ErrorBoundary>
       <ErrorBoundary name="Status Bar" compact><StatusBar /></ErrorBoundary>
       <Toaster />

@@ -23,6 +23,7 @@ export const DEFAULT_JOB: JobRuntime = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type AppMode = "CODE" | "KNOWLEDGE" | "COMMS";
+export type AppPage = "code" | "source-control" | "preview" | "agents" | "knowledge" | "models" | "settings" | "welcome";
 export type ToastType = "info" | "success" | "error" | "warning";
 
 export interface Toast {
@@ -57,6 +58,9 @@ interface AppState {
   reopenClosedFile: () => void;
   zenMode: boolean;
   toggleZen: () => void;
+  // Top-level page (activity-bar navigation)
+  appPage: AppPage;
+  setAppPage: (p: AppPage) => void;
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
@@ -332,6 +336,8 @@ export const useAppStore = create<AppState>()(
       },
       zenMode: false,
       toggleZen: () => set((s) => ({ zenMode: !s.zenMode })),
+      appPage: 'code',
+      setAppPage: (p) => set({ appPage: p }),
 
       // Unsaved tracking
       unsavedFiles: [],

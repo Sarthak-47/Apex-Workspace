@@ -93,6 +93,9 @@ html, body, #root {
 .app-terminal  { grid-column: 1/-1; grid-row: 4; overflow: hidden; }
 .app-statusbar { grid-column: 1/-1; grid-row: 5; }
 
+/* Full-screen page (non-code pages span the content + terminal rows) */
+.app-page      { grid-column: 2/-1; grid-row: 3/5; overflow: hidden; }
+
 /* Panel collapse states */
 .app-grid.lp-hidden  { grid-template-columns: 48px 0 1fr var(--intel-panel-width); }
 .app-grid.ip-hidden  { grid-template-columns: 48px var(--left-panel-width) 1fr 0; }
