@@ -105,6 +105,27 @@ export async function gitBlame(workspace: string, path: string): Promise<BlameLi
   try { return await invoke<BlameLine[]>('git_blame', { workspace, path }); } catch { return []; }
 }
 
+export interface GitFileStatus { path: string; staged: string; unstaged: string }
+
+export async function gitStatus(workspace: string): Promise<GitFileStatus[]> {
+  if (!isTauri()) return [];
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return await invoke<GitFileStatus[]>('git_status', { workspace }); } catch { return []; }
+}
+
+export async function gitDiffFile(workspace: string, path: string, staged: boolean): Promise<string> {
+  if (!isTauri()) return '';
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return await invoke<string>('git_diff_file', { workspace, path, staged }); } catch { return ''; }
+}
+
+/** Apply a unified-diff patch to the index (stage a hunk; reverse=true unstages). */
+export async function gitApplyCached(workspace: string, patch: string, reverse: boolean): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('git_apply_cached', { workspace, patch, reverse });
+}
+
 export async function gitListBranches(workspace: string): Promise<string[]> {
   if (!isTauri()) return [];
   const { invoke } = await import('@tauri-apps/api/core');

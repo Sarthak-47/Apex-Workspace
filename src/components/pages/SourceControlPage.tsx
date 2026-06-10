@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "@/store";
 import { GitPanel } from "@/components/layout/GitPanel";
 import { gitLog, type GitCommit } from "@/lib/tauri";
+import { HunkStaging } from "./HunkStaging";
 import { PageShell } from "./PageShell";
 
 const LANE = "#6366F1";
@@ -42,6 +43,7 @@ function CommitGraph({ commits }: { commits: GitCommit[] }) {
 export function SourceControlPage() {
   const { workspacePath, gitBranch } = useAppStore();
   const [commits, setCommits] = useState<GitCommit[]>([]);
+  const [tab, setTab] = useState<'changes' | 'history'>('changes');
 
   useEffect(() => {
     if (!workspacePath) { setCommits([]); return; }
@@ -68,13 +70,19 @@ export function SourceControlPage() {
         <div style={{ width: 340, flexShrink: 0, borderRight: "1px solid #1A1A28", display: "flex", flexDirection: "column", minHeight: 0 }}>
           <GitPanel />
         </div>
-        {/* Commit graph */}
+        {/* Changes (hunk staging) / History (graph) */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div style={{ padding: "10px 16px 6px", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", color: "#6A6A85", flexShrink: 0 }}>
-            HISTORY · {commits.length} commit{commits.length === 1 ? "" : "s"}
+          <div style={{ display: "flex", gap: 4, padding: "8px 12px 4px", flexShrink: 0, borderBottom: "1px solid #1A1A28" }}>
+            {(['changes', 'history'] as const).map((t) => (
+              <button key={t} onClick={() => setTab(t)}
+                style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, cursor: "pointer", textTransform: "capitalize",
+                  background: tab === t ? "#1A1A3A" : "transparent", border: `1px solid ${tab === t ? "#6366F140" : "transparent"}`, color: tab === t ? "#A5B4FC" : "#8888A8" }}>
+                {t === 'history' ? `History (${commits.length})` : 'Changes'}
+              </button>
+            ))}
           </div>
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            <CommitGraph commits={commits} />
+            {tab === 'changes' ? <HunkStaging workspace={workspacePath} /> : <CommitGraph commits={commits} />}
           </div>
         </div>
       </div>

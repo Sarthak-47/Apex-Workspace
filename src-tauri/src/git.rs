@@ -231,3 +231,35 @@ pub async fn git_blame(workspace: String, path: String) -> Result<Vec<BlameLine>
     }
     Ok(out)
 }
+
+/// Apply a unified-diff patch to the index (for hunk-level staging/unstaging).
+/// `reverse` unstages (git apply --cached -R). The patch is fed via stdin.
+#[tauri::command]
+pub async fn git_apply_cached(workspace: String, patch: String, reverse: bool) -> Result<(), String> {
+    use std::io::Write;
+    use std::process::Stdio;
+    let mut args: Vec<&str> = vec!["apply", "--cached", "--unidiff-zero", "--whitespace=nowarn"];
+    if reverse {
+        args.push("-R");
+    }
+    let mut child = Command::new("git")
+        .args(&args)
+        .current_dir(&workspace)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("git error: {e}"))?;
+    child
+        .stdin
+        .as_mut()
+        .ok_or("no stdin")?
+        .write_all(patch.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let out = child.wait_with_output().map_err(|e| e.to_string())?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}

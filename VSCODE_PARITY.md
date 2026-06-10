@@ -60,7 +60,8 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ✅ **File explorer context menu** — New File/Folder, Rename, Delete, Copy Path, Reveal (already present)
 - ◐ **inline git blame** — Rust `git_blame` (porcelain parser, validated against real git output) + status-bar "author, time ago" for the current line (desktop app only)
 - ✅ **branch picker** — click the branch in the status bar → switch branches or create a new one (uses existing git backend)
-- ⬜ Hunk staging · stash UI · PR UI · multiple SCM providers
+- ✅ **Git hunk staging** — Rust `git_apply_cached` (patch → index via `git apply --cached --unidiff-zero`, mechanism validated in a temp repo: staging one hunk yields partial `MM` staging); `parseDiffHunks` splits a diff into per-hunk patches; Source Control page **Changes** tab shows each file's hunks with Stage/Unstage buttons (desktop app)
+- ⬜ stash UI · PR UI · multiple SCM providers
 - ✅ Graphical **settings editor** — Settings dialog reads/writes persisted store values (font size, word wrap, minimap, line numbers apply + survive reload; LSP enable + server paths) · **per-workspace `.vscode/settings.json`** applied on folder open (editor.fontSize/wordWrap/minimap/lineNumbers/formatOnSave, files.autoSave)
 - ⬜ **Keybindings editor**
 - ⬜ **Test Explorer**
