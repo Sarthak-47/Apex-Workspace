@@ -46,6 +46,13 @@ export default function App() {
     mode, toggleIntelPanel, setIntelTab,
   } = useAppStore();
 
+  // ── Show the Welcome page on a fresh launch with no workspace open ──────────
+  useEffect(() => {
+    const s = useAppStore.getState();
+    if (!s.workspacePath && s.workspacePath !== '/demo-workspace') s.setAppPage('welcome');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Drop the legacy demo workspace (older builds set this mock path) ────────
   useEffect(() => {
     const wp = useAppStore.getState().workspacePath;

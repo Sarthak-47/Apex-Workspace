@@ -179,8 +179,11 @@ export function Titlebar() {
     >
       {/* ── LEFT GROUP (flex:1, left-aligned) ── */}
       <div className="no-drag flex items-center gap-2 flex-shrink-0" style={{ flex:1, paddingLeft:12 }}>
-        <img src="/apex-logo.svg" width={28} height={28} alt="APEX" style={{ objectFit:'contain', flexShrink:0, mixBlendMode:'lighten' }} />
-        <span style={{ fontSize:13, fontWeight:700, color:'#E2E2EC', letterSpacing:'0.04em' }}>APEX</span>
+        <button onClick={() => useAppStore.getState().setAppPage('welcome')} title="Welcome"
+          className="no-drag flex items-center gap-2" style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}>
+          <img src="/apex-logo.svg" width={28} height={28} alt="APEX" style={{ objectFit:'contain', flexShrink:0, mixBlendMode:'lighten' }} />
+          <span style={{ fontSize:13, fontWeight:700, color:'#E2E2EC', letterSpacing:'0.04em' }}>APEX</span>
+        </button>
         <div style={{ width:1, height:14, background:'#252535', flexShrink:0, margin:'0 4px' }} />
         <WorkspaceMenu />
       </div>
