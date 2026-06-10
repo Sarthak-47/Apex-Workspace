@@ -200,3 +200,5 @@ body.resizing * { transition: none !important; user-select: none !important; }
 .mc-marker-incoming   { background: rgba(56,139,253,0.26); }
 .mc-gutter-current    { background: #22C55E; width: 3px !important; margin-left: 2px; }
 .mc-gutter-incoming   { background: #388BFD; width: 3px !important; margin-left: 2px; }
+
+.ks-row:hover { background: #16161F; }

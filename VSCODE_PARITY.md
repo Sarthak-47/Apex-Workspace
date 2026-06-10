@@ -63,7 +63,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ✅ **Git hunk staging** — Rust `git_apply_cached` (patch → index via `git apply --cached --unidiff-zero`, mechanism validated in a temp repo: staging one hunk yields partial `MM` staging); `parseDiffHunks` splits a diff into per-hunk patches; Source Control page **Changes** tab shows each file's hunks with Stage/Unstage buttons (desktop app)
 - ⬜ stash UI · PR UI · multiple SCM providers
 - ✅ Graphical **settings editor** — Settings dialog reads/writes persisted store values (font size, word wrap, minimap, line numbers apply + survive reload; LSP enable + server paths) · **per-workspace `.vscode/settings.json`** applied on folder open (editor.fontSize/wordWrap/minimap/lineNumbers/formatOnSave, files.autoSave)
-- ⬜ **Keybindings editor**
+- ✅ **Keybindings editor** — searchable Keyboard Shortcuts editor (Ctrl+/ or Help menu): COMMAND / KEYBINDING / CATEGORY table, 47 bindings across General/File/View/Editor/Selection/Code-Intelligence/Chat, live filter by command·key·category with result count (rebind-to-custom-keymap still todo)
 - ⬜ **Test Explorer**
 - ⬜ **Multi-root workspaces** (`.code-workspace`)
 - ⬜ **Remote** — SSH / WSL / containers 🔴
