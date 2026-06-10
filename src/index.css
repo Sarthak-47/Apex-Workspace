@@ -95,6 +95,8 @@ html, body, #root {
 
 /* Full-screen page (non-code pages span the content + terminal rows) */
 .app-page      { grid-column: 2/-1; grid-row: 3/5; overflow: hidden; }
+/* On a full page: collapse the mode bar (row 2) and terminal (row 4). */
+.app-grid.page { grid-template-rows: 38px 0 1fr 0 26px; }
 
 /* Panel collapse states */
 .app-grid.lp-hidden  { grid-template-columns: 48px 0 1fr var(--intel-panel-width); }

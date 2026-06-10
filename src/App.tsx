@@ -344,12 +344,13 @@ export default function App() {
     !intelPanelOpen && 'ip-hidden',
     !terminalOpen && 'trm-hidden',
     zenMode && 'zen',
+    appPage !== 'code' && 'page',
   ].filter(Boolean).join(' ');
 
   return (
     <div className={cls}>
       <Titlebar />
-      <ModeBar />
+      {appPage === 'code' && <ModeBar />}
       <ErrorBoundary name="Navigation"><LeftNav /></ErrorBoundary>
       {appPage === 'code' ? (
         <>
