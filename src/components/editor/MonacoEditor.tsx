@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/store';
 import { readFile, writeFile } from '@/lib/tauri';
 import { saveSnapshot } from '@/lib/history';
+import { setActiveEditor, setSaver } from '@/lib/editorBridge';
 import { registerSnippets } from '@/lib/snippets';
 import { registerLspProviders, onDiagnostics, syncDocument, closeDocument, lspSeverityToMonaco } from '@/lib/lsp';
 import { emmetHTML, emmetCSS, emmetJSX } from 'emmet-monaco-es';
@@ -864,8 +865,8 @@ export function MonacoEditor({ path }: Props) {
       if (model) setEditorFileSize(new TextEncoder().encode(model.getValue()).length);
     });
 
-    // Ctrl+S → save (optionally format first)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
+    // Save (optionally format first) — shared by Ctrl+S and the File menu.
+    const doSave = async () => {
       if (useAppStore.getState().formatOnSave) {
         try { await editor.getAction('editor.action.formatDocument')?.run(); } catch { /* no formatter */ }
       }
@@ -874,7 +875,15 @@ export function MonacoEditor({ path }: Props) {
       saveSnapshot(path, val);
       dirtyRef.current = false;
       markFileSaved(path);
-    });
+    };
+
+    // Expose to the menu bar; refresh on focus when multiple editors exist.
+    setActiveEditor(editor);
+    setSaver(doSave);
+    editor.onDidFocusEditorText(() => { setActiveEditor(editor); setSaver(doSave); });
+
+    // Ctrl+S → save (optionally format first)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, doSave);
 
     // Ctrl+G → go to line
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyG, () => {

@@ -1,6 +1,7 @@
 import { minimize, toggleMaximize, closeWindow } from "@/lib/tauri";
 import { useAppStore } from "@/store";
 import { useEffect, useState } from "react";
+import { MenuBar } from "@/components/layout/MenuBar";
 
 // ─── Window Controls ──────────────────────────────────────────────────────────
 function WindowControls() {
@@ -57,34 +58,35 @@ export function Titlebar() {
       className="app-titlebar drag"
       style={{ height:38, background:'#0A0A0F', borderBottom:'1px solid #1A1A28', display:'flex', alignItems:'center', flexShrink:0 }}
     >
-      {/* ── LEFT GROUP (flex:1, left-aligned) ── */}
-      <div className="no-drag flex items-center gap-2 flex-shrink-0" style={{ flex:1, paddingLeft:12 }}>
-        <button onClick={() => useAppStore.getState().setAppPage('welcome')} title="Welcome"
-          className="no-drag flex items-center gap-2" style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}>
-          <img src="/apex-logo.svg" width={28} height={28} alt="APEX" style={{ objectFit:'contain', flexShrink:0, mixBlendMode:'lighten' }} />
-          <span style={{ fontSize:13, fontWeight:700, color:'#E2E2EC', letterSpacing:'0.04em' }}>APEX</span>
+      {/* ── LEFT GROUP — logo + VS Code-style menu bar ── */}
+      <div className="no-drag flex items-center gap-1" style={{ flexShrink:0, paddingLeft:8, minWidth:0 }}>
+        <button onClick={() => useAppStore.getState().setAppPage('welcome')} title="Welcome to APEX"
+          className="no-drag flex items-center" style={{ background:'none', border:'none', cursor:'pointer', padding:'0 4px', flexShrink:0 }}>
+          <img src="/apex-logo.svg" width={24} height={24} alt="APEX" style={{ objectFit:'contain', flexShrink:0, mixBlendMode:'lighten' }} />
         </button>
+        <MenuBar />
       </div>
 
-      {/* ── CENTER — Search bar (always truly centered) ── */}
-      <div
-        className="no-drag"
-        onClick={() => setCommandPaletteOpen(true)}
-        style={{ width:280, height:26, background:'#18181F', border:'1px solid #252535', borderRadius:6, display:'flex', alignItems:'center', padding:'0 9px', gap:6, flexShrink:0, cursor:'pointer' }}
-        title="Search files and commands (Ctrl+K)"
-      >
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#4A4A65" strokeWidth="1.5">
-          <circle cx="5.5" cy="5.5" r="4"/><line x1="9" y1="9" x2="12" y2="12"/>
-        </svg>
-        <span style={{ fontSize:12, color:'#4A4A65', flex:1, whiteSpace:'nowrap', overflow:'hidden' }}>
-          Search files, commands, knowledge...
-        </span>
-        <span style={{ background:'#1E1E2E', color:'#4A4A65', fontSize:10, padding:'1px 5px', borderRadius:3, fontFamily:'JetBrains Mono,monospace', flexShrink:0 }}>Ctrl</span>
-        <span style={{ background:'#1E1E2E', color:'#4A4A65', fontSize:10, padding:'1px 5px', borderRadius:3, fontFamily:'JetBrains Mono,monospace', flexShrink:0 }}>K</span>
+      {/* ── CENTER — Search bar, centered in remaining space (never overlaps) ── */}
+      <div className="no-drag" style={{ flex:1, minWidth:0, display:'flex', justifyContent:'center', padding:'0 8px' }}>
+        <div
+          onClick={() => setCommandPaletteOpen(true)}
+          style={{ width:280, maxWidth:'100%', height:26, background:'#18181F', border:'1px solid #252535', borderRadius:6, display:'flex', alignItems:'center', padding:'0 9px', gap:6, cursor:'pointer' }}
+          title="Search files and commands (Ctrl+K)"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#4A4A65" strokeWidth="1.5" style={{ flexShrink:0 }}>
+            <circle cx="5.5" cy="5.5" r="4"/><line x1="9" y1="9" x2="12" y2="12"/>
+          </svg>
+          <span style={{ fontSize:12, color:'#4A4A65', flex:1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+            Search files, commands, knowledge...
+          </span>
+          <span style={{ background:'#1E1E2E', color:'#4A4A65', fontSize:10, padding:'1px 5px', borderRadius:3, fontFamily:'JetBrains Mono,monospace', flexShrink:0 }}>Ctrl</span>
+          <span style={{ background:'#1E1E2E', color:'#4A4A65', fontSize:10, padding:'1px 5px', borderRadius:3, fontFamily:'JetBrains Mono,monospace', flexShrink:0 }}>K</span>
+        </div>
       </div>
 
-      {/* ── RIGHT GROUP (flex:1, right-aligned) ── */}
-      <div className="no-drag flex items-center justify-end" style={{ flex:1 }}>
+      {/* ── RIGHT GROUP ── */}
+      <div className="no-drag flex items-center justify-end" style={{ flexShrink:0 }}>
         <OllamaStatusDot />
         <div style={{ width:1, height:14, background:'#252535' }} />
         <WindowControls />
