@@ -136,3 +136,23 @@ ${manual || `${MANUAL_MARKER}\n## Notes\n_Add project-specific notes here. APEX 
 export async function loadWorkspaceMd(workspace: string): Promise<string | null> {
   return tryRead(join(workspace, '.ai', 'WORKSPACE.md'));
 }
+
+/**
+ * Project memory — a user-authored APEX.md at the workspace root (like Terax's
+ * TERAX.md / CLAUDE.md). Injected verbatim into the agent's system prompt so the
+ * AI knows project conventions, commands, and constraints across every chat.
+ * Falls back to .apex/APEX.md.
+ */
+export async function loadProjectMemory(workspace: string): Promise<string | null> {
+  return (await tryRead(join(workspace, 'APEX.md'))) ?? tryRead(join(workspace, '.apex', 'APEX.md'));
+}
+
+/** Create a starter APEX.md if none exists; returns its path. */
+export async function ensureProjectMemory(workspace: string): Promise<string> {
+  const path = join(workspace, 'APEX.md');
+  const existing = await tryRead(path);
+  if (existing === null) {
+    await writeFile(path, `# Project memory\n\nAPEX reads this file into every AI chat. Describe your project's conventions, key commands, and anything the assistant should always know.\n\n## Commands\n- Build: \n- Test: \n\n## Conventions\n- \n`);
+  }
+  return path;
+}

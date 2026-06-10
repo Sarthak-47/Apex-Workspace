@@ -5,6 +5,7 @@ import { listVault, type VaultNote } from "@/lib/vault";
 import { loadTasks, type ApexTask } from "@/lib/tasks";
 import { loadWorkspaceSymbols, type WorkspaceSymbol } from "@/lib/symbols";
 import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
+import { ensureProjectMemory } from "@/lib/workspace";
 import { MentionIcon } from "@/components/ui/Icons";
 
 type Source = 'Commands' | 'Files' | 'Knowledge' | 'Git' | 'Tasks' | 'Symbols';
@@ -98,6 +99,7 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:formatsave', title: 'Editor: Toggle Format On Save', run: run(() => store.setFormatOnSave(!store.formatOnSave)) },
       { id: 'c:vim', title: 'Editor: Toggle Vim Mode', run: run(() => store.setVimMode(!store.vimMode)) },
       { id: 'c:autocomplete', title: 'Editor: Toggle Inline AI Autocomplete', run: run(() => store.setAutocompleteEnabled(!store.autocompleteEnabled)) },
+      { id: 'c:memory', title: 'AI: Edit Project Memory (APEX.md)', run: () => { (async () => { const ws = store.workspacePath; if (ws) { try { const p = await ensureProjectMemory(ws); store.openFile(p); store.setAppPage('code'); } catch { /* ignore */ } } })(); onClose(); } },
       { id: 'c:cookbook', title: 'Models: Open Cookbook', run: run(() => store.setCookbookOpen(true)) },
       { id: 'c:compare', title: 'Models: Blind Compare', run: run(() => store.setCompareOpen(true)) },
       ...THEME_OPTIONS.map((t) => ({ id: 'theme:' + t.value, title: `Color Theme: ${t.label}`, run: run(() => store.setEditorTheme(t.value)) })),

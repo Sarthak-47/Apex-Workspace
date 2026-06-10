@@ -3,7 +3,7 @@ import { useAppStore, useToast } from "@/store";
 import { streamChat, type ChatMessage } from "@/lib/ollama";
 import { readFile, listAllFiles } from "@/lib/tauri";
 import { suggestMentions, buildCandidates, expandMentions, type MentionItem } from "@/lib/mentions";
-import { generateWorkspaceMd, loadWorkspaceMd } from "@/lib/workspace";
+import { generateWorkspaceMd, loadWorkspaceMd, loadProjectMemory } from "@/lib/workspace";
 import { listVault, createNote, buildBacklinkIndex, rebuildLinks, exportVaultZip, clearVault, importMarkdownFolder, linkDecisionsToCode, listVersions, saveVersion, serializeNote, CATEGORIES, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { openFolderDialog, writeFile as fsWriteFile, extractDocument, openDocumentDialog, killBash } from "@/lib/tauri";
 import { extractFromGmail, detectStrictness, type Strictness, type ExtractProgress } from "@/lib/extract";
@@ -1423,16 +1423,20 @@ export function IntelPanel() {
   const [mention, setMention] = useState<{ items: MentionItem[]; index: number; start: number; queryLen: number } | null>(null);
   const candidatesRef = useRef<{ rel: string; isDir: boolean }[]>([]);
   const workspaceMdRef = useRef<string>('');
+  const projectMemoryRef = useRef<string>('');
   const vaultNotesRef = useRef<VaultNote[]>([]);
 
-  // Load mention candidates + WORKSPACE.md + vault notes when workspace changes
+  // Load mention candidates + WORKSPACE.md + APEX.md + vault notes when workspace changes
   useEffect(() => {
-    if (!workspacePath) { candidatesRef.current = []; workspaceMdRef.current = ''; vaultNotesRef.current = []; return; }
+    if (!workspacePath) { candidatesRef.current = []; workspaceMdRef.current = ''; projectMemoryRef.current = ''; vaultNotesRef.current = []; return; }
     listAllFiles(workspacePath)
       .then(files => { candidatesRef.current = buildCandidates(workspacePath, files); })
       .catch(() => {});
     loadWorkspaceMd(workspacePath)
       .then(md => { if (md) workspaceMdRef.current = md; })
+      .catch(() => {});
+    loadProjectMemory(workspacePath)
+      .then(md => { projectMemoryRef.current = md ?? ''; })
       .catch(() => {});
     listVault(workspacePath)
       .then(notes => { vaultNotesRef.current = notes; })
@@ -1526,6 +1530,7 @@ export function IntelPanel() {
       + (planMode
         ? '\n\nPLAN MODE: Respond with a numbered step-by-step plan. Format each step as:\n1. Step title — Brief description of what this step does\n2. ...\nUse at least 3 steps. Be specific and actionable.'
         : '')
+      + (projectMemoryRef.current ? `\n\nProject memory (APEX.md — author's instructions, follow these):\n${projectMemoryRef.current.slice(0, 4000)}` : '')
       + (workspaceMdRef.current ? `\n\nWorkspace overview (auto-generated):\n${workspaceMdRef.current.slice(0, 2500)}` : '')
       + contextBlock;
 
