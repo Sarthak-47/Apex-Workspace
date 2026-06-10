@@ -263,3 +263,25 @@ pub async fn git_apply_cached(workspace: String, patch: String, reverse: bool) -
         Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
     }
 }
+
+#[tauri::command]
+pub async fn git_stash_save(workspace: String, message: String) -> Result<(), String> {
+    if message.trim().is_empty() {
+        run_git(&workspace, &["stash", "push", "--include-untracked"])?;
+    } else {
+        run_git(&workspace, &["stash", "push", "--include-untracked", "-m", &message])?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_stash_pop(workspace: String) -> Result<(), String> {
+    run_git(&workspace, &["stash", "pop"])?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_stash_list(workspace: String) -> Result<Vec<String>, String> {
+    let raw = run_git(&workspace, &["stash", "list", "--format=%gd: %s"])?;
+    Ok(raw.lines().map(|l| l.to_string()).filter(|l| !l.is_empty()).collect())
+}

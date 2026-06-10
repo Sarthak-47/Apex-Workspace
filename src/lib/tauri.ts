@@ -126,6 +126,22 @@ export async function gitApplyCached(workspace: string, patch: string, reverse: 
   return invoke('git_apply_cached', { workspace, patch, reverse });
 }
 
+export async function gitStashSave(workspace: string, message: string): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('git_stash_save', { workspace, message });
+}
+export async function gitStashPop(workspace: string): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('git_stash_pop', { workspace });
+}
+export async function gitStashList(workspace: string): Promise<string[]> {
+  if (!isTauri()) return [];
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return await invoke<string[]>('git_stash_list', { workspace }); } catch { return []; }
+}
+
 export async function gitListBranches(workspace: string): Promise<string[]> {
   if (!isTauri()) return [];
   const { invoke } = await import('@tauri-apps/api/core');

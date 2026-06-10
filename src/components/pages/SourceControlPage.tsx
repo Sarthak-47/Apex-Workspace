@@ -1,9 +1,37 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store";
 import { GitPanel } from "@/components/layout/GitPanel";
-import { gitLog, type GitCommit } from "@/lib/tauri";
+import { gitLog, gitStashSave, gitStashPop, gitStashList, type GitCommit } from "@/lib/tauri";
 import { HunkStaging } from "./HunkStaging";
 import { PageShell } from "./PageShell";
+
+function StashControl({ workspace }: { workspace: string }) {
+  const [open, setOpen] = useState(false);
+  const [stashes, setStashes] = useState<string[]>([]);
+  const refresh = () => gitStashList(workspace).then(setStashes).catch(() => {});
+  useEffect(() => { if (open) refresh(); /* eslint-disable-next-line */ }, [open]);
+  const save = async () => { const m = window.prompt('Stash message (optional):') ?? ''; if (m === null) return; try { await gitStashSave(workspace, m); refresh(); } catch { /* noop */ } };
+  const pop = async () => { try { await gitStashPop(workspace); refresh(); } catch { /* noop */ } };
+  const sbtn: React.CSSProperties = { height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11.5, cursor: 'pointer', background: '#13131B', border: '1px solid #252535', color: '#9A9AB5' };
+  return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={save} style={sbtn}>Stash</button>
+        <button onClick={() => setOpen((o) => !o)} style={sbtn}>Stashes ▾</button>
+      </div>
+      {open && (
+        <div style={{ position: 'absolute', top: 32, right: 0, zIndex: 50, width: 280, background: '#13131B', border: '1px solid #252535', borderRadius: 8, boxShadow: '0 14px 36px rgba(0,0,0,0.5)', padding: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '4px 8px' }}>
+            <span style={{ fontSize: 10, letterSpacing: '0.06em', color: '#6A6A85', flex: 1 }}>STASHES</span>
+            {stashes.length > 0 && <button onClick={pop} style={{ ...sbtn, height: 22, fontSize: 10 }}>Pop latest</button>}
+          </div>
+          {stashes.length === 0 ? <div style={{ fontSize: 11, color: '#4A4A65', padding: '4px 8px 6px' }}>No stashes</div> :
+            stashes.map((s, i) => <div key={i} style={{ fontSize: 11, color: '#C7C7D9', padding: '4px 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s}>{s}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const LANE = "#6366F1";
 
@@ -64,7 +92,7 @@ export function SourceControlPage() {
   }
 
   return (
-    <PageShell title="Source Control" subtitle={`${gitBranch || 'main'} · stage, commit & history`}>
+    <PageShell title="Source Control" subtitle={`${gitBranch || 'main'} · stage, commit & history`} actions={<StashControl workspace={workspacePath} />}>
       <div style={{ display: "flex", height: "100%", minHeight: 0 }}>
         {/* Staging / commit */}
         <div style={{ width: 340, flexShrink: 0, borderRight: "1px solid #1A1A28", display: "flex", flexDirection: "column", minHeight: 0 }}>

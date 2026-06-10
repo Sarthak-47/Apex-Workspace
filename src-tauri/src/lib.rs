@@ -336,6 +336,9 @@ pub fn run() {
             git::git_create_branch,
             git::git_blame,
             git::git_apply_cached,
+            git::git_stash_save,
+            git::git_stash_pop,
+            git::git_stash_list,
             // Bash (approval-gated)
             bash::run_bash,
             bash::kill_bash,
