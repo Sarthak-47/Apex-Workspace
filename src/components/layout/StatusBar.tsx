@@ -3,7 +3,7 @@ import { useAppStore } from "@/store";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { useMarkers } from "@/lib/useMarkers";
 import { gitBlame, gitListBranches, gitSwitchBranch, gitCreateBranch, type BlameLine } from "@/lib/tauri";
-import { runEditorAction } from "@/lib/editorBridge";
+import { runEditorAction, getEol, setEol } from "@/lib/editorBridge";
 import { useRef } from "react";
 
 function relTime(epochSec: number): string {
@@ -117,6 +117,7 @@ export function StatusBar() {
     workspacePath, tabSize, insertSpaces, setInsertSpaces,
   } = useAppStore();
   const { errors, warnings } = useMarkers();
+  const [, forceEol] = useState(0);
 
   // Inline git blame for the current line (desktop app only; empty in browser).
   const [blame, setBlame] = useState<BlameLine[]>([]);
@@ -254,6 +255,10 @@ export function StatusBar() {
           <Divider />
           <SbItem onClick={() => setInsertSpaces(!insertSpaces)} title="Toggle spaces / tabs">
             {insertSpaces ? 'Spaces' : 'Tab Size'}: {tabSize}
+          </SbItem>
+          <Divider />
+          <SbItem onClick={() => { setEol(getEol() === 'CRLF' ? 'LF' : 'CRLF'); forceEol((n) => n + 1); }} title="Toggle end of line sequence">
+            {getEol() ?? 'LF'}
           </SbItem>
           <Divider />
           {editorFileSize > 0 && (

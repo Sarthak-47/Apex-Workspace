@@ -8,7 +8,7 @@ import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { ensureProjectMemory } from "@/lib/workspace";
 import { openFolderDialog, createWorkspaceFolder } from "@/lib/tauri";
 import { workflowParams } from "@/lib/workflows";
-import { runEditorAction } from "@/lib/editorBridge";
+import { runEditorAction, setEol } from "@/lib/editorBridge";
 import { MentionIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
 
@@ -76,6 +76,11 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'e:trim', title: 'Editor: Trim Trailing Whitespace', run: edRun('editor.action.trimTrailingWhitespace') },
       { id: 'e:fold', title: 'Editor: Toggle Fold', run: edRun('editor.toggleFold') },
       { id: 'e:organizeimports', title: 'Editor: Organize Imports', run: edRun('editor.action.organizeImports') },
+      { id: 'e:ind2spaces', title: 'Editor: Convert Indentation to Spaces', run: edRun('editor.action.indentationToSpaces') },
+      { id: 'e:ind2tabs', title: 'Editor: Convert Indentation to Tabs', run: edRun('editor.action.indentationToTabs') },
+      { id: 'e:reindent', title: 'Editor: Reindent Lines', run: edRun('editor.action.reindentlines') },
+      { id: 'e:eollf', title: 'Editor: Change End of Line to LF', run: () => { onClose(); setEol('LF'); } },
+      { id: 'e:eolcrlf', title: 'Editor: Change End of Line to CRLF', run: () => { onClose(); setEol('CRLF'); } },
       { id: 'c:terminal', title: 'View: Toggle Terminal', run: run(() => store.toggleTerminal()) },
       { id: 'c:problems', title: 'View: Toggle Problems Panel', run: run(() => store.toggleProblems()) },
       { id: 'c:explorer', title: 'View: Show Explorer', run: run(() => { store.setLeftPanelView('explorer'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },

@@ -30,3 +30,17 @@ export function runEditorAction(id: string) {
 
 export function saveActive() { saver?.(); }
 export function hasEditor() { return active !== null; }
+
+/** Current end-of-line sequence of the active editor's model. */
+export function getEol(): "LF" | "CRLF" | null {
+  const m = active?.getModel();
+  if (!m) return null;
+  return m.getEOL() === "\r\n" ? "CRLF" : "LF";
+}
+
+/** Set the active model's end-of-line sequence (0 = LF, 1 = CRLF). */
+export function setEol(eol: "LF" | "CRLF") {
+  const m = active?.getModel();
+  if (!m) return;
+  (m.setEOL as (e: number) => void)(eol === "CRLF" ? 1 : 0);
+}
