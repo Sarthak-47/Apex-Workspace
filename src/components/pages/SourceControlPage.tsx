@@ -1,32 +1,66 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store";
 import { GitPanel } from "@/components/layout/GitPanel";
-import { gitLog, gitStashSave, gitStashPop, gitStashList, type GitCommit } from "@/lib/tauri";
+import { gitLog, gitStashSave, gitStashList, gitStashApply, gitStashPopIndex, gitStashDrop, type GitCommit } from "@/lib/tauri";
 import { HunkStaging } from "./HunkStaging";
 import { PageShell } from "./PageShell";
+
+// Strip "stash@{N}: " prefix and "WIP on <branch>: <hash>" noise for a clean label.
+function stashLabel(raw: string): string {
+  const afterIdx = raw.replace(/^stash@\{\d+\}:\s*/, "");
+  return afterIdx.replace(/^(WIP on|On)\s+[^:]+:\s*/, "") || afterIdx;
+}
 
 function StashControl({ workspace }: { workspace: string }) {
   const [open, setOpen] = useState(false);
   const [stashes, setStashes] = useState<string[]>([]);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
   const refresh = () => gitStashList(workspace).then(setStashes).catch(() => {});
   useEffect(() => { if (open) refresh(); /* eslint-disable-next-line */ }, [open]);
-  const save = async () => { const m = window.prompt('Stash message (optional):') ?? ''; if (m === null) return; try { await gitStashSave(workspace, m); refresh(); } catch { /* noop */ } };
-  const pop = async () => { try { await gitStashPop(workspace); refresh(); } catch { /* noop */ } };
+
+  const wrap = (fn: () => Promise<void>) => async () => { setBusy(true); try { await fn(); } catch { /* noop */ } finally { await refresh(); setBusy(false); } };
+  const save  = wrap(async () => { await gitStashSave(workspace, msg.trim()); setMsg(""); });
+  const apply = (i: number) => wrap(() => gitStashApply(workspace, i));
+  const pop   = (i: number) => wrap(() => gitStashPopIndex(workspace, i));
+  const drop  = (i: number) => wrap(() => gitStashDrop(workspace, i));
+
   const sbtn: React.CSSProperties = { height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11.5, cursor: 'pointer', background: '#13131B', border: '1px solid #252535', color: '#9A9AB5' };
+  const rowBtn: React.CSSProperties = { height: 20, padding: '0 7px', borderRadius: 4, fontSize: 10, cursor: 'pointer', background: 'transparent', border: '1px solid #252535', color: '#9A9AB5' };
+
   return (
     <div style={{ position: 'relative' }}>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button onClick={save} style={sbtn}>Stash</button>
-        <button onClick={() => setOpen((o) => !o)} style={sbtn}>Stashes ▾</button>
-      </div>
+      <button onClick={() => setOpen((o) => !o)} style={sbtn}>Stashes{stashes.length ? ` (${stashes.length})` : ''} ▾</button>
       {open && (
-        <div style={{ position: 'absolute', top: 32, right: 0, zIndex: 50, width: 280, background: '#13131B', border: '1px solid #252535', borderRadius: 8, boxShadow: '0 14px 36px rgba(0,0,0,0.5)', padding: 6 }}>
-          <div style={{ display: 'flex', alignItems: 'center', padding: '4px 8px' }}>
-            <span style={{ fontSize: 10, letterSpacing: '0.06em', color: '#6A6A85', flex: 1 }}>STASHES</span>
-            {stashes.length > 0 && <button onClick={pop} style={{ ...sbtn, height: 22, fontSize: 10 }}>Pop latest</button>}
+        <div style={{ position: 'absolute', top: 32, right: 0, zIndex: 50, width: 320, background: '#13131B', border: '1px solid #252535', borderRadius: 8, boxShadow: '0 14px 36px rgba(0,0,0,0.5)', padding: 8 }}>
+          {/* Create stash */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Stash message (optional)…"
+              onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+              style={{ flex: 1, height: 26, background: '#0E0E15', border: '1px solid #252535', borderRadius: 6, padding: '0 9px', fontSize: 11.5, color: '#E2E2EC', outline: 'none' }} />
+            <button onClick={save} disabled={busy} style={{ ...sbtn, color: 'var(--accent)', borderColor: '#6366F140' }}>Stash</button>
           </div>
-          {stashes.length === 0 ? <div style={{ fontSize: 11, color: '#4A4A65', padding: '4px 8px 6px' }}>No stashes</div> :
-            stashes.map((s, i) => <div key={i} style={{ fontSize: 11, color: '#C7C7D9', padding: '4px 8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s}>{s}</div>)}
+          <div style={{ fontSize: 10, letterSpacing: '0.06em', color: '#6A6A85', padding: '2px 4px 6px' }}>STASHES</div>
+          {stashes.length === 0 ? (
+            <div style={{ fontSize: 11, color: '#4A4A65', padding: '4px 4px 6px' }}>No stashes — working tree changes you stash will appear here.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 260, overflowY: 'auto' }}>
+              {stashes.map((s, i) => (
+                <div key={i} title={s} className="group hover:bg-[#1A1A28]" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 6px', borderRadius: 5 }}>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#8888A8" strokeWidth="1.3" style={{ flexShrink: 0 }}><path d="M2 4.5h8M2 4.5l1-2h6l1 2M2 4.5v4.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.5"/></svg>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11.5, color: '#D2D2E0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stashLabel(s)}</div>
+                    <div style={{ fontSize: 9, color: '#4A4A65', fontFamily: '"JetBrains Mono",monospace' }}>stash@{`{${i}}`}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 3, flexShrink: 0 }} className="opacity-60 group-hover:!opacity-100">
+                    <button onClick={apply(i)} disabled={busy} title="Apply (keep stash)" style={rowBtn} className="hover:!text-[#22C55E]">Apply</button>
+                    <button onClick={pop(i)} disabled={busy} title="Pop (apply & remove)" style={rowBtn} className="hover:!text-[var(--accent)]">Pop</button>
+                    <button onClick={drop(i)} disabled={busy} title="Drop (delete stash)" style={rowBtn} className="hover:!text-[#E2776A]">Drop</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

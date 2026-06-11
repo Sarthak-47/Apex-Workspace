@@ -285,3 +285,21 @@ pub async fn git_stash_list(workspace: String) -> Result<Vec<String>, String> {
     let raw = run_git(&workspace, &["stash", "list", "--format=%gd: %s"])?;
     Ok(raw.lines().map(|l| l.to_string()).filter(|l| !l.is_empty()).collect())
 }
+
+#[tauri::command]
+pub async fn git_stash_apply(workspace: String, index: u32) -> Result<(), String> {
+    run_git(&workspace, &["stash", "apply", &format!("stash@{{{}}}", index)])?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_stash_pop_index(workspace: String, index: u32) -> Result<(), String> {
+    run_git(&workspace, &["stash", "pop", &format!("stash@{{{}}}", index)])?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_stash_drop(workspace: String, index: u32) -> Result<(), String> {
+    run_git(&workspace, &["stash", "drop", &format!("stash@{{{}}}", index)])?;
+    Ok(())
+}

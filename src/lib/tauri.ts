@@ -129,7 +129,7 @@ export async function gitApplyCached(workspace: string, patch: string, reverse: 
 }
 
 export async function gitStashSave(workspace: string, message: string): Promise<void> {
-  if (!isTauri()) return;
+  if (!isTauri()) { MOCK_STASHES.unshift(`stash@{0}: On main: ${message || 'WIP'}`); return; }
   const { invoke } = await import('@tauri-apps/api/core');
   return invoke('git_stash_save', { workspace, message });
 }
@@ -139,10 +139,31 @@ export async function gitStashPop(workspace: string): Promise<void> {
   return invoke('git_stash_pop', { workspace });
 }
 export async function gitStashList(workspace: string): Promise<string[]> {
-  if (!isTauri()) return [];
+  if (!isTauri()) return MOCK_STASHES.slice();
   const { invoke } = await import('@tauri-apps/api/core');
   try { return await invoke<string[]>('git_stash_list', { workspace }); } catch { return []; }
 }
+export async function gitStashApply(workspace: string, index: number): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('git_stash_apply', { workspace, index });
+}
+export async function gitStashPopIndex(workspace: string, index: number): Promise<void> {
+  if (!isTauri()) { MOCK_STASHES.splice(index, 1); return; }
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('git_stash_pop_index', { workspace, index });
+}
+export async function gitStashDrop(workspace: string, index: number): Promise<void> {
+  if (!isTauri()) { MOCK_STASHES.splice(index, 1); return; }
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('git_stash_drop', { workspace, index });
+}
+
+// Browser-preview mock stash list so the Stash UI is demonstrable without git.
+const MOCK_STASHES: string[] = [
+  'stash@{0}: WIP on main: 6a6a5d2 multi-root workspaces',
+  'stash@{1}: On feature/icons: experiment with seti glyphs',
+];
 
 export async function gitListBranches(workspace: string): Promise<string[]> {
   if (!isTauri()) return [];
