@@ -342,6 +342,10 @@ pub fn run() {
             git::git_stash_apply,
             git::git_stash_pop_index,
             git::git_stash_drop,
+            git::gh_pr_list,
+            git::gh_pr_create,
+            git::gh_pr_checkout,
+            git::gh_available,
             // Bash (approval-gated)
             bash::run_bash,
             bash::kill_bash,

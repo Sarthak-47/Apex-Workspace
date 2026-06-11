@@ -303,3 +303,51 @@ pub async fn git_stash_drop(workspace: String, index: u32) -> Result<(), String>
     run_git(&workspace, &["stash", "drop", &format!("stash@{{{}}}", index)])?;
     Ok(())
 }
+
+// ─── GitHub (gh CLI) ──────────────────────────────────────────────────────────
+
+fn run_gh(workspace: &str, args: &[&str]) -> Result<String, String> {
+    let out = Command::new("gh")
+        .args(args)
+        .current_dir(workspace)
+        .output()
+        .map_err(|e| format!("gh not found — install GitHub CLI: {e}"))?;
+    if out.status.success() {
+        Ok(String::from_utf8_lossy(&out.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+    }
+}
+
+/// Returns the raw JSON array from `gh pr list` (parsed on the frontend).
+#[tauri::command]
+pub async fn gh_pr_list(workspace: String) -> Result<String, String> {
+    run_gh(&workspace, &[
+        "pr", "list",
+        "--json", "number,title,author,headRefName,baseRefName,state,url,isDraft",
+        "--limit", "30",
+    ])
+}
+
+/// Creates a PR and returns its URL.
+#[tauri::command]
+pub async fn gh_pr_create(workspace: String, title: String, body: String, base: String, draft: bool) -> Result<String, String> {
+    let mut args: Vec<&str> = vec!["pr", "create", "--title", &title, "--body", &body];
+    if !base.trim().is_empty() { args.push("--base"); args.push(&base); }
+    if draft { args.push("--draft"); }
+    let out = run_gh(&workspace, &args)?;
+    Ok(out.trim().to_string())
+}
+
+/// Checks out the branch for a PR number locally.
+#[tauri::command]
+pub async fn gh_pr_checkout(workspace: String, number: u32) -> Result<(), String> {
+    run_gh(&workspace, &["pr", "checkout", &number.to_string()])?;
+    Ok(())
+}
+
+/// Whether `gh` is installed and authenticated for this repo.
+#[tauri::command]
+pub async fn gh_available(workspace: String) -> Result<bool, String> {
+    Ok(run_gh(&workspace, &["auth", "status"]).is_ok())
+}

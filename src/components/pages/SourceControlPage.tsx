@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store";
 import { GitPanel } from "@/components/layout/GitPanel";
-import { gitLog, gitStashSave, gitStashList, gitStashApply, gitStashPopIndex, gitStashDrop, type GitCommit } from "@/lib/tauri";
+import { gitLog, gitStashSave, gitStashList, gitStashApply, gitStashPopIndex, gitStashDrop, ghAvailable, ghPrList, ghPrCreate, ghPrCheckout, type GitCommit, type PullRequest } from "@/lib/tauri";
 import { HunkStaging } from "./HunkStaging";
 import { PageShell } from "./PageShell";
 
@@ -102,10 +102,119 @@ function CommitGraph({ commits }: { commits: GitCommit[] }) {
   );
 }
 
+function PullRequests({ workspace }: { workspace: string }) {
+  const { addToast } = useAppStore();
+  const [prs, setPrs] = useState<PullRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [available, setAvailable] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [title, setTitle] = useState("");
+  const [base, setBase] = useState("main");
+  const [draft, setDraft] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => {
+    setLoading(true);
+    ghAvailable(workspace).then((ok) => {
+      setAvailable(ok);
+      if (!ok) { setLoading(false); return; }
+      ghPrList(workspace).then((p) => { setPrs(p); setLoading(false); }).catch(() => { setPrs([]); setLoading(false); });
+    });
+  };
+  useEffect(refresh, [workspace]);
+
+  const submit = async () => {
+    if (!title.trim()) return;
+    setBusy(true);
+    try {
+      const url = await ghPrCreate(workspace, title.trim(), "", base.trim(), draft);
+      addToast(`Created PR: ${url}`, "success");
+      setTitle(""); setCreating(false); refresh();
+    } catch (e) { addToast(`Could not create PR — ${e}`, "error"); }
+    finally { setBusy(false); }
+  };
+
+  const checkout = async (n: number) => {
+    try { await ghPrCheckout(workspace, n); addToast(`Checked out PR #${n}`, "success"); }
+    catch (e) { addToast(`Checkout failed — ${e}`, "error"); }
+  };
+
+  if (!available) {
+    return (
+      <div style={{ padding: "20px", fontSize: 12, color: "#6A6A85", lineHeight: 1.7 }}>
+        GitHub CLI not available. Install <code style={{ color: "#9A9AB5" }}>gh</code> and run{" "}
+        <code style={{ color: "#9A9AB5" }}>gh auth login</code> to manage pull requests here.
+      </div>
+    );
+  }
+
+  const ibtn: React.CSSProperties = { height: 22, padding: "0 8px", borderRadius: 5, fontSize: 10.5, cursor: "pointer", background: "transparent", border: "1px solid #252535", color: "#9A9AB5" };
+
+  return (
+    <div style={{ padding: "10px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 10, gap: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "#6A6A85", flex: 1 }}>OPEN PULL REQUESTS</span>
+        <button onClick={() => setCreating((c) => !c)} style={{ ...ibtn, color: "var(--accent)", borderColor: "#6366F140" }}>{creating ? "Cancel" : "+ New PR"}</button>
+        <button onClick={refresh} style={ibtn}>Refresh</button>
+      </div>
+
+      {creating && (
+        <div style={{ background: "#0E0E15", border: "1px solid #252535", borderRadius: 8, padding: 10, marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Pull request title"
+            style={{ height: 30, background: "#13131B", border: "1px solid #252535", borderRadius: 6, padding: "0 10px", fontSize: 12, color: "#E2E2EC", outline: "none" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <label style={{ fontSize: 11, color: "#8888A8", display: "flex", alignItems: "center", gap: 6 }}>
+              Base
+              <input value={base} onChange={(e) => setBase(e.target.value)} style={{ width: 90, height: 24, background: "#13131B", border: "1px solid #252535", borderRadius: 5, padding: "0 8px", fontSize: 11, color: "#E2E2EC", outline: "none" }} />
+            </label>
+            <label style={{ fontSize: 11, color: "#8888A8", display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+              <input type="checkbox" checked={draft} onChange={(e) => setDraft(e.target.checked)} /> Draft
+            </label>
+            <div style={{ flex: 1 }} />
+            <button onClick={submit} disabled={busy || !title.trim()}
+              style={{ height: 28, padding: "0 14px", borderRadius: 6, fontSize: 11.5, fontWeight: 600, cursor: title.trim() ? "pointer" : "default", background: title.trim() ? "var(--accent)" : "#1A1A28", border: "none", color: title.trim() ? "#fff" : "#4A4A65" }}>
+              Create
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ fontSize: 12, color: "#4A4A65", padding: "12px 2px" }}>Loading pull requests…</div>
+      ) : prs.length === 0 ? (
+        <div style={{ fontSize: 12, color: "#4A4A65", padding: "12px 2px" }}>No open pull requests.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {prs.map((pr) => (
+            <div key={pr.number} className="group hover:bg-[#13131B]" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, border: "1px solid #1A1A28" }}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke={pr.isDraft ? "#8888A8" : "#22C55E"} strokeWidth="1.4" style={{ flexShrink: 0 }}>
+                <circle cx="4" cy="4" r="1.8"/><circle cx="4" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><path d="M4 5.8v4.4M12 10.2V8a3 3 0 0 0-3-3H6"/>
+              </svg>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, color: "#E2E2EC", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {pr.title}
+                  {pr.isDraft && <span style={{ marginLeft: 8, fontSize: 9, color: "#8888A8", border: "1px solid #2A2A3A", borderRadius: 7, padding: "0 5px" }}>draft</span>}
+                </div>
+                <div style={{ fontSize: 10, color: "#5A5A75", fontFamily: '"JetBrains Mono",monospace', marginTop: 1 }}>
+                  #{pr.number} · {pr.author.login} · {pr.headRefName} → {pr.baseRefName}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 4, flexShrink: 0 }} className="opacity-60 group-hover:!opacity-100">
+                <button onClick={() => checkout(pr.number)} style={ibtn} className="hover:!text-[var(--accent)]" title="Checkout this PR's branch">Checkout</button>
+                <a href={pr.url} target="_blank" rel="noreferrer" style={{ ...ibtn, display: "flex", alignItems: "center", textDecoration: "none" }} className="hover:!text-[#E2E2EC]" title="Open on GitHub">Open ↗</a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SourceControlPage() {
   const { workspacePath, gitBranch } = useAppStore();
   const [commits, setCommits] = useState<GitCommit[]>([]);
-  const [tab, setTab] = useState<'changes' | 'history'>('changes');
+  const [tab, setTab] = useState<'changes' | 'history' | 'prs'>('changes');
 
   useEffect(() => {
     if (!workspacePath) { setCommits([]); return; }
@@ -135,16 +244,18 @@ export function SourceControlPage() {
         {/* Changes (hunk staging) / History (graph) */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ display: "flex", gap: 4, padding: "8px 12px 4px", flexShrink: 0, borderBottom: "1px solid #1A1A28" }}>
-            {(['changes', 'history'] as const).map((t) => (
+            {(['changes', 'history', 'prs'] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)}
                 style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, cursor: "pointer", textTransform: "capitalize",
                   background: tab === t ? "#1A1A3A" : "transparent", border: `1px solid ${tab === t ? "#6366F140" : "transparent"}`, color: tab === t ? "#A5B4FC" : "#8888A8" }}>
-                {t === 'history' ? `History (${commits.length})` : 'Changes'}
+                {t === 'history' ? `History (${commits.length})` : t === 'prs' ? 'Pull Requests' : 'Changes'}
               </button>
             ))}
           </div>
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {tab === 'changes' ? <HunkStaging workspace={workspacePath} /> : <CommitGraph commits={commits} />}
+            {tab === 'changes' ? <HunkStaging workspace={workspacePath} />
+              : tab === 'history' ? <CommitGraph commits={commits} />
+              : <PullRequests workspace={workspacePath} />}
           </div>
         </div>
       </div>

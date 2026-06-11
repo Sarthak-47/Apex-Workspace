@@ -165,6 +165,48 @@ const MOCK_STASHES: string[] = [
   'stash@{1}: On feature/icons: experiment with seti glyphs',
 ];
 
+// ─── GitHub PRs (gh CLI) ──────────────────────────────────────────────────────
+export interface PullRequest {
+  number: number;
+  title: string;
+  author: { login: string };
+  headRefName: string;
+  baseRefName: string;
+  state: string;
+  url: string;
+  isDraft: boolean;
+}
+
+const MOCK_PRS: PullRequest[] = [
+  { number: 42, title: 'feat: rebindable keymap', author: { login: 'Sarthak-47' }, headRefName: 'feature/keymap', baseRefName: 'main', state: 'OPEN', url: 'https://github.com/Sarthak-47/Apex-Workspace/pull/42', isDraft: false },
+  { number: 41, title: 'feat: Test Explorer', author: { login: 'Sarthak-47' }, headRefName: 'feature/tests', baseRefName: 'main', state: 'OPEN', url: 'https://github.com/Sarthak-47/Apex-Workspace/pull/41', isDraft: true },
+];
+
+export async function ghAvailable(workspace: string): Promise<boolean> {
+  if (!isTauri()) return true; // preview shows the mock UI
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return await invoke<boolean>('gh_available', { workspace }); } catch { return false; }
+}
+export async function ghPrList(workspace: string): Promise<PullRequest[]> {
+  if (!isTauri()) return MOCK_PRS.slice();
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return JSON.parse(await invoke<string>('gh_pr_list', { workspace })) as PullRequest[]; } catch { return []; }
+}
+export async function ghPrCreate(workspace: string, title: string, body: string, base: string, draft: boolean): Promise<string> {
+  if (!isTauri()) {
+    const n = (MOCK_PRS[0]?.number ?? 0) + 1;
+    MOCK_PRS.unshift({ number: n, title, author: { login: 'Sarthak-47' }, headRefName: 'feature/new', baseRefName: base || 'main', state: 'OPEN', url: `https://github.com/Sarthak-47/Apex-Workspace/pull/${n}`, isDraft: draft });
+    return MOCK_PRS[0].url;
+  }
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<string>('gh_pr_create', { workspace, title, body, base, draft });
+}
+export async function ghPrCheckout(workspace: string, number: number): Promise<void> {
+  if (!isTauri()) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('gh_pr_checkout', { workspace, number });
+}
+
 export async function gitListBranches(workspace: string): Promise<string[]> {
   if (!isTauri()) return [];
   const { invoke } = await import('@tauri-apps/api/core');
