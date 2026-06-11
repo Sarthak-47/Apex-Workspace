@@ -84,6 +84,8 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:whitespace', title: 'Editor: Toggle Render Whitespace', run: run(() => store.setRenderWhitespace(store.renderWhitespace === 'none' ? 'all' : 'none')) },
       { id: 'c:autosave', title: 'Editor: Toggle Auto Save', run: run(() => store.setAutoSave(!store.autoSave)) },
       { id: 'c:formatsave', title: 'Editor: Toggle Format On Save', run: run(() => store.setFormatOnSave(!store.formatOnSave)) },
+      { id: 'c:trimws', title: 'Editor: Toggle Trim Trailing Whitespace On Save', run: run(() => store.setTrimTrailingWhitespace(!store.trimTrailingWhitespace)) },
+      { id: 'c:finalnl', title: 'Editor: Toggle Insert Final Newline On Save', run: run(() => store.setInsertFinalNewline(!store.insertFinalNewline)) },
       { id: 'c:vim', title: 'Editor: Toggle Vim Mode', run: run(() => store.setVimMode(!store.vimMode)) },
       { id: 'c:autocomplete', title: 'Editor: Toggle Inline AI Autocomplete', run: run(() => store.setAutocompleteEnabled(!store.autocompleteEnabled)) },
       { id: 'c:memory', title: 'AI: Edit Project Memory (APEX.md)', run: () => { (async () => { const ws = store.workspacePath; if (ws) { try { const p = await ensureProjectMemory(ws); store.openFile(p); store.setAppPage('code'); } catch { /* ignore */ } } })(); onClose(); } },

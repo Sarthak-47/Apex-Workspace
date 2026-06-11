@@ -216,6 +216,12 @@ interface AppState {
   setRenderWhitespace: (v: 'none' | 'boundary' | 'selection' | 'all') => void;
   cursorBlinking: 'blink' | 'smooth' | 'phase' | 'expand' | 'solid';
   setCursorBlinking: (v: 'blink' | 'smooth' | 'phase' | 'expand' | 'solid') => void;
+  trimTrailingWhitespace: boolean;
+  setTrimTrailingWhitespace: (v: boolean) => void;
+  insertFinalNewline: boolean;
+  setInsertFinalNewline: (v: boolean) => void;
+  editorRulers: number[];
+  setEditorRulers: (v: number[]) => void;
   autoSave: boolean;
   setAutoSave: (v: boolean) => void;
   formatOnSave: boolean;
@@ -563,6 +569,12 @@ export const useAppStore = create<AppState>()(
       setRenderWhitespace: (v) => set({ renderWhitespace: v }),
       cursorBlinking: 'smooth',
       setCursorBlinking: (v) => set({ cursorBlinking: v }),
+      trimTrailingWhitespace: false,
+      setTrimTrailingWhitespace: (v) => set({ trimTrailingWhitespace: v }),
+      insertFinalNewline: false,
+      setInsertFinalNewline: (v) => set({ insertFinalNewline: v }),
+      editorRulers: [],
+      setEditorRulers: (v) => set({ editorRulers: v }),
       autoSave: false,
       setAutoSave: (v) => set({ autoSave: v }),
       formatOnSave: false,
@@ -694,6 +706,9 @@ export const useAppStore = create<AppState>()(
         fontLigatures: s.fontLigatures,
         renderWhitespace: s.renderWhitespace,
         cursorBlinking: s.cursorBlinking,
+        trimTrailingWhitespace: s.trimTrailingWhitespace,
+        insertFinalNewline: s.insertFinalNewline,
+        editorRulers: s.editorRulers,
         autoSave: s.autoSave,
         formatOnSave: s.formatOnSave,
         lspEnabled: s.lspEnabled,

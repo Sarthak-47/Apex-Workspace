@@ -125,6 +125,9 @@ function EditorTab() {
     stickyScroll, setStickyScroll, bracketPairGuides, setBracketPairGuides,
     fontLigatures, setFontLigatures, renderWhitespace, setRenderWhitespace,
     cursorBlinking, setCursorBlinking,
+    trimTrailingWhitespace, setTrimTrailingWhitespace,
+    insertFinalNewline, setInsertFinalNewline,
+    editorRulers, setEditorRulers,
   } = useAppStore();
   const [tabSize, setTabSize] = useState(2);
   const WHITESPACE_OPTS = [
@@ -164,6 +167,13 @@ function EditorTab() {
         </Field>
         <Field label="Word wrap"><Toggle value={editorWordWrap} onChange={setEditorWordWrap} /></Field>
         <Field label="Render whitespace"><Select value={renderWhitespace} options={WHITESPACE_OPTS} onChange={(v) => setRenderWhitespace(v as typeof renderWhitespace)} /></Field>
+        <Field label="Trim trailing whitespace on save"><Toggle value={trimTrailingWhitespace} onChange={setTrimTrailingWhitespace} /></Field>
+        <Field label="Insert final newline on save"><Toggle value={insertFinalNewline} onChange={setInsertFinalNewline} /></Field>
+        <Field label="Rulers (columns)">
+          <input value={editorRulers.join(', ')} placeholder="e.g. 80, 120"
+            onChange={(e) => setEditorRulers(e.target.value.split(',').map((n) => parseInt(n.trim(), 10)).filter((n) => Number.isFinite(n) && n > 0))}
+            style={{ width: 120, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '5px 8px', fontSize: 11, color: '#E2E2EC', outline: 'none', fontFamily: '"JetBrains Mono", monospace' }} />
+        </Field>
       </Section>
       <Section title="Language Servers (LSP)">
         <Field label="Enable language servers"><Toggle value={lspEnabled} onChange={setLspEnabled} /></Field>

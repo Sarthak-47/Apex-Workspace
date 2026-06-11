@@ -731,6 +731,7 @@ export function MonacoEditor({ path }: Props) {
     editorFontSize, setEditorFontSize,
     editorLineNumbers,
     stickyScroll, bracketPairGuides, fontLigatures, renderWhitespace, cursorBlinking,
+    editorRulers,
   } = useAppStore();
 
   // Editor display prefs now live in the (persisted) store; keep the local
@@ -799,8 +800,9 @@ export function MonacoEditor({ path }: Props) {
       renderWhitespace,
       cursorBlinking,
       guides: { bracketPairs: bracketPairGuides, indentation: bracketPairGuides },
+      rulers: editorRulers,
     });
-  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides]);
+  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides, editorRulers]);
 
   // ── Load file content on path change ─────────────────────────────────────
   useEffect(() => {
@@ -872,10 +874,23 @@ export function MonacoEditor({ path }: Props) {
       if (model) setEditorFileSize(new TextEncoder().encode(model.getValue()).length);
     });
 
-    // Save (optionally format first) — shared by Ctrl+S and the File menu.
+    // Save (optionally format / trim / final newline) — shared by Ctrl+S and the File menu.
     const doSave = async () => {
-      if (useAppStore.getState().formatOnSave) {
+      const s = useAppStore.getState();
+      if (s.formatOnSave) {
         try { await editor.getAction('editor.action.formatDocument')?.run(); } catch { /* no formatter */ }
+      }
+      // Trim trailing whitespace in-place (preserves undo) before writing.
+      if (s.trimTrailingWhitespace) {
+        try { await editor.getAction('editor.action.trimTrailingWhitespace')?.run(); } catch { /* ignore */ }
+      }
+      const model = editor.getModel();
+      if (s.insertFinalNewline && model) {
+        const text = model.getValue();
+        if (text.length && !text.endsWith('\n')) {
+          const last = model.getLineCount();
+          editor.executeEdits('final-newline', [{ range: new monaco.Range(last, model.getLineMaxColumn(last), last, model.getLineMaxColumn(last)), text: '\n' }]);
+        }
       }
       const val = editor.getValue();
       try { await writeFile(path, val); } catch { /* browser no-op */ }
@@ -1061,6 +1076,7 @@ export function MonacoEditor({ path }: Props) {
               snippetSuggestions: 'top',
               wordBasedSuggestions: 'matchingDocuments',
               renderWhitespace,
+              rulers: editorRulers,
               smoothScrolling: true,
               colorDecorators: true,
               links: true,

@@ -12,7 +12,10 @@ export function setActiveEditor(e: Ed | null) {
   // Debug handle (also lets the menu bar / tooling reach the live editor).
   (window as unknown as { __apexEditor?: Ed | null }).__apexEditor = e;
 }
-export function setSaver(fn: (() => void) | null) { saver = fn; }
+export function setSaver(fn: (() => void) | null) {
+  saver = fn;
+  (window as unknown as { __apexSave?: (() => void) | null }).__apexSave = fn;
+}
 export function getActiveEditor() { return active; }
 
 /** Run a built-in Monaco editor action by id (undo, find, format, …). */
