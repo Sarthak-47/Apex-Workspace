@@ -18,6 +18,11 @@ const Icons = {
       <circle cx="8" cy="8" r="5"/><line x1="12" y1="12" x2="16" y2="16"/>
     </svg>
   ),
+  tests: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 2h4M8 2v5.2L4.2 13.4A1.4 1.4 0 0 0 5.4 15.5h7.2a1.4 1.4 0 0 0 1.2-2.1L10 7.2V2"/><line x1="6.4" y1="10.5" x2="11.6" y2="10.5"/>
+    </svg>
+  ),
   preview: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="3" width="14" height="10" rx="1.5"/><line x1="2" y1="6" x2="16" y2="6"/><line x1="6" y1="16" x2="12" y2="16"/><line x1="9" y1="13" x2="9" y2="16"/>
@@ -96,7 +101,7 @@ export function LeftNav() {
   const onCode = appPage === 'code';
 
   // Explorer/Search switch to the Code page and reveal that sub-view; on Code, toggle.
-  const codeView = (view: 'explorer' | 'git' | 'search') => {
+  const codeView = (view: 'explorer' | 'git' | 'search' | 'tests') => {
     if (!onCode) { setAppPage('code'); setLeftPanelView(view); if (!leftPanelOpen) toggleLeftPanel(); return; }
     if (leftPanelView === view && leftPanelOpen) toggleLeftPanel();
     else { setLeftPanelView(view); if (!leftPanelOpen) toggleLeftPanel(); }
@@ -110,6 +115,7 @@ export function LeftNav() {
       {/* ── Pages ── */}
       <NavIcon icon={Icons.folder}    active={onCode && leftPanelOpen && leftPanelView === 'explorer'} title="Explorer (Ctrl+Shift+E)"    onClick={() => codeView('explorer')} />
       <NavIcon icon={Icons.search}    active={onCode && leftPanelOpen && leftPanelView === 'search'}   title="Search (Ctrl+Shift+F)"      onClick={() => codeView('search')} />
+      <NavIcon icon={Icons.tests}     active={onCode && leftPanelOpen && leftPanelView === 'tests'}    title="Testing"                    onClick={() => codeView('tests')} />
       <NavIcon icon={Icons.gitBranch} active={appPage === 'source-control'} title="Source Control"      onClick={() => setAppPage('source-control')} />
       <NavIcon icon={Icons.preview}   active={appPage === 'preview'}        title="Web Preview"         onClick={() => setAppPage('preview')} />
       <NavIcon icon={Icons.agents}    active={appPage === 'agents'}         title="AI Agents"           onClick={() => setAppPage('agents')} />

@@ -169,6 +169,7 @@ export function MenuBar() {
     {
       label: "Run",
       items: () => [
+        { label: "Show Testing", run: () => { store.setAppPage("code"); store.setLeftPanelView("tests"); if (!store.leftPanelOpen) store.toggleLeftPanel(); } },
         { label: "Run Task…", run: () => store.setCommandPaletteOpen(true) },
         { sep: true },
         { label: "Open Preview", run: () => store.setAppPage("preview") },

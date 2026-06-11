@@ -130,8 +130,8 @@ interface AppState {
   setGitBranch: (branch: string) => void;
 
   // Left panel view (which tab is shown)
-  leftPanelView: 'explorer' | 'git' | 'search';
-  setLeftPanelView: (view: 'explorer' | 'git' | 'search') => void;
+  leftPanelView: 'explorer' | 'git' | 'search' | 'tests';
+  setLeftPanelView: (view: 'explorer' | 'git' | 'search' | 'tests') => void;
 
   // Settings dialog
   settingsOpen: boolean;
@@ -436,7 +436,7 @@ export const useAppStore = create<AppState>()(
       setGitBranch: (branch) => set({ gitBranch: branch }),
 
       // Left panel view
-      leftPanelView: 'explorer' as 'explorer' | 'git' | 'search',
+      leftPanelView: 'explorer' as 'explorer' | 'git' | 'search' | 'tests',
       setLeftPanelView: (view) => set({ leftPanelView: view }),
 
       // Settings dialog

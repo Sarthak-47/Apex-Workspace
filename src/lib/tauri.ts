@@ -40,6 +40,8 @@ export async function readFile(path: string): Promise<string> {
     return invoke('read_file', { path });
   }
   if (webfs.owns(path)) return webfs.readFile(path);
+  const src = MOCK_SOURCE_FILES[path.replace(/\\/g, '/')];
+  if (src !== undefined) return src;
   if (demoVault()) {
     const mock = MOCK_VAULT_FILES[path.replace(/\\/g, '/')];
     if (mock !== undefined) return mock;
@@ -208,6 +210,29 @@ export interface DirEntry {
 // ─── Browser mock file tree ───────────────────────────────────────────────────
 // Simulates a realistic project structure for web-first testing
 
+// Demo source files readable in the browser preview (so Test Explorer etc.
+// have something to discover without the desktop file system).
+const MOCK_SOURCE_FILES: Record<string, string> = {
+  '/demo-workspace/src/lib/format.test.ts':
+    `import { describe, it, expect } from 'vitest';\n` +
+    `import { formatBytes, slugify } from './format';\n\n` +
+    `describe('formatBytes', () => {\n` +
+    `  it('formats zero', () => { expect(formatBytes(0)).toBe('0 B'); });\n` +
+    `  it('formats kilobytes', () => { expect(formatBytes(1024)).toBe('1 KB'); });\n` +
+    `  it('formats megabytes', () => { expect(formatBytes(1048576)).toBe('1 MB'); });\n` +
+    `});\n\n` +
+    `describe('slugify', () => {\n` +
+    `  it('lowercases and dashes', () => { expect(slugify('Hello World')).toBe('hello-world'); });\n` +
+    `  it('strips punctuation', () => { expect(slugify('A, B & C')).toBe('a-b-c'); });\n` +
+    `});\n`,
+  '/demo-workspace/tests/test_utils.py':
+    `import pytest\n` +
+    `from utils import clamp, is_even\n\n` +
+    `def test_clamp_low():\n    assert clamp(-5, 0, 10) == 0\n\n` +
+    `def test_clamp_high():\n    assert clamp(99, 0, 10) == 10\n\n` +
+    `def test_is_even():\n    assert is_even(4)\n    assert not is_even(3)\n`,
+};
+
 const MOCK_TREE: Record<string, DirEntry[]> = {
   '/demo-workspace': [
     { name: 'src',          path: '/demo-workspace/src',          is_dir: true,  size: 0,       ext: null },
@@ -218,6 +243,10 @@ const MOCK_TREE: Record<string, DirEntry[]> = {
     { name: 'vite.config.ts',path:'/demo-workspace/vite.config.ts',is_dir:false, size: 800,     ext: 'ts' },
     { name: '.gitignore',   path: '/demo-workspace/.gitignore',   is_dir: false, size: 220,     ext: null },
     { name: 'README.md',    path: '/demo-workspace/README.md',    is_dir: false, size: 1024,    ext: 'md' },
+    { name: 'tests',        path: '/demo-workspace/tests',        is_dir: true,  size: 0,       ext: null },
+  ],
+  '/demo-workspace/tests': [
+    { name: 'test_utils.py', path: '/demo-workspace/tests/test_utils.py', is_dir: false, size: 420, ext: 'py' },
   ],
   '/demo-workspace/src': [
     { name: 'components',   path: '/demo-workspace/src/components', is_dir: true,  size: 0,     ext: null },
@@ -250,6 +279,7 @@ const MOCK_TREE: Record<string, DirEntry[]> = {
   ],
   '/demo-workspace/src/lib': [
     { name: 'tauri.ts', path: '/demo-workspace/src/lib/tauri.ts', is_dir: false, size: 3072, ext: 'ts' },
+    { name: 'format.test.ts', path: '/demo-workspace/src/lib/format.test.ts', is_dir: false, size: 540, ext: 'ts' },
   ],
   '/demo-workspace/src/store': [
     { name: 'index.ts', path: '/demo-workspace/src/store/index.ts', is_dir: false, size: 6144, ext: 'ts' },

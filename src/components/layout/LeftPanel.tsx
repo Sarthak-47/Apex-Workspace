@@ -13,6 +13,7 @@ import { GitPanel } from "@/components/layout/GitPanel";
 import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { CategoryIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
+import { TestExplorer } from "@/components/layout/TestExplorer";
 
 // ─── File type icon ────────────────────────────────────────────────────────────
 
@@ -1277,6 +1278,9 @@ export function LeftPanel() {
 
       {/* ── Search view ───────────────────────────────────────────────── */}
       {leftPanelView === 'search' && <SearchView />}
+
+      {/* ── Testing view ──────────────────────────────────────────────── */}
+      {leftPanelView === 'tests' && <TestExplorer />}
 
       {/* ── Explorer view ─────────────────────────────────────────────── */}
       {leftPanelView === 'explorer' && (

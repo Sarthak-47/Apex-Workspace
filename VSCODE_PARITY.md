@@ -64,7 +64,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 - ⬜ stash UI · PR UI · multiple SCM providers
 - ✅ Graphical **settings editor** — Settings dialog reads/writes persisted store values (font size, word wrap, minimap, line numbers apply + survive reload; LSP enable + server paths) · **per-workspace `.vscode/settings.json`** applied on folder open (editor.fontSize/wordWrap/minimap/lineNumbers/formatOnSave, files.autoSave)
 - ✅ **Keybindings editor** — searchable Keyboard Shortcuts editor (Ctrl+/ or Help menu): COMMAND / KEYBINDING / CATEGORY table, 47 bindings across General/File/View/Editor/Selection/Code-Intelligence/Chat, live filter by command·key·category with result count (rebind-to-custom-keymap still todo)
-- ⬜ **Test Explorer**
+- ✅ **Test Explorer** — Testing view in the activity bar (`TestExplorer.tsx` + `tests.ts`): discovers vitest/jest, pytest, go test and cargo `#[test]` cases across the workspace; collapsible file→test tree with framework badges and a test count; Run-file / Run-test / Run-all inject the correct command into the integrated terminal (`npx vitest run "<f>" -t "<name>"`, `pytest <f>::<name>`, `go test -run`, `cargo test`); clicking a test opens the file at its line. Verified in preview (8 tests across vitest+pytest discovered, run command reaches the terminal)
 - ⬜ **Multi-root workspaces** (`.code-workspace`)
 - ⬜ **Remote** — SSH / WSL / containers 🔴
 - ⬜ **Notebooks** (Jupyter)
