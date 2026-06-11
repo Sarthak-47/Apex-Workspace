@@ -125,6 +125,10 @@ interface AppState {
   updateWorkflow: (id: string, patch: Partial<Workflow>) => void;
   removeWorkflow: (id: string) => void;
 
+  // Recently-used command-palette commands (MRU, command ids).
+  recentCommands: string[];
+  pushRecentCommand: (id: string) => void;
+
   // Toasts
   toasts: Toast[];
   addToast: (message: string, type?: ToastType) => void;
@@ -455,6 +459,10 @@ export const useAppStore = create<AppState>()(
       updateWorkflow: (id, patch) => set((s) => ({ workflows: s.workflows.map((w) => (w.id === id ? { ...w, ...patch } : w)) })),
       removeWorkflow: (id) => set((s) => ({ workflows: s.workflows.filter((w) => w.id !== id) })),
 
+      // Recently-used commands (MRU)
+      recentCommands: [],
+      pushRecentCommand: (id) => set((s) => ({ recentCommands: [id, ...s.recentCommands.filter((c) => c !== id)].slice(0, 12) })),
+
       // Toasts
       toasts: [],
       addToast: (message, type = "info") => {
@@ -662,6 +670,7 @@ export const useAppStore = create<AppState>()(
         workspaceFolders: s.workspaceFolders,
         keymap: s.keymap,
         workflows: s.workflows,
+        recentCommands: s.recentCommands,
         openFiles: s.openFiles,
         activeFile: s.activeFile,
         leftPanelOpen: s.leftPanelOpen,

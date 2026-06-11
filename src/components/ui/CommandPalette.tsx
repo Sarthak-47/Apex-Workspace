@@ -124,8 +124,17 @@ export function CommandPalette({ onClose }: Props) {
 
     // Commands: shown first. In ">" mode, ONLY commands (filtered by the rest).
     if (enabled.Commands && (commandMode || q)) {
-      const c = commands.filter((c) => c.title.toLowerCase().includes(q)).slice(0, commandMode ? 50 : 8);
-      for (const e of c) out.push({ source: 'Commands', id: e.id, title: e.title, detail: 'command', action: e.run });
+      let c = commands.filter((c) => c.title.toLowerCase().includes(q));
+      // Empty command mode → surface recently-used commands first (MRU).
+      if (commandMode && !q && store.recentCommands.length) {
+        const rank = new Map(store.recentCommands.map((id, i) => [id, i]));
+        c = [...c].sort((a, b) => (rank.get(a.id) ?? 999) - (rank.get(b.id) ?? 999));
+      }
+      c = c.slice(0, commandMode ? 50 : 8);
+      for (const e of c) {
+        const recent = commandMode && !q && store.recentCommands.includes(e.id);
+        out.push({ source: 'Commands', id: e.id, title: e.title, detail: recent ? 'recently used' : 'command', action: () => { store.pushRecentCommand(e.id); e.run(); } });
+      }
     }
     if (commandMode) return out;
 
