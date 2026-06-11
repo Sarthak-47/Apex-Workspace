@@ -9,6 +9,12 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 ---
 
 ## Recently added ✅
+- ✅ **Editor display + behavior settings** (2026-06-11): sticky scroll, bracket/indent guides, font ligatures, render whitespace, cursor blinking, **editor rulers**, **real tab size + insert-spaces** (was a dead setting), trim-trailing-whitespace-on-save, insert-final-newline-on-save — all persisted, live-applied, in Settings + command-palette toggles
+- ✅ **Editor command set** — palette commands for fold/unfold, transform case (upper/lower/title), sort lines, join lines, duplicate, delete line, indent/outdent, organize imports, **convert indentation spaces↔tabs**, reindent (run via editorBridge on the active editor)
+- ✅ **Line endings** — status-bar LF/CRLF indicator toggles the model EOL; palette "Change End of Line to LF/CRLF"
+- ✅ **Status bar interactivity** — Ln/Col → Go to Line, language → Go to Symbol, indentation → toggle spaces/tabs; version label fixed to v0.2.0
+- ✅ **Command palette MRU** — recently-used commands surface first
+- ✅ **Workflow library** (Warp Drive) — see PARITY_ROADMAP.md Phase 1
 - ✅ **Command palette — commands** (`>` prefix / Ctrl+Shift+P): View toggles (terminal, problems, sidebar, explorer/search/git, split), Preferences, editor toggles (wrap, minimap, auto-save, format-on-save, vim, AI autocomplete), Cookbook/Compare — alongside file/symbol/task/git search
 
 ## Already in APEX ✅
