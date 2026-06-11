@@ -103,6 +103,11 @@ interface AppState {
   workspacePath: string | null;
   setWorkspacePath: (path: string | null) => void;
 
+  // Multi-root workspaces: additional folder roots beyond the primary one.
+  workspaceFolders: string[];
+  addFolderToWorkspace: (path: string) => void;
+  removeFolderFromWorkspace: (path: string) => void;
+
   // Toasts
   toasts: Toast[];
   addToast: (message: string, type?: ToastType) => void;
@@ -390,11 +395,22 @@ export const useAppStore = create<AppState>()(
         if (path) {
           const current = get().recentWorkspaces;
           const filtered = current.filter(p => p !== path);
-          set({ workspacePath: path, recentWorkspaces: [path, ...filtered].slice(0, 10) });
+          // Opening a fresh primary folder resets any extra roots.
+          set({ workspacePath: path, workspaceFolders: [], recentWorkspaces: [path, ...filtered].slice(0, 10) });
         } else {
-          set({ workspacePath: path });
+          set({ workspacePath: path, workspaceFolders: [] });
         }
       },
+
+      // Multi-root workspaces
+      workspaceFolders: [],
+      addFolderToWorkspace: (path) => set((s) => {
+        if (!path || path === s.workspacePath || s.workspaceFolders.includes(path)) return {};
+        // First folder added with no primary becomes the primary.
+        if (!s.workspacePath) return { workspacePath: path };
+        return { workspaceFolders: [...s.workspaceFolders, path] };
+      }),
+      removeFolderFromWorkspace: (path) => set((s) => ({ workspaceFolders: s.workspaceFolders.filter((p) => p !== path) })),
 
       // Toasts
       toasts: [],
@@ -590,6 +606,7 @@ export const useAppStore = create<AppState>()(
       partialize: (s) => ({
         mode: s.mode,
         workspacePath: s.workspacePath,
+        workspaceFolders: s.workspaceFolders,
         openFiles: s.openFiles,
         activeFile: s.activeFile,
         leftPanelOpen: s.leftPanelOpen,
@@ -634,6 +651,9 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+// Debug handle: lets tooling / preview drive the store from the console.
+(window as unknown as { __apexStore?: typeof useAppStore }).__apexStore = useAppStore;
 
 // ─── Convenience hook for toasts ─────────────────────────────────────────────
 

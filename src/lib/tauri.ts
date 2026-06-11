@@ -248,6 +248,16 @@ const MOCK_TREE: Record<string, DirEntry[]> = {
   '/demo-workspace/tests': [
     { name: 'test_utils.py', path: '/demo-workspace/tests/test_utils.py', is_dir: false, size: 420, ext: 'py' },
   ],
+  // Second demo root — exercises multi-root workspaces in the browser preview.
+  '/demo-shared-lib': [
+    { name: 'src',          path: '/demo-shared-lib/src',          is_dir: true,  size: 0,    ext: null },
+    { name: 'package.json', path: '/demo-shared-lib/package.json', is_dir: false, size: 360,  ext: 'json' },
+    { name: 'README.md',    path: '/demo-shared-lib/README.md',    is_dir: false, size: 200,  ext: 'md' },
+  ],
+  '/demo-shared-lib/src': [
+    { name: 'index.ts',  path: '/demo-shared-lib/src/index.ts',  is_dir: false, size: 480, ext: 'ts' },
+    { name: 'format.ts', path: '/demo-shared-lib/src/format.ts', is_dir: false, size: 540, ext: 'ts' },
+  ],
   '/demo-workspace/src': [
     { name: 'components',   path: '/demo-workspace/src/components', is_dir: true,  size: 0,     ext: null },
     { name: 'editor',       path: '/demo-workspace/src/editor',     is_dir: true,  size: 0,     ext: null },

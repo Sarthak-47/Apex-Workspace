@@ -670,6 +670,53 @@ function FileTree({
 
 // ─── Empty workspace / Recent workspaces state ────────────────────────────────
 
+// One collapsible root in a multi-root workspace: a folder-name header
+// (with a remove action for non-primary roots) wrapping its own FileTree.
+function RootSection({
+  root, isPrimary, activeFile, onOpenFile, onRemove, collapseAllSignal, expandAllSignal,
+}: {
+  root: string;
+  isPrimary: boolean;
+  activeFile: string | null;
+  onOpenFile: (path: string) => void;
+  onRemove?: () => void;
+  collapseAllSignal: number;
+  expandAllSignal: number;
+}) {
+  const [open, setOpen] = useState(true);
+  const name = root.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? root;
+  return (
+    <div>
+      <div onClick={() => setOpen((o) => !o)} title={root}
+        style={{ height: 24, display: 'flex', alignItems: 'center', gap: 5, padding: '0 6px 0 8px', cursor: 'pointer', position: 'sticky', top: 0, background: '#0E0E15', zIndex: 1 }}
+        className="group hover:bg-[#18181F]">
+        <Chevron open={open} />
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: '#C7C7D9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{name}</span>
+        {isPrimary && <span style={{ fontSize: 8.5, color: '#4A4A65', border: '1px solid #2A2A3A', borderRadius: 7, padding: '0 5px', flexShrink: 0 }}>ROOT</span>}
+        {onRemove && (
+          <button onClick={(e) => { e.stopPropagation(); onRemove(); }} title="Remove Folder from Workspace"
+            className="opacity-0 group-hover:!opacity-100 hover:!text-[#E2776A]"
+            style={{ color: '#6A6A85', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 3px', display: 'flex', flexShrink: 0 }}>
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9"/><line x1="9" y1="2" x2="2" y2="9"/></svg>
+          </button>
+        )}
+      </div>
+      {open && (
+        <div style={{ minHeight: 0 }}>
+          <FileTree
+            key={root}
+            workspacePath={root}
+            activeFile={activeFile}
+            onOpenFile={onOpenFile}
+            collapseAllSignal={collapseAllSignal}
+            expandAllSignal={expandAllSignal}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NoWorkspace({ onOpen }: { onOpen: () => void }) {
   const { recentWorkspaces, setWorkspacePath } = useAppStore();
   const folderName = (p: string) => p.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? p;
@@ -1177,6 +1224,7 @@ export function LeftPanel() {
     leftPanelOpen, leftPanelWidth, setLeftPanelWidth,
     leftPanelView,
     activeFile, workspacePath, setWorkspacePath, openFile,
+    workspaceFolders, addFolderToWorkspace, removeFolderFromWorkspace,
   } = useAppStore();
   const [collapseSignal, setCollapseSignal] = useState(0);
   const [expandSignal, setExpandSignal]     = useState(0);
@@ -1194,6 +1242,14 @@ export function LeftPanel() {
     const path = await openFileDialog();
     if (path) openFile(path);
   };
+
+  const handleAddFolder = async () => {
+    const path = await openFolderDialog();
+    if (path) addFolderToWorkspace(path);
+  };
+
+  const roots = workspacePath ? [workspacePath, ...workspaceFolders] : [];
+  const multiRoot = roots.length > 1;
 
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1265,6 +1321,16 @@ export function LeftPanel() {
                 <line x1="6.5" y1="6" x2="6.5" y2="9"/><line x1="5" y1="7.5" x2="8" y2="7.5"/>
               </svg>
             </button>
+            {workspacePath && (
+              <button onClick={handleAddFolder} title="Add Folder to Workspace"
+                style={{ color: '#4A4A65', background: 'none', border: 'none', cursor: 'pointer', padding: 3, lineHeight: 1, borderRadius: 3 }}
+                className="hover:!text-[#E2E2EC] hover:bg-white/5 transition-colors">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 4a1 1 0 0 1 1-1h2.586a1 1 0 0 1 .707.293L6.414 4.414A1 1 0 0 0 7.121 4.707H11"/>
+                  <line x1="10.5" y1="6" x2="10.5" y2="11"/><line x1="8" y1="8.5" x2="13" y2="8.5"/>
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1287,17 +1353,32 @@ export function LeftPanel() {
         <>
           <OpenEditors />
           <div style={{ flex: '0 0 58%', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-            {workspacePath ? (
+            {roots.length === 0 ? (
+              <NoWorkspace onOpen={handleOpenFolder} />
+            ) : multiRoot ? (
+              <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                {roots.map((root, i) => (
+                  <RootSection
+                    key={root}
+                    root={root}
+                    isPrimary={i === 0}
+                    activeFile={activeFile}
+                    onOpenFile={openFile}
+                    onRemove={i === 0 ? undefined : () => removeFolderFromWorkspace(root)}
+                    collapseAllSignal={collapseSignal}
+                    expandAllSignal={expandSignal}
+                  />
+                ))}
+              </div>
+            ) : (
               <FileTree
-                key={workspacePath}
-                workspacePath={workspacePath}
+                key={roots[0]}
+                workspacePath={roots[0]}
                 activeFile={activeFile}
                 onOpenFile={openFile}
                 collapseAllSignal={collapseSignal}
                 expandAllSignal={expandSignal}
               />
-            ) : (
-              <NoWorkspace onOpen={handleOpenFolder} />
             )}
           </div>
 

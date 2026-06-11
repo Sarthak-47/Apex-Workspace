@@ -72,6 +72,7 @@ export function MenuBar() {
   };
   const openFolder = async () => { const p = await openFolderDialog(); if (p) { store.setWorkspacePath(p); store.setAppPage("code"); } };
   const newFolder = async () => { const p = await createWorkspaceFolder(); if (p) { store.setWorkspacePath(p); store.setAppPage("code"); } };
+  const addFolder = async () => { const p = await openFolderDialog(); if (p) { store.addFolderToWorkspace(p); store.setAppPage("code"); store.setLeftPanelView("explorer"); if (!store.leftPanelOpen) store.toggleLeftPanel(); } };
   const openRecent = (p: string) => async () => { if (await activateWorkspace(p)) { store.setWorkspacePath(p); store.setAppPage("code"); } };
 
   const recents = store.recentWorkspaces.filter((p) => p !== store.workspacePath).slice(0, 8);
@@ -82,6 +83,7 @@ export function MenuBar() {
       items: () => [
         { label: "Open Folder…", key: "Ctrl+O", run: openFolder },
         { label: "New Folder…", run: newFolder },
+        { label: "Add Folder to Workspace…", run: addFolder },
         ...(recents.length
           ? [{ header: "OPEN RECENT" } as Item, ...recents.map((p) => ({ label: baseName(p), run: openRecent(p) }) as Item)]
           : []),

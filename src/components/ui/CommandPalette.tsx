@@ -69,6 +69,7 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:reopen', title: 'File: Reopen Closed Editor', run: run(() => store.reopenClosedFile()) },
       { id: 'c:openfolder', title: 'File: Open Folder…', run: () => { (async () => { const p = await openFolderDialog(); if (p) { store.setWorkspacePath(p); store.setAppPage('code'); } })(); onClose(); } },
       { id: 'c:newfolder', title: 'File: New Folder…', run: () => { (async () => { const p = await createWorkspaceFolder(); if (p) { store.setWorkspacePath(p); store.setAppPage('code'); } })(); onClose(); } },
+      { id: 'c:addfolder', title: 'File: Add Folder to Workspace…', run: () => { (async () => { const p = await openFolderDialog(); if (p) { store.addFolderToWorkspace(p); store.setAppPage('code'); store.setLeftPanelView('explorer'); if (!store.leftPanelOpen) store.toggleLeftPanel(); } })(); onClose(); } },
       { id: 'c:closefolder', title: 'File: Close Folder', run: run(() => { store.setWorkspacePath(null); store.setAppPage('welcome'); }) },
       { id: 'c:settings', title: 'Preferences: Open Settings', run: run(() => store.setSettingsOpen(true)) },
       { id: 'c:shortcuts', title: 'Help: Keyboard Shortcuts', run: run(() => store.setShortcutsOpen(true)) },
