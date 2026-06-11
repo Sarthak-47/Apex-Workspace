@@ -3,6 +3,7 @@ import { useAppStore } from "@/store";
 import { getLang } from "@/components/editor/MonacoEditor";
 import { useMarkers } from "@/lib/useMarkers";
 import { gitBlame, gitListBranches, gitSwitchBranch, gitCreateBranch, type BlameLine } from "@/lib/tauri";
+import { runEditorAction } from "@/lib/editorBridge";
 import { useRef } from "react";
 
 function relTime(epochSec: number): string {
@@ -216,10 +217,10 @@ export function StatusBar() {
         </>
       )}
 
-      {/* Cursor position */}
+      {/* Cursor position — click to go to line */}
       {activeFile && (
         <>
-          <SbItem title="Cursor position">
+          <SbItem onClick={() => runEditorAction('editor.action.gotoLine')} title="Go to line/column">
             Ln {cursorLine}, Col {cursorCol}
           </SbItem>
           <Divider />
@@ -236,10 +237,10 @@ export function StatusBar() {
         </>
       )}
 
-      {/* Language mode */}
+      {/* Language mode — click to go to symbol */}
       {langLabel && (
         <>
-          <SbItem title="Language mode">
+          <SbItem onClick={() => runEditorAction('editor.action.quickOutline')} title="Go to symbol in editor">
             {langLabel}
           </SbItem>
           <Divider />
@@ -301,7 +302,7 @@ export function StatusBar() {
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5" style={{ opacity: 0.8 }}>
           <polygon points="5,1 9,9 1,9"/>
         </svg>
-        v0.1.0
+        v0.2.0
       </SbItem>
     </div>
   );
