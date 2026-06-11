@@ -8,6 +8,7 @@ import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { ensureProjectMemory } from "@/lib/workspace";
 import { openFolderDialog, createWorkspaceFolder } from "@/lib/tauri";
 import { workflowParams } from "@/lib/workflows";
+import { runEditorAction } from "@/lib/editorBridge";
 import { MentionIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
 
@@ -57,7 +58,24 @@ export function CommandPalette({ onClose }: Props) {
   // Executable commands (VS Code's ">" command palette).
   const commands = useMemo<AppCommand[]>(() => {
     const run = (fn: () => void) => () => { fn(); onClose(); };
+    const edRun = (id: string) => () => { onClose(); runEditorAction(id); };
     return [
+      // ── Editor actions (run on the active editor) ──
+      { id: 'e:foldall', title: 'Editor: Fold All', run: edRun('editor.foldAll') },
+      { id: 'e:unfoldall', title: 'Editor: Unfold All', run: edRun('editor.unfoldAll') },
+      { id: 'e:upper', title: 'Editor: Transform to Uppercase', run: edRun('editor.action.transformToUppercase') },
+      { id: 'e:lower', title: 'Editor: Transform to Lowercase', run: edRun('editor.action.transformToLowercase') },
+      { id: 'e:title', title: 'Editor: Transform to Title Case', run: edRun('editor.action.transformToTitlecase') },
+      { id: 'e:sortasc', title: 'Editor: Sort Lines Ascending', run: edRun('editor.action.sortLinesAscending') },
+      { id: 'e:sortdesc', title: 'Editor: Sort Lines Descending', run: edRun('editor.action.sortLinesDescending') },
+      { id: 'e:join', title: 'Editor: Join Lines', run: edRun('editor.action.joinLines') },
+      { id: 'e:duplicate', title: 'Editor: Duplicate Selection', run: edRun('editor.action.duplicateSelection') },
+      { id: 'e:delline', title: 'Editor: Delete Line', run: edRun('editor.action.deleteLines') },
+      { id: 'e:indent', title: 'Editor: Indent Lines', run: edRun('editor.action.indentLines') },
+      { id: 'e:outdent', title: 'Editor: Outdent Lines', run: edRun('editor.action.outdentLines') },
+      { id: 'e:trim', title: 'Editor: Trim Trailing Whitespace', run: edRun('editor.action.trimTrailingWhitespace') },
+      { id: 'e:fold', title: 'Editor: Toggle Fold', run: edRun('editor.toggleFold') },
+      { id: 'e:organizeimports', title: 'Editor: Organize Imports', run: edRun('editor.action.organizeImports') },
       { id: 'c:terminal', title: 'View: Toggle Terminal', run: run(() => store.toggleTerminal()) },
       { id: 'c:problems', title: 'View: Toggle Problems Panel', run: run(() => store.toggleProblems()) },
       { id: 'c:explorer', title: 'View: Show Explorer', run: run(() => { store.setLeftPanelView('explorer'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
