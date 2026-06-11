@@ -27,7 +27,9 @@ Every other AI coding tool starts every session from zero. It doesn't know why y
 
 ## Features
 
-**Core IDE** — Monaco editor (7 themes, Vim mode, inline AI autocomplete, live Markdown preview), real PTY terminal (multi-tab), file explorer, Git panel with diff review, web preview pane, command palette, fully themeable.
+**Core IDE** — Monaco editor (7 themes, Vim mode, inline AI autocomplete, live Markdown preview), VS Code-style **menu bar** + **command palette**, **rebindable keyboard shortcuts**, Seti-style **file-icon theme**, real PTY terminal (multi-tab, splits, shell profiles), file explorer with **multi-root workspaces**, **Test Explorer** (vitest/jest/pytest/go/cargo), LSP language intelligence, web preview pane, fully themeable.
+
+**Source control** — Git panel with stage/commit/push/pull, per-hunk staging, inline blame, branch picker, commit graph, **merge-conflict resolution** (inline CodeLens), **arbitrary file-to-file diff**, full **stash UI** (apply/pop/drop), and a **GitHub Pull Request UI** (list/create/checkout via `gh`).
 
 **AI agent** — chat with local models, Plan mode, 5 built-in agents (Coder / Reviewer / Explainer / Debugger / Test Writer) plus custom agents, file read/write/edit/search tools with diff-gated approval, approval-gated bash, `@file` / `@folder` / `@symbol` / `@person` mentions.
 
@@ -43,10 +45,10 @@ Every other AI coding tool starts every session from zero. It doesn't know why y
 
 Grab the latest Windows build from the [**Releases**](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) page:
 
-| Installer | Size | Notes |
-|---|---|---|
-| [`APEX_0.1.0_x64-setup.exe`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | ~6.7 MB | NSIS installer (recommended) |
-| [`APEX_0.1.0_x64_en-US.msi`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | ~8.5 MB | MSI for managed/enterprise installs |
+| Installer | Notes |
+|---|---|
+| [`APEX_0.2.0_x64-setup.exe`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | NSIS installer (recommended) |
+| [`APEX_0.2.0_x64_en-US.msi`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | MSI for managed/enterprise installs |
 
 The app is unsigned, so Windows SmartScreen may warn on first launch — choose **More info → Run anyway**. APEX still needs [Ollama](https://ollama.com) running locally (see Prerequisites below).
 
@@ -85,7 +87,9 @@ Everything is local by default. Models run on your GPU via Ollama. Tokens (Gmail
 
 ## Roadmap
 
-The path from 0.1 to 1.0 is reliability and trust, not more features — see [`ROADMAP.md`](ROADMAP.md).
+Two parallel tracks:
+- **Reliability** (0.1 → 1.0 hardening: CI, graceful failures, signing, beta) — [`ROADMAP.md`](ROADMAP.md)
+- **Competitive features** (best of VS Code · Terax · Rowboat · Antigravity · Warp — hybrid models → Warp terminal → agent manager → agent builder) — [`PARITY_ROADMAP.md`](PARITY_ROADMAP.md), with the detailed editor checklist in [`VSCODE_PARITY.md`](VSCODE_PARITY.md).
 
 ## License
 

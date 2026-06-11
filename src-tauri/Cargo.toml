@@ -1,6 +1,6 @@
 [package]
 name = "apex"
-version = "0.1.0"
+version = "0.2.0"
 description = "APEX — Local-first AI-native developer workspace"
 authors = ["Sarthak Singh"]
 edition = "2021"
