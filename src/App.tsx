@@ -35,13 +35,12 @@ export default function App() {
     leftPanelOpen, leftPanelWidth,
     setLeftPanelView,
     intelPanelOpen, intelPanelWidth,
-    terminalOpen, terminalHeight, toggleTerminal,
+    terminalOpen, terminalHeight,
     setOllamaStatus, ollamaOnline, ollamaModels,
     ollamaSelectedModel, setOllamaSelectedModel,
     setGitBranch, workspacePath,
     commandPaletteOpen, setCommandPaletteOpen,
-    settingsOpen, setSettingsOpen,
-    setShortcutsOpen,
+    settingsOpen,
     embedModel,
     mode, toggleIntelPanel, setIntelTab,
   } = useAppStore();
@@ -252,16 +251,19 @@ export default function App() {
       if (s.leftPanelView === view && s.leftPanelOpen) s.toggleLeftPanel();
       else { s.setLeftPanelView(view); if (!s.leftPanelOpen) s.toggleLeftPanel(); }
     };
+    // Pull actions from the store at call time so this effect can register
+    // once (stable empty deps) — no re-subscribe churn, no Fast-Refresh
+    // "deps array changed size" warnings.
     const run: Record<string, () => void> = {
-      commandPalette:    () => setCommandPaletteOpen(true),
-      goToFile:          () => setCommandPaletteOpen(true),
-      commandPaletteP:   () => setCommandPaletteOpen(true),
-      symbolSearch:      () => setCommandPaletteOpen(true),
-      settings:          () => setSettingsOpen(true),
-      keyboardShortcuts: () => setShortcutsOpen(true),
+      commandPalette:    () => useAppStore.getState().setCommandPaletteOpen(true),
+      goToFile:          () => useAppStore.getState().setCommandPaletteOpen(true),
+      commandPaletteP:   () => useAppStore.getState().setCommandPaletteOpen(true),
+      symbolSearch:      () => useAppStore.getState().setCommandPaletteOpen(true),
+      settings:          () => useAppStore.getState().setSettingsOpen(true),
+      keyboardShortcuts: () => useAppStore.getState().setShortcutsOpen(true),
       reopenClosed:      () => useAppStore.getState().reopenClosedFile(),
       openFolder:        () => openFolderDialog().then((p) => { if (p) { const s = useAppStore.getState(); s.setWorkspacePath(p); s.setAppPage('code'); } }),
-      toggleTerminal:    () => toggleTerminal(),
+      toggleTerminal:    () => useAppStore.getState().toggleTerminal(),
       showExplorer:      () => revealView('explorer'),
       showSourceControl: () => revealView('git'),
       showSearch:        () => revealView('search'),
@@ -283,7 +285,8 @@ export default function App() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [setCommandPaletteOpen, setSettingsOpen, setShortcutsOpen, toggleTerminal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keep CSS vars in sync with store (for future drag-to-resize)
   useEffect(() => {
