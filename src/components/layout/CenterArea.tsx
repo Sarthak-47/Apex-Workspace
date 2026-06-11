@@ -4,6 +4,23 @@ import { MonacoEditor } from "@/components/editor/MonacoEditor";
 import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { CategoryIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
+import { readFile } from "@/lib/tauri";
+
+// Read two files and open them side-by-side in the diff viewer (read-only compare).
+async function openCompare(a: string, b: string) {
+  const store = useAppStore.getState();
+  const base = (p: string) => p.split(/[\\/]/).pop() ?? p;
+  try {
+    const [left, right] = await Promise.all([readFile(a), readFile(b)]);
+    store.setPendingDiffReview({
+      path: b, original: left, proposed: right, mode: 'compare',
+      originalLabel: base(a), modifiedLabel: base(b),
+    });
+    store.setCompareSelection(null);
+  } catch {
+    store.addToast('Could not read one of the files to compare', 'error');
+  }
+}
 
 // ─── Tab bar ──────────────────────────────────────────────────────────────────
 
@@ -15,7 +32,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
   const {
     openFiles, activeFile, unsavedFiles, setActiveFile, rightPaneFile, setRightPaneFile,
     reorderOpenFiles, closeOtherFiles, closeFilesToRight, closeAllFiles,
-    pinnedFiles, togglePin,
+    pinnedFiles, togglePin, compareSelection, setCompareSelection,
   } = useAppStore();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
@@ -173,6 +190,11 @@ function TabBar({ onRequestClose }: TabBarProps) {
             ['—', null],
             [pinnedFiles.includes(menu.path) ? 'Unpin' : 'Pin', () => togglePin(menu.path)],
             ['Open to the Side', () => setRightPaneFile(menu.path)],
+            ['—', null],
+            ['Select for Compare', () => setCompareSelection(menu.path)],
+            ...(compareSelection && compareSelection !== menu.path
+              ? [[`Compare with "${relOf(compareSelection)}"`, () => openCompare(compareSelection, menu.path)]] as [string, () => void][]
+              : []),
             ['—', null],
             ['Copy Path', () => navigator.clipboard?.writeText(menu.path).catch(() => {})],
             ['Copy File Name', () => navigator.clipboard?.writeText(relOf(menu.path)).catch(() => {})],

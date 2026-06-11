@@ -108,6 +108,10 @@ interface AppState {
   addFolderToWorkspace: (path: string) => void;
   removeFolderFromWorkspace: (path: string) => void;
 
+  // "Select for Compare" target for arbitrary file-to-file diff.
+  compareSelection: string | null;
+  setCompareSelection: (path: string | null) => void;
+
   // Toasts
   toasts: Toast[];
   addToast: (message: string, type?: ToastType) => void;
@@ -411,6 +415,10 @@ export const useAppStore = create<AppState>()(
         return { workspaceFolders: [...s.workspaceFolders, path] };
       }),
       removeFolderFromWorkspace: (path) => set((s) => ({ workspaceFolders: s.workspaceFolders.filter((p) => p !== path) })),
+
+      // Compare selection
+      compareSelection: null,
+      setCompareSelection: (path) => set({ compareSelection: path }),
 
       // Toasts
       toasts: [],
