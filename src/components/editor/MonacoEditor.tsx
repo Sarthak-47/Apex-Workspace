@@ -731,7 +731,7 @@ export function MonacoEditor({ path }: Props) {
     editorFontSize, setEditorFontSize,
     editorLineNumbers,
     stickyScroll, bracketPairGuides, fontLigatures, renderWhitespace, cursorBlinking,
-    editorRulers,
+    editorRulers, tabSize, insertSpaces,
   } = useAppStore();
 
   // Editor display prefs now live in the (persisted) store; keep the local
@@ -802,7 +802,9 @@ export function MonacoEditor({ path }: Props) {
       guides: { bracketPairs: bracketPairGuides, indentation: bracketPairGuides },
       rulers: editorRulers,
     });
-  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides, editorRulers]);
+    // tabSize / insertSpaces are model options, not editor options.
+    editorRef.current?.getModel()?.updateOptions({ tabSize, insertSpaces });
+  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides, editorRulers, tabSize, insertSpaces]);
 
   // ── Load file content on path change ─────────────────────────────────────
   useEffect(() => {
@@ -1066,8 +1068,8 @@ export function MonacoEditor({ path }: Props) {
               cursorSmoothCaretAnimation: 'on',
               cursorStyle: 'line',
               renderLineHighlight: 'line',
-              tabSize: 2,
-              insertSpaces: true,
+              tabSize,
+              insertSpaces,
               bracketPairColorization: { enabled: true },
               guides: { bracketPairs: bracketPairGuides, indentation: bracketPairGuides },
               inlineSuggest: { enabled: true, showToolbar: 'onHover' },

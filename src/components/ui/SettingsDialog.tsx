@@ -128,8 +128,8 @@ function EditorTab() {
     trimTrailingWhitespace, setTrimTrailingWhitespace,
     insertFinalNewline, setInsertFinalNewline,
     editorRulers, setEditorRulers,
+    tabSize, setTabSize, insertSpaces, setInsertSpaces,
   } = useAppStore();
-  const [tabSize, setTabSize] = useState(2);
   const WHITESPACE_OPTS = [
     { value: 'none', label: 'None' }, { value: 'boundary', label: 'Boundary' },
     { value: 'selection', label: 'Selection' }, { value: 'all', label: 'All' },
@@ -165,6 +165,7 @@ function EditorTab() {
         <Field label="Tab size">
           <NumberInput value={tabSize} min={1} max={8} onChange={setTabSize} />
         </Field>
+        <Field label="Insert spaces"><Toggle value={insertSpaces} onChange={setInsertSpaces} /></Field>
         <Field label="Word wrap"><Toggle value={editorWordWrap} onChange={setEditorWordWrap} /></Field>
         <Field label="Render whitespace"><Select value={renderWhitespace} options={WHITESPACE_OPTS} onChange={(v) => setRenderWhitespace(v as typeof renderWhitespace)} /></Field>
         <Field label="Trim trailing whitespace on save"><Toggle value={trimTrailingWhitespace} onChange={setTrimTrailingWhitespace} /></Field>

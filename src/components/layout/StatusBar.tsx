@@ -114,7 +114,7 @@ export function StatusBar() {
     cursorLine, cursorCol, editorFileSize,
     vimMode, indexProgress, autocompleteEnabled,
     setCookbookOpen, setCompareOpen, toggleProblems,
-    workspacePath,
+    workspacePath, tabSize, insertSpaces, setInsertSpaces,
   } = useAppStore();
   const { errors, warnings } = useMarkers();
 
@@ -252,7 +252,9 @@ export function StatusBar() {
         <>
           <SbItem title="File encoding">UTF-8</SbItem>
           <Divider />
-          <SbItem title="Indentation">Spaces: 2</SbItem>
+          <SbItem onClick={() => setInsertSpaces(!insertSpaces)} title="Toggle spaces / tabs">
+            {insertSpaces ? 'Spaces' : 'Tab Size'}: {tabSize}
+          </SbItem>
           <Divider />
           {editorFileSize > 0 && (
             <>

@@ -222,6 +222,10 @@ interface AppState {
   setInsertFinalNewline: (v: boolean) => void;
   editorRulers: number[];
   setEditorRulers: (v: number[]) => void;
+  tabSize: number;
+  setTabSize: (v: number) => void;
+  insertSpaces: boolean;
+  setInsertSpaces: (v: boolean) => void;
   autoSave: boolean;
   setAutoSave: (v: boolean) => void;
   formatOnSave: boolean;
@@ -575,6 +579,10 @@ export const useAppStore = create<AppState>()(
       setInsertFinalNewline: (v) => set({ insertFinalNewline: v }),
       editorRulers: [],
       setEditorRulers: (v) => set({ editorRulers: v }),
+      tabSize: 2,
+      setTabSize: (v) => set({ tabSize: Math.max(1, Math.min(8, v)) }),
+      insertSpaces: true,
+      setInsertSpaces: (v) => set({ insertSpaces: v }),
       autoSave: false,
       setAutoSave: (v) => set({ autoSave: v }),
       formatOnSave: false,
@@ -709,6 +717,8 @@ export const useAppStore = create<AppState>()(
         trimTrailingWhitespace: s.trimTrailingWhitespace,
         insertFinalNewline: s.insertFinalNewline,
         editorRulers: s.editorRulers,
+        tabSize: s.tabSize,
+        insertSpaces: s.insertSpaces,
         autoSave: s.autoSave,
         formatOnSave: s.formatOnSave,
         lspEnabled: s.lspEnabled,
