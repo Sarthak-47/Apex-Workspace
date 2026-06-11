@@ -202,3 +202,6 @@ body.resizing * { transition: none !important; user-select: none !important; }
 .mc-gutter-incoming   { background: #388BFD; width: 3px !important; margin-left: 2px; }
 
 .ks-row:hover { background: #16161F; }
+
+.ks-actions { opacity: 0; transition: opacity 0.12s; }
+.ks-row:hover .ks-actions { opacity: 1; }

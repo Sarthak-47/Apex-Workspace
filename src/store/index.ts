@@ -112,6 +112,12 @@ interface AppState {
   compareSelection: string | null;
   setCompareSelection: (path: string | null) => void;
 
+  // Rebindable keymap: commandId -> chord override (defaults live in keymap.ts).
+  keymap: Record<string, string>;
+  setKeybinding: (id: string, chord: string) => void;
+  resetKeybinding: (id: string) => void;
+  resetAllKeybindings: () => void;
+
   // Toasts
   toasts: Toast[];
   addToast: (message: string, type?: ToastType) => void;
@@ -420,6 +426,12 @@ export const useAppStore = create<AppState>()(
       compareSelection: null,
       setCompareSelection: (path) => set({ compareSelection: path }),
 
+      // Rebindable keymap
+      keymap: {},
+      setKeybinding: (id, chord) => set((s) => ({ keymap: { ...s.keymap, [id]: chord } })),
+      resetKeybinding: (id) => set((s) => { const k = { ...s.keymap }; delete k[id]; return { keymap: k }; }),
+      resetAllKeybindings: () => set({ keymap: {} }),
+
       // Toasts
       toasts: [],
       addToast: (message, type = "info") => {
@@ -615,6 +627,7 @@ export const useAppStore = create<AppState>()(
         mode: s.mode,
         workspacePath: s.workspacePath,
         workspaceFolders: s.workspaceFolders,
+        keymap: s.keymap,
         openFiles: s.openFiles,
         activeFile: s.activeFile,
         leftPanelOpen: s.leftPanelOpen,

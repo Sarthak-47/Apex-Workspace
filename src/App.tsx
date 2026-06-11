@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useAppStore } from "@/store";
 import { checkOllama } from "@/lib/ollama";
 import { getGitBranch, startWatching, stopWatching, onFsChange, gmailStatus, gmailSync, calendarStatus, calendarSync, notify, openFolderDialog } from "@/lib/tauri";
+import { APP_COMMANDS, eventToChord, effectiveKeys } from "@/lib/keymap";
 import { indexFile } from "@/lib/codeindex";
 import { JOB_DEFS, nextRunFor, registerRunner, jobDef, type JobId } from "@/lib/jobs";
 import { runAllLiveNotes } from "@/lib/livenotes";
@@ -32,8 +33,7 @@ import { PageRouter } from "@/components/pages/PageRouter";
 export default function App() {
   const {
     leftPanelOpen, leftPanelWidth,
-    leftPanelView, setLeftPanelView,
-    toggleLeftPanel,
+    setLeftPanelView,
     intelPanelOpen, intelPanelWidth,
     terminalOpen, terminalHeight, toggleTerminal,
     setOllamaStatus, ollamaOnline, ollamaModels,
@@ -245,91 +245,45 @@ export default function App() {
     return () => unlisten?.();
   }, [workspacePath]);
 
-  // ── Global keyboard shortcuts ──────────────────────────────────────────────
+  // ── Global keyboard shortcuts (dispatched through the rebindable keymap) ────
   useEffect(() => {
+    const revealView = (view: 'explorer' | 'git' | 'search') => {
+      const s = useAppStore.getState();
+      if (s.leftPanelView === view && s.leftPanelOpen) s.toggleLeftPanel();
+      else { s.setLeftPanelView(view); if (!s.leftPanelOpen) s.toggleLeftPanel(); }
+    };
+    const run: Record<string, () => void> = {
+      commandPalette:    () => setCommandPaletteOpen(true),
+      goToFile:          () => setCommandPaletteOpen(true),
+      commandPaletteP:   () => setCommandPaletteOpen(true),
+      symbolSearch:      () => setCommandPaletteOpen(true),
+      settings:          () => setSettingsOpen(true),
+      keyboardShortcuts: () => setShortcutsOpen(true),
+      reopenClosed:      () => useAppStore.getState().reopenClosedFile(),
+      openFolder:        () => openFolderDialog().then((p) => { if (p) { const s = useAppStore.getState(); s.setWorkspacePath(p); s.setAppPage('code'); } }),
+      toggleTerminal:    () => toggleTerminal(),
+      showExplorer:      () => revealView('explorer'),
+      showSourceControl: () => revealView('git'),
+      showSearch:        () => revealView('search'),
+    };
+
     const handler = (e: KeyboardEvent) => {
-      const ctrl = e.ctrlKey || e.metaKey;
-      // Ctrl+K or Ctrl+P → command palette
-      if (ctrl && !e.shiftKey && (e.key === 'k' || e.key === 'p')) {
-        e.preventDefault();
-        setCommandPaletteOpen(true);
-        return;
-      }
-      // Ctrl+Shift+P → command palette
-      if (ctrl && e.shiftKey && e.key === 'P') {
-        e.preventDefault();
-        setCommandPaletteOpen(true);
-        return;
-      }
-      // Ctrl+T → workspace symbol search (command palette)
-      if (ctrl && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
-        e.preventDefault();
-        setCommandPaletteOpen(true);
-        return;
-      }
-      // Ctrl+Shift+T → reopen last closed editor
-      if (ctrl && e.shiftKey && (e.key === 'T' || e.key === 't')) {
-        e.preventDefault();
-        useAppStore.getState().reopenClosedFile();
-        return;
-      }
-      // Ctrl+O → open folder
-      if (ctrl && !e.shiftKey && (e.key === 'o' || e.key === 'O')) {
-        e.preventDefault();
-        openFolderDialog().then((p) => {
-          if (p) { const s = useAppStore.getState(); s.setWorkspacePath(p); s.setAppPage('code'); }
-        });
-        return;
-      }
-      // Ctrl+, → settings
-      if (ctrl && e.key === ',') {
-        e.preventDefault();
-        setSettingsOpen(true);
-        return;
-      }
-      // Ctrl+/ → keyboard shortcuts
-      if (ctrl && e.key === '/') {
-        e.preventDefault();
-        setShortcutsOpen(true);
-        return;
-      }
-      // Ctrl+` → toggle terminal
-      if (ctrl && e.key === '`') {
-        e.preventDefault();
-        toggleTerminal();
-        return;
-      }
-      // Ctrl+Shift+E → Explorer
-      if (ctrl && e.shiftKey && e.key === 'E') {
-        e.preventDefault();
-        if (leftPanelView === 'explorer' && leftPanelOpen) toggleLeftPanel();
-        else { setLeftPanelView('explorer'); if (!leftPanelOpen) toggleLeftPanel(); }
-        return;
-      }
-      // Ctrl+Shift+G → Source Control
-      if (ctrl && e.shiftKey && e.key === 'G') {
-        e.preventDefault();
-        if (leftPanelView === 'git' && leftPanelOpen) toggleLeftPanel();
-        else { setLeftPanelView('git'); if (!leftPanelOpen) toggleLeftPanel(); }
-        return;
-      }
-      // Ctrl+Shift+F → Search
-      if (ctrl && e.shiftKey && e.key === 'F') {
-        e.preventDefault();
-        if (leftPanelView === 'search' && leftPanelOpen) toggleLeftPanel();
-        else { setLeftPanelView('search'); if (!leftPanelOpen) toggleLeftPanel(); }
-        return;
-      }
-      // Esc → exit Zen mode (when active and no overlay is open)
+      // Esc → exit Zen mode (special-case, not rebindable)
       if (e.key === 'Escape' && useAppStore.getState().zenMode
           && !useAppStore.getState().commandPaletteOpen && !useAppStore.getState().settingsOpen) {
         useAppStore.getState().toggleZen();
         return;
       }
+      const chord = eventToChord(e);
+      const overrides = useAppStore.getState().keymap;
+      const cmd = APP_COMMANDS.find((c) => effectiveKeys(c.id, overrides, c.defaultKeys) === chord);
+      if (!cmd || !run[cmd.id]) return;
+      e.preventDefault();
+      run[cmd.id]();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [setCommandPaletteOpen, setSettingsOpen, setShortcutsOpen, toggleTerminal, toggleLeftPanel, leftPanelOpen, leftPanelView, setLeftPanelView]);
+  }, [setCommandPaletteOpen, setSettingsOpen, setShortcutsOpen, toggleTerminal]);
 
   // Keep CSS vars in sync with store (for future drag-to-resize)
   useEffect(() => {
