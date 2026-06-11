@@ -54,8 +54,11 @@ This unblocks Phases 1–3 punching above the local model ceiling.
   copyable, re-runnable block (jump between blocks, copy block, re-run).
 - ⬜ **Agent mode in the terminal** — natural-language → proposed command → approve/run,
   reusing the existing tool-approval flow.
-- ⬜ **Workflow library (Warp Drive equiv.)** — promote `.vscode/tasks.json` into saved,
-  parameterized, searchable command workflows + prompt snippets.
+- ✅ **Workflow library (Warp Drive equiv.)** — Workflows activity-bar view: saved,
+  searchable, **parameterized** commands (`{{param}}` → inline input prompts) run in the
+  terminal; create/edit/delete, tag chips, 9 seeded dev commands, command-palette "Run
+  Workflow: …" entries. Persisted in the store (`workflows.ts`). Verified: param
+  substitution (`git checkout -b feature/awesome`), create, search, palette.
 - ◐ **AI command explain/fix** — explain a failed command / suggest a fix inline (builds on
   the AI panel).
 

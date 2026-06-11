@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import type { AgentDef } from "@/lib/agents";
 import type { JobId, JobStatus } from "@/lib/jobs";
 import type { McpServerConfig, McpTool } from "@/lib/tauri";
+import { type Workflow, DEFAULT_WORKFLOWS, newWorkflowId } from "@/lib/workflows";
 
 export interface JobRuntime {
   status: JobStatus;
@@ -118,6 +119,12 @@ interface AppState {
   resetKeybinding: (id: string) => void;
   resetAllKeybindings: () => void;
 
+  // Command workflows (Warp Drive-style saved commands).
+  workflows: Workflow[];
+  addWorkflow: (w: Omit<Workflow, "id">) => void;
+  updateWorkflow: (id: string, patch: Partial<Workflow>) => void;
+  removeWorkflow: (id: string) => void;
+
   // Toasts
   toasts: Toast[];
   addToast: (message: string, type?: ToastType) => void;
@@ -145,8 +152,8 @@ interface AppState {
   setGitBranch: (branch: string) => void;
 
   // Left panel view (which tab is shown)
-  leftPanelView: 'explorer' | 'git' | 'search' | 'tests';
-  setLeftPanelView: (view: 'explorer' | 'git' | 'search' | 'tests') => void;
+  leftPanelView: 'explorer' | 'git' | 'search' | 'tests' | 'workflows';
+  setLeftPanelView: (view: 'explorer' | 'git' | 'search' | 'tests' | 'workflows') => void;
 
   // Settings dialog
   settingsOpen: boolean;
@@ -432,6 +439,12 @@ export const useAppStore = create<AppState>()(
       resetKeybinding: (id) => set((s) => { const k = { ...s.keymap }; delete k[id]; return { keymap: k }; }),
       resetAllKeybindings: () => set({ keymap: {} }),
 
+      // Command workflows
+      workflows: DEFAULT_WORKFLOWS,
+      addWorkflow: (w) => set((s) => ({ workflows: [...s.workflows, { ...w, id: newWorkflowId() }] })),
+      updateWorkflow: (id, patch) => set((s) => ({ workflows: s.workflows.map((w) => (w.id === id ? { ...w, ...patch } : w)) })),
+      removeWorkflow: (id) => set((s) => ({ workflows: s.workflows.filter((w) => w.id !== id) })),
+
       // Toasts
       toasts: [],
       addToast: (message, type = "info") => {
@@ -472,7 +485,7 @@ export const useAppStore = create<AppState>()(
       setGitBranch: (branch) => set({ gitBranch: branch }),
 
       // Left panel view
-      leftPanelView: 'explorer' as 'explorer' | 'git' | 'search' | 'tests',
+      leftPanelView: 'explorer' as 'explorer' | 'git' | 'search' | 'tests' | 'workflows',
       setLeftPanelView: (view) => set({ leftPanelView: view }),
 
       // Settings dialog
@@ -628,6 +641,7 @@ export const useAppStore = create<AppState>()(
         workspacePath: s.workspacePath,
         workspaceFolders: s.workspaceFolders,
         keymap: s.keymap,
+        workflows: s.workflows,
         openFiles: s.openFiles,
         activeFile: s.activeFile,
         leftPanelOpen: s.leftPanelOpen,

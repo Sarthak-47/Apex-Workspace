@@ -14,6 +14,7 @@ import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { CategoryIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
 import { TestExplorer } from "@/components/layout/TestExplorer";
+import { Workflows } from "@/components/layout/Workflows";
 
 // ─── File type icon ────────────────────────────────────────────────────────────
 
@@ -1347,6 +1348,9 @@ export function LeftPanel() {
 
       {/* ── Testing view ──────────────────────────────────────────────── */}
       {leftPanelView === 'tests' && <TestExplorer />}
+
+      {/* ── Workflows view ────────────────────────────────────────────── */}
+      {leftPanelView === 'workflows' && <Workflows />}
 
       {/* ── Explorer view ─────────────────────────────────────────────── */}
       {leftPanelView === 'explorer' && (

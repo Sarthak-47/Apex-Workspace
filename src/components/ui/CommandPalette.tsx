@@ -7,6 +7,7 @@ import { loadWorkspaceSymbols, type WorkspaceSymbol } from "@/lib/symbols";
 import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { ensureProjectMemory } from "@/lib/workspace";
 import { openFolderDialog, createWorkspaceFolder } from "@/lib/tauri";
+import { workflowParams } from "@/lib/workflows";
 import { MentionIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
 
@@ -63,6 +64,8 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:search', title: 'View: Show Search', run: run(() => { store.setLeftPanelView('search'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
       { id: 'c:git', title: 'View: Show Source Control', run: run(() => { store.setLeftPanelView('git'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
       { id: 'c:tests', title: 'View: Show Testing', run: run(() => { store.setAppPage('code'); store.setLeftPanelView('tests'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
+      { id: 'c:workflows', title: 'View: Show Workflows', run: run(() => { store.setAppPage('code'); store.setLeftPanelView('workflows'); if (!store.leftPanelOpen) store.toggleLeftPanel(); }) },
+      ...store.workflows.filter((w) => workflowParams(w.command).length === 0).map((w) => ({ id: 'wf:' + w.id, title: `Run Workflow: ${w.name}`, run: run(() => { store.runInTerminal(w.command); info(`Running: ${w.name}`); }) })),
       { id: 'c:sidebar', title: 'View: Toggle Side Bar', run: run(() => store.toggleLeftPanel()) },
       { id: 'c:zen', title: 'View: Toggle Zen Mode', run: run(() => store.toggleZen()) },
       { id: 'c:split', title: 'View: Split Editor', run: run(() => store.activeFile && store.setRightPaneFile(store.activeFile)) },
