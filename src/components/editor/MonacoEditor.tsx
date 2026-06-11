@@ -730,6 +730,7 @@ export function MonacoEditor({ path }: Props) {
     editorMinimap, setEditorMinimap,
     editorFontSize, setEditorFontSize,
     editorLineNumbers,
+    stickyScroll, bracketPairGuides, fontLigatures, renderWhitespace, cursorBlinking,
   } = useAppStore();
 
   // Editor display prefs now live in the (persisted) store; keep the local
@@ -793,8 +794,13 @@ export function MonacoEditor({ path }: Props) {
       fontSize,
       lineHeight: Math.round(fontSize * 1.6),
       lineNumbers: editorLineNumbers ? 'on' : 'off',
+      stickyScroll: { enabled: stickyScroll },
+      fontLigatures,
+      renderWhitespace,
+      cursorBlinking,
+      guides: { bracketPairs: bracketPairGuides, indentation: bracketPairGuides },
     });
-  }, [wordWrap, minimap, fontSize, editorLineNumbers]);
+  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides]);
 
   // ── Load file content on path change ─────────────────────────────────────
   useEffect(() => {
@@ -1026,7 +1032,7 @@ export function MonacoEditor({ path }: Props) {
             options={{
               fontSize,
               fontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace',
-              fontLigatures: true,
+              fontLigatures,
               lineHeight: Math.round(fontSize * 1.6),
               padding: { top: 12, bottom: 24 },
               minimap: { enabled: minimap, scale: 1, renderCharacters: false },
@@ -1035,26 +1041,26 @@ export function MonacoEditor({ path }: Props) {
               lineNumbersMinChars: 3,
               glyphMargin: false,
               folding: true,
-              stickyScroll: { enabled: true },
+              stickyScroll: { enabled: stickyScroll },
               wordWrap: wordWrap ? 'on' : 'off',
               scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8, useShadows: false, vertical: 'visible', horizontal: 'visible' },
               overviewRulerBorder: false,
               hideCursorInOverviewRuler: true,
               overviewRulerLanes: 0,
-              cursorBlinking: 'smooth',
+              cursorBlinking,
               cursorSmoothCaretAnimation: 'on',
               cursorStyle: 'line',
               renderLineHighlight: 'line',
               tabSize: 2,
               insertSpaces: true,
               bracketPairColorization: { enabled: true },
-              guides: { bracketPairs: true, indentation: true },
+              guides: { bracketPairs: bracketPairGuides, indentation: bracketPairGuides },
               inlineSuggest: { enabled: true, showToolbar: 'onHover' },
               suggestOnTriggerCharacters: true,
               acceptSuggestionOnEnter: 'on',
               snippetSuggestions: 'top',
               wordBasedSuggestions: 'matchingDocuments',
-              renderWhitespace: 'selection',
+              renderWhitespace,
               smoothScrolling: true,
               colorDecorators: true,
               links: true,

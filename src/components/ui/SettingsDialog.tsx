@@ -122,8 +122,19 @@ function EditorTab() {
     editorTheme, setEditorTheme, lspEnabled, setLspEnabled, lspServerPaths, setLspServerPath,
     editorFontSize, setEditorFontSize, editorWordWrap, setEditorWordWrap,
     editorMinimap, setEditorMinimap, editorLineNumbers, setEditorLineNumbers,
+    stickyScroll, setStickyScroll, bracketPairGuides, setBracketPairGuides,
+    fontLigatures, setFontLigatures, renderWhitespace, setRenderWhitespace,
+    cursorBlinking, setCursorBlinking,
   } = useAppStore();
   const [tabSize, setTabSize] = useState(2);
+  const WHITESPACE_OPTS = [
+    { value: 'none', label: 'None' }, { value: 'boundary', label: 'Boundary' },
+    { value: 'selection', label: 'Selection' }, { value: 'all', label: 'All' },
+  ];
+  const CURSOR_OPTS = [
+    { value: 'blink', label: 'Blink' }, { value: 'smooth', label: 'Smooth' },
+    { value: 'phase', label: 'Phase' }, { value: 'expand', label: 'Expand' }, { value: 'solid', label: 'Solid' },
+  ];
 
   const lspInp: React.CSSProperties = {
     width: '100%', background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5,
@@ -142,12 +153,17 @@ function EditorTab() {
         </Field>
         <Field label="Minimap"><Toggle value={editorMinimap} onChange={setEditorMinimap} /></Field>
         <Field label="Line numbers"><Toggle value={editorLineNumbers} onChange={setEditorLineNumbers} /></Field>
+        <Field label="Sticky scroll"><Toggle value={stickyScroll} onChange={setStickyScroll} /></Field>
+        <Field label="Bracket & indent guides"><Toggle value={bracketPairGuides} onChange={setBracketPairGuides} /></Field>
+        <Field label="Font ligatures"><Toggle value={fontLigatures} onChange={setFontLigatures} /></Field>
+        <Field label="Cursor blinking"><Select value={cursorBlinking} options={CURSOR_OPTS} onChange={(v) => setCursorBlinking(v as typeof cursorBlinking)} /></Field>
       </Section>
       <Section title="Formatting">
         <Field label="Tab size">
           <NumberInput value={tabSize} min={1} max={8} onChange={setTabSize} />
         </Field>
         <Field label="Word wrap"><Toggle value={editorWordWrap} onChange={setEditorWordWrap} /></Field>
+        <Field label="Render whitespace"><Select value={renderWhitespace} options={WHITESPACE_OPTS} onChange={(v) => setRenderWhitespace(v as typeof renderWhitespace)} /></Field>
       </Section>
       <Section title="Language Servers (LSP)">
         <Field label="Enable language servers"><Toggle value={lspEnabled} onChange={setLspEnabled} /></Field>

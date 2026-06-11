@@ -202,6 +202,16 @@ interface AppState {
   setEditorMinimap: (v: boolean) => void;
   editorLineNumbers: boolean;
   setEditorLineNumbers: (v: boolean) => void;
+  stickyScroll: boolean;
+  setStickyScroll: (v: boolean) => void;
+  bracketPairGuides: boolean;
+  setBracketPairGuides: (v: boolean) => void;
+  fontLigatures: boolean;
+  setFontLigatures: (v: boolean) => void;
+  renderWhitespace: 'none' | 'boundary' | 'selection' | 'all';
+  setRenderWhitespace: (v: 'none' | 'boundary' | 'selection' | 'all') => void;
+  cursorBlinking: 'blink' | 'smooth' | 'phase' | 'expand' | 'solid';
+  setCursorBlinking: (v: 'blink' | 'smooth' | 'phase' | 'expand' | 'solid') => void;
   autoSave: boolean;
   setAutoSave: (v: boolean) => void;
   formatOnSave: boolean;
@@ -535,6 +545,16 @@ export const useAppStore = create<AppState>()(
       setEditorMinimap: (v) => set({ editorMinimap: v }),
       editorLineNumbers: true,
       setEditorLineNumbers: (v) => set({ editorLineNumbers: v }),
+      stickyScroll: true,
+      setStickyScroll: (v) => set({ stickyScroll: v }),
+      bracketPairGuides: true,
+      setBracketPairGuides: (v) => set({ bracketPairGuides: v }),
+      fontLigatures: true,
+      setFontLigatures: (v) => set({ fontLigatures: v }),
+      renderWhitespace: 'selection',
+      setRenderWhitespace: (v) => set({ renderWhitespace: v }),
+      cursorBlinking: 'smooth',
+      setCursorBlinking: (v) => set({ cursorBlinking: v }),
       autoSave: false,
       setAutoSave: (v) => set({ autoSave: v }),
       formatOnSave: false,
@@ -660,6 +680,11 @@ export const useAppStore = create<AppState>()(
         editorWordWrap: s.editorWordWrap,
         editorMinimap: s.editorMinimap,
         editorLineNumbers: s.editorLineNumbers,
+        stickyScroll: s.stickyScroll,
+        bracketPairGuides: s.bracketPairGuides,
+        fontLigatures: s.fontLigatures,
+        renderWhitespace: s.renderWhitespace,
+        cursorBlinking: s.cursorBlinking,
         autoSave: s.autoSave,
         formatOnSave: s.formatOnSave,
         lspEnabled: s.lspEnabled,
