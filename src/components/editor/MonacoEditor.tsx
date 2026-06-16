@@ -887,6 +887,16 @@ export function MonacoEditor({ path }: Props) {
       setEditorCursor(e.position.lineNumber, e.position.column);
     });
 
+    // Selection length → status bar
+    editor.onDidChangeCursorSelection((e) => {
+      const sel = e.selection;
+      const model = editor.getModel();
+      if (!model || sel.isEmpty()) { useAppStore.getState().setEditorSelection(0, 0); return; }
+      const chars = model.getValueInRange(sel).length;
+      const lines = sel.endLineNumber - sel.startLineNumber + 1;
+      useAppStore.getState().setEditorSelection(chars, lines);
+    });
+
     // File size → store (update on content change)
     editor.onDidChangeModelContent(() => {
       const model = editor.getModel();

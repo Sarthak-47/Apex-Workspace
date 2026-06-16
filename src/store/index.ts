@@ -267,8 +267,11 @@ interface AppState {
   cursorLine: number;
   cursorCol: number;
   editorFileSize: number;
+  selChars: number;
+  selLines: number;
   setEditorCursor: (line: number, col: number) => void;
   setEditorFileSize: (bytes: number) => void;
+  setEditorSelection: (chars: number, lines: number) => void;
 
   // Recent workspaces (persisted, max 10)
   recentWorkspaces: string[];
@@ -680,8 +683,11 @@ export const useAppStore = create<AppState>()(
       cursorLine: 1,
       cursorCol: 1,
       editorFileSize: 0,
+      selChars: 0,
+      selLines: 0,
       setEditorCursor: (line, col) => set({ cursorLine: line, cursorCol: col }),
       setEditorFileSize: (bytes) => set({ editorFileSize: bytes }),
+      setEditorSelection: (chars, lines) => set({ selChars: chars, selLines: lines }),
 
       // Recent workspaces
       recentWorkspaces: [],

@@ -115,6 +115,7 @@ export function StatusBar() {
     vimMode, indexProgress, autocompleteEnabled,
     setCookbookOpen, setCompareOpen, toggleProblems,
     workspacePath, tabSize, insertSpaces, setInsertSpaces,
+    selChars, selLines,
   } = useAppStore();
   const { errors, warnings } = useMarkers();
   const [, forceEol] = useState(0);
@@ -222,7 +223,7 @@ export function StatusBar() {
       {activeFile && (
         <>
           <SbItem onClick={() => runEditorAction('editor.action.gotoLine')} title="Go to line/column">
-            Ln {cursorLine}, Col {cursorCol}
+            Ln {cursorLine}, Col {cursorCol}{selChars > 0 ? ` (${selChars} selected${selLines > 1 ? `, ${selLines} lines` : ''})` : ''}
           </SbItem>
           <Divider />
         </>
