@@ -237,6 +237,10 @@ interface AppState {
   setTabSize: (v: number) => void;
   insertSpaces: boolean;
   setInsertSpaces: (v: boolean) => void;
+  autoClosingBrackets: boolean;
+  setAutoClosingBrackets: (v: boolean) => void;
+  autoSurround: boolean;
+  setAutoSurround: (v: boolean) => void;
   autoSave: boolean;
   setAutoSave: (v: boolean) => void;
   formatOnSave: boolean;
@@ -602,6 +606,10 @@ export const useAppStore = create<AppState>()(
       setTabSize: (v) => set({ tabSize: Math.max(1, Math.min(8, v)) }),
       insertSpaces: true,
       setInsertSpaces: (v) => set({ insertSpaces: v }),
+      autoClosingBrackets: true,
+      setAutoClosingBrackets: (v) => set({ autoClosingBrackets: v }),
+      autoSurround: true,
+      setAutoSurround: (v) => set({ autoSurround: v }),
       autoSave: false,
       setAutoSave: (v) => set({ autoSave: v }),
       formatOnSave: false,
@@ -740,6 +748,8 @@ export const useAppStore = create<AppState>()(
         editorRulers: s.editorRulers,
         tabSize: s.tabSize,
         insertSpaces: s.insertSpaces,
+        autoClosingBrackets: s.autoClosingBrackets,
+        autoSurround: s.autoSurround,
         autoSave: s.autoSave,
         formatOnSave: s.formatOnSave,
         lspEnabled: s.lspEnabled,

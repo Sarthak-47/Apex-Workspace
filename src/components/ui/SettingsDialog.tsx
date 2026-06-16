@@ -130,6 +130,7 @@ function EditorTab() {
     insertFinalNewline, setInsertFinalNewline,
     editorRulers, setEditorRulers,
     tabSize, setTabSize, insertSpaces, setInsertSpaces,
+    autoClosingBrackets, setAutoClosingBrackets, autoSurround, setAutoSurround,
   } = useAppStore();
   const WHITESPACE_OPTS = [
     { value: 'none', label: 'None' }, { value: 'boundary', label: 'Boundary' },
@@ -167,6 +168,8 @@ function EditorTab() {
           <NumberInput value={tabSize} min={1} max={8} onChange={setTabSize} />
         </Field>
         <Field label="Insert spaces"><Toggle value={insertSpaces} onChange={setInsertSpaces} /></Field>
+        <Field label="Auto-close brackets & quotes"><Toggle value={autoClosingBrackets} onChange={setAutoClosingBrackets} /></Field>
+        <Field label="Auto-surround selection"><Toggle value={autoSurround} onChange={setAutoSurround} /></Field>
         <Field label="Word wrap"><Toggle value={editorWordWrap} onChange={setEditorWordWrap} /></Field>
         <Field label="Render whitespace"><Select value={renderWhitespace} options={WHITESPACE_OPTS} onChange={(v) => setRenderWhitespace(v as typeof renderWhitespace)} /></Field>
         <Field label="Trim trailing whitespace on save"><Toggle value={trimTrailingWhitespace} onChange={setTrimTrailingWhitespace} /></Field>

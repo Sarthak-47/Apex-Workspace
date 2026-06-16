@@ -731,7 +731,7 @@ export function MonacoEditor({ path }: Props) {
     editorFontSize, setEditorFontSize,
     editorLineNumbers,
     stickyScroll, bracketPairGuides, fontLigatures, renderWhitespace, cursorBlinking,
-    editorRulers, tabSize, insertSpaces,
+    editorRulers, tabSize, insertSpaces, autoClosingBrackets, autoSurround,
   } = useAppStore();
 
   // Editor display prefs now live in the (persisted) store; keep the local
@@ -801,10 +801,13 @@ export function MonacoEditor({ path }: Props) {
       cursorBlinking,
       guides: { bracketPairs: bracketPairGuides, indentation: bracketPairGuides },
       rulers: editorRulers,
+      autoClosingBrackets: autoClosingBrackets ? 'languageDefined' : 'never',
+      autoClosingQuotes: autoClosingBrackets ? 'languageDefined' : 'never',
+      autoSurround: autoSurround ? 'languageDefined' : 'never',
     });
     // tabSize / insertSpaces are model options, not editor options.
     editorRef.current?.getModel()?.updateOptions({ tabSize, insertSpaces });
-  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides, editorRulers, tabSize, insertSpaces]);
+  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides, editorRulers, tabSize, insertSpaces, autoClosingBrackets, autoSurround]);
 
   // ── Load file content on path change ─────────────────────────────────────
   useEffect(() => {
@@ -1079,6 +1082,9 @@ export function MonacoEditor({ path }: Props) {
               wordBasedSuggestions: 'matchingDocuments',
               renderWhitespace,
               rulers: editorRulers,
+              autoClosingBrackets: autoClosingBrackets ? 'languageDefined' : 'never',
+              autoClosingQuotes: autoClosingBrackets ? 'languageDefined' : 'never',
+              autoSurround: autoSurround ? 'languageDefined' : 'never',
               smoothScrolling: true,
               colorDecorators: true,
               links: true,
