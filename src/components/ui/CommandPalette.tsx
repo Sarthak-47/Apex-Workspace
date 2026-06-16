@@ -9,6 +9,25 @@ import { ensureProjectMemory } from "@/lib/workspace";
 import { openFolderDialog, createWorkspaceFolder } from "@/lib/tauri";
 import { workflowParams } from "@/lib/workflows";
 import { runEditorAction, setEol } from "@/lib/editorBridge";
+import { APP_COMMANDS, effectiveKeys } from "@/lib/keymap";
+
+// Default chord per rebindable command, and links from palette ids to them.
+const KEYMAP_DEFAULTS: Record<string, string> = Object.fromEntries(APP_COMMANDS.map((c) => [c.id, c.defaultKeys]));
+const PALETTE_KEYMAP_LINK: Record<string, string> = {
+  'c:terminal': 'toggleTerminal', 'c:explorer': 'showExplorer', 'c:search': 'showSearch',
+  'c:git': 'showSourceControl', 'c:settings': 'settings', 'c:shortcuts': 'keyboardShortcuts',
+};
+// Static chords for commands handled by Monaco / the editor (not rebindable here).
+const PALETTE_STATIC_KB: Record<string, string> = {
+  'c:reopen': 'Ctrl+Shift+T', 'c:openfolder': 'Ctrl+O', 'c:split': 'Ctrl+\\',
+  'e:foldall': 'Ctrl+K Ctrl+0', 'e:unfoldall': 'Ctrl+K Ctrl+J', 'e:duplicate': 'Ctrl+Shift+D',
+  'e:trim': 'Ctrl+K Ctrl+X', 'e:join': 'Ctrl+J', 'e:fold': 'Ctrl+K Ctrl+L',
+};
+function commandBinding(id: string, keymap: Record<string, string>): string {
+  const k = PALETTE_KEYMAP_LINK[id];
+  if (k) return effectiveKeys(k, keymap, KEYMAP_DEFAULTS[k]);
+  return PALETTE_STATIC_KB[id] ?? '';
+}
 import { MentionIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
 
@@ -315,6 +334,13 @@ export function CommandPalette({ onClose }: Props) {
                       {entry.detail}
                     </div>
                   </div>
+                  {entry.source === 'Commands' && commandBinding(entry.id, store.keymap) && (
+                    <span style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                      {commandBinding(entry.id, store.keymap).split(/[\s+]/).filter(Boolean).map((p, i) => (
+                        <kbd key={i} style={{ fontSize: 9.5, color: '#8888A8', background: '#18181F', padding: '1px 5px', borderRadius: 3, border: '1px solid #252535', fontFamily: 'JetBrains Mono,monospace' }}>{p}</kbd>
+                      ))}
+                    </span>
+                  )}
                   {isSelected && (
                     <kbd style={{ fontSize: 10, color: 'var(--accent)', background: '#1A1A3A', padding: '2px 6px', borderRadius: 3, flexShrink: 0, border: '1px solid #6366F130', fontFamily: 'JetBrains Mono,monospace' }}>
                       ↵
