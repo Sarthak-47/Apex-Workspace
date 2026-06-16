@@ -37,9 +37,10 @@ pattern** — but agent competence is capped by the model behind it.
 
 Resolution: keep local-first, but make APEX **hybrid by design**.
 
-- ⬜ **Local default, optional BYO-key lane** — Ollama/LM Studio private by default; an
-  opt-in provider lane (Anthropic / Google / OpenRouter) for heavy agent runs. (Rowboat
-  does this via the Vercel AI SDK with 5 providers.)
+- ◐ **Local default, optional BYO-key lane** — ✅ configurable model host (`ollamaBaseUrl`)
+  so any local/self-hosted OpenAI-compatible engine works (remote Ollama, custom port,
+  LM Studio). ⬜ still todo: an opt-in cloud provider lane (Anthropic / Google / OpenRouter)
+  for heavy agent runs. (Rowboat does this via the Vercel AI SDK with 5 providers.)
 - ⬜ Per-agent / per-task model selection (cheap-local vs. frontier-cloud), with a clear
   privacy indicator when a request leaves the machine.
 - ⬜ Prompt-caching + run logging for cloud providers (cost + visibility).

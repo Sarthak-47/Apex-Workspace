@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { DiffEditor } from "@monaco-editor/react";
 import type { editor as MonacoEditorNS } from "monaco-editor";
 import { useAppStore, useToast } from "@/store";
@@ -8,6 +8,8 @@ export function DiffReview() {
   const { pendingDiffReview, setPendingDiffReview, setPendingFileEdit, editorTheme } = useAppStore();
   const { success } = useToast();
   const diffRef = useRef<MonacoEditorNS.IStandaloneDiffEditor | null>(null);
+  const [ignoreWs, setIgnoreWs] = useState(false);
+  const [sideBySide, setSideBySide] = useState(true);
 
   if (!pendingDiffReview) return null;
 
@@ -78,8 +80,16 @@ export function DiffReview() {
             {fileName}
           </span>
 
-          {/* Column labels */}
+          {/* View toggles */}
           <div style={{ flex: 1 }} />
+          <button onClick={() => setIgnoreWs((v) => !v)} title="Ignore whitespace changes"
+            style={{ height: 24, padding: '0 9px', borderRadius: 5, fontSize: 10.5, cursor: 'pointer', background: ignoreWs ? '#1A1A3A' : '#18181F', border: `1px solid ${ignoreWs ? '#6366F140' : '#252535'}`, color: ignoreWs ? 'var(--accent)' : '#8888A8' }}>
+            Ignore whitespace
+          </button>
+          <button onClick={() => setSideBySide((v) => !v)} title="Toggle inline / side-by-side"
+            style={{ height: 24, padding: '0 9px', borderRadius: 5, fontSize: 10.5, cursor: 'pointer', background: '#18181F', border: '1px solid #252535', color: '#8888A8', marginRight: 4 }}>
+            {sideBySide ? 'Side by side' : 'Inline'}
+          </button>
           <span style={{ fontSize: 10, color: '#4A4A65', background: '#18181F', padding: '2px 8px', borderRadius: 3 }}>{leftLabel}</span>
           <span style={{ fontSize: 10, color: 'var(--accent)', background: '#1A1A3A', border: '1px solid #6366F130', padding: '2px 8px', borderRadius: 3 }}>{rightLabel}</span>
           <div style={{ width: 1, height: 20, background: '#252535', margin: '0 6px' }} />
@@ -118,7 +128,8 @@ export function DiffReview() {
               fontFamily: '"JetBrains Mono","Cascadia Code","Consolas",monospace',
               fontSize: 13,
               lineHeight: 21,
-              renderSideBySide: true,
+              renderSideBySide: sideBySide,
+              ignoreTrimWhitespace: ignoreWs,
               readOnly: isCompare,             // compare = read-only view; review = editable right pane
               originalEditable: false,  // left pane is read-only
               scrollBeyondLastLine: false,
