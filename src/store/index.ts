@@ -247,6 +247,7 @@ interface AppState {
   setAutoClosingBrackets: (v: boolean) => void;
   autoSurround: boolean;
   setAutoSurround: (v: boolean) => void;
+  resetEditorSettings: () => void;
   autoSave: boolean;
   setAutoSave: (v: boolean) => void;
   formatOnSave: boolean;
@@ -647,6 +648,12 @@ export const useAppStore = create<AppState>()(
       setAutoClosingBrackets: (v) => set({ autoClosingBrackets: v }),
       autoSurround: true,
       setAutoSurround: (v) => set({ autoSurround: v }),
+      resetEditorSettings: () => set({
+        editorFontSize: 13, editorWordWrap: false, editorMinimap: true, editorLineNumbers: true,
+        stickyScroll: true, bracketPairGuides: true, fontLigatures: true, renderWhitespace: 'selection',
+        cursorBlinking: 'smooth', editorRulers: [], tabSize: 2, insertSpaces: true,
+        autoClosingBrackets: true, autoSurround: true, trimTrailingWhitespace: false, insertFinalNewline: false,
+      }),
       autoSave: false,
       setAutoSave: (v) => set({ autoSave: v }),
       formatOnSave: false,

@@ -131,6 +131,7 @@ function EditorTab() {
     editorRulers, setEditorRulers,
     tabSize, setTabSize, insertSpaces, setInsertSpaces,
     autoClosingBrackets, setAutoClosingBrackets, autoSurround, setAutoSurround,
+    resetEditorSettings,
   } = useAppStore();
   const WHITESPACE_OPTS = [
     { value: 'none', label: 'None' }, { value: 'boundary', label: 'Boundary' },
@@ -173,6 +174,11 @@ function EditorTab() {
         <Field label="Word wrap"><Toggle value={editorWordWrap} onChange={setEditorWordWrap} /></Field>
         <Field label="Render whitespace"><Select value={renderWhitespace} options={WHITESPACE_OPTS} onChange={(v) => setRenderWhitespace(v as typeof renderWhitespace)} /></Field>
         <Field label="Trim trailing whitespace on save"><Toggle value={trimTrailingWhitespace} onChange={setTrimTrailingWhitespace} /></Field>
+        <div style={{ marginTop: 6 }}>
+          <button onClick={resetEditorSettings} title="Restore all editor settings to their defaults"
+            style={{ height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11, cursor: 'pointer', background: '#13131B', border: '1px solid #252535', color: '#9A9AB5' }}
+            className="hover:!text-[#E2776A]">Reset editor settings to defaults</button>
+        </div>
         <Field label="Insert final newline on save"><Toggle value={insertFinalNewline} onChange={setInsertFinalNewline} /></Field>
         <Field label="Rulers (columns)">
           <input value={editorRulers.join(', ')} placeholder="e.g. 80, 120"
