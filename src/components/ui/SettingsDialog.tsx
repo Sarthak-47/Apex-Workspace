@@ -7,11 +7,12 @@ import { gmailStatus, gmailStartAuth, gmailSync, gmailDisconnect, onGmailConnect
   calendarStatus, calendarSync, firefliesStatus, firefliesSetKey, firefliesSync, firefliesDisconnect, type FirefliesStatus,
   mcpStart, mcpStop, type McpServerConfig, type McpTool } from "@/lib/tauri";
 
-type Tab = 'general' | 'editor' | 'terminal' | 'ai' | 'connections' | 'themes' | 'about';
+type Tab = 'general' | 'editor' | 'snippets' | 'terminal' | 'ai' | 'connections' | 'themes' | 'about';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'general',     label: 'General'     },
   { id: 'editor',      label: 'Editor'      },
+  { id: 'snippets',    label: 'Snippets'    },
   { id: 'terminal',    label: 'Terminal'    },
   { id: 'ai',          label: 'AI'          },
   { id: 'connections', label: 'Connections' },
@@ -196,6 +197,83 @@ function EditorTab() {
             />
           </div>
         ))}
+      </Section>
+    </div>
+  );
+}
+
+const SNIPPET_LANGS = [
+  { value: 'all', label: 'All languages' },
+  { value: 'typescript', label: 'TypeScript' }, { value: 'javascript', label: 'JavaScript' },
+  { value: 'python', label: 'Python' }, { value: 'rust', label: 'Rust' }, { value: 'go', label: 'Go' },
+  { value: 'java', label: 'Java' }, { value: 'cpp', label: 'C++' }, { value: 'csharp', label: 'C#' },
+  { value: 'html', label: 'HTML' }, { value: 'css', label: 'CSS' }, { value: 'json', label: 'JSON' },
+  { value: 'markdown', label: 'Markdown' }, { value: 'shell', label: 'Shell' }, { value: 'sql', label: 'SQL' },
+];
+
+interface SnipEdit { id: string | null; language: string; prefix: string; body: string; description: string }
+const EMPTY_SNIP: SnipEdit = { id: null, language: 'typescript', prefix: '', body: '', description: '' };
+
+function SnippetsTab() {
+  const { userSnippets, addUserSnippet, updateUserSnippet, removeUserSnippet } = useAppStore();
+  const [edit, setEdit] = useState<SnipEdit | null>(null);
+  const inp: React.CSSProperties = { width: '100%', background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '6px 8px', fontSize: 12, color: '#E2E2EC', outline: 'none' };
+  const mono: React.CSSProperties = { ...inp, fontFamily: '"JetBrains Mono", monospace', fontSize: 11.5 };
+  const btn: React.CSSProperties = { height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11.5, cursor: 'pointer', background: '#13131B', border: '1px solid #252535', color: '#9A9AB5' };
+
+  const save = () => {
+    if (!edit || !edit.prefix.trim() || !edit.body.trim()) return;
+    const data = { language: edit.language, prefix: edit.prefix.trim(), body: edit.body, description: edit.description.trim() || undefined };
+    if (edit.id) updateUserSnippet(edit.id, data); else addUserSnippet(data);
+    setEdit(null);
+  };
+
+  return (
+    <div>
+      <Section title="User Snippets">
+        <p style={{ fontSize: 11, color: '#6A6A85', lineHeight: 1.5, margin: '2px 0 10px' }}>
+          Type a snippet's <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>prefix</code> in the editor and accept the suggestion to expand it.
+          Body uses TextMate syntax — <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>$1</code>, <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>${'{1:name}'}</code>, <code style={{ fontFamily: '"JetBrains Mono",monospace' }}>$0</code>.
+        </p>
+        <button onClick={() => setEdit(edit ? null : { ...EMPTY_SNIP })} style={{ ...btn, color: 'var(--accent)', borderColor: '#6366F140', marginBottom: 10 }}>
+          {edit ? 'Cancel' : '+ New snippet'}
+        </button>
+
+        {edit && (
+          <div style={{ background: '#0E0E15', border: '1px solid #252535', borderRadius: 8, padding: 10, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select value={edit.language} onChange={(e) => setEdit({ ...edit, language: e.target.value })} style={{ ...inp, width: 150 }}>
+                {SNIPPET_LANGS.map((l) => <option key={l.value} value={l.value} style={{ background: '#13131B' }}>{l.label}</option>)}
+              </select>
+              <input value={edit.prefix} onChange={(e) => setEdit({ ...edit, prefix: e.target.value })} placeholder="prefix (e.g. clg)" style={mono} />
+            </div>
+            <textarea value={edit.body} onChange={(e) => setEdit({ ...edit, body: e.target.value })} placeholder="snippet body — console.log($1);" rows={4} style={{ ...mono, resize: 'vertical' }} spellCheck={false} />
+            <input value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} placeholder="description (optional)" style={inp} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={save} disabled={!edit.prefix.trim() || !edit.body.trim()} style={{ ...btn, color: edit.prefix.trim() && edit.body.trim() ? 'var(--accent)' : '#4A4A65', borderColor: '#6366F140' }}>
+                {edit.id ? 'Save' : 'Add'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {userSnippets.length === 0 ? (
+          <div style={{ fontSize: 12, color: '#4A4A65' }}>No user snippets yet.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {userSnippets.map((s) => (
+              <div key={s.id} className="group" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', border: '1px solid #1A1A28', borderRadius: 7 }}>
+                <code style={{ fontFamily: '"JetBrains Mono",monospace', fontSize: 12, color: 'var(--accent)', minWidth: 70 }}>{s.prefix}</code>
+                <span style={{ fontSize: 9, color: '#6A6A85', border: '1px solid #252535', borderRadius: 7, padding: '0 6px', flexShrink: 0 }}>{s.language}</span>
+                <span style={{ flex: 1, fontSize: 11, color: '#8888A8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description || s.body.split('\n')[0]}</span>
+                <div style={{ display: 'flex', gap: 4 }} className="opacity-0 group-hover:!opacity-100 transition-opacity">
+                  <button onClick={() => setEdit({ id: s.id, language: s.language, prefix: s.prefix, body: s.body, description: s.description ?? '' })} style={{ ...btn, height: 22, fontSize: 10 }} className="hover:!text-[#E2E2EC]">Edit</button>
+                  <button onClick={() => removeUserSnippet(s.id)} style={{ ...btn, height: 22, fontSize: 10 }} className="hover:!text-[#E2776A]">Del</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
     </div>
   );
@@ -875,6 +953,7 @@ export function SettingsBody() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
         {activeTab === 'general'  && <GeneralTab />}
         {activeTab === 'editor'   && <EditorTab />}
+        {activeTab === 'snippets' && <SnippetsTab />}
         {activeTab === 'terminal' && <TerminalTab />}
         {activeTab === 'ai'       && <AITab />}
         {activeTab === 'connections' && <ConnectionsTab />}

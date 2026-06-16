@@ -4,8 +4,24 @@
  * on later. Body uses Monaco/TextMate snippet syntax ($1, ${1:name}, $0).
  */
 import type * as MonacoType from "monaco-editor";
+import { useAppStore } from "@/store";
 
 interface Snip { prefix: string; body: string; description: string }
+
+export interface UserSnippet {
+  id: string;
+  language: string;   // a language id, or 'all' for every language
+  prefix: string;
+  body: string;
+  description?: string;
+}
+
+// Languages the user-snippet provider attaches to.
+const USER_SNIPPET_LANGS = [
+  "typescript", "javascript", "typescriptreact", "javascriptreact",
+  "python", "rust", "go", "java", "c", "cpp", "csharp",
+  "json", "html", "css", "scss", "markdown", "shell", "yaml", "sql", "plaintext",
+];
 
 const TS_JS: Snip[] = [
   { prefix: "clg", body: "console.log($1);", description: "console.log" },
@@ -61,16 +77,16 @@ let registered = false;
 export function registerSnippets(monaco: typeof MonacoType): void {
   if (registered) return;
   registered = true;
+  const rangeAt = (model: MonacoType.editor.ITextModel, position: MonacoType.Position) => {
+    const word = model.getWordUntilPosition(position);
+    return { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn };
+  };
+
+  // Built-in snippet sets.
   for (const [lang, snips] of Object.entries(SETS)) {
     monaco.languages.registerCompletionItemProvider(lang, {
       provideCompletionItems(model, position) {
-        const word = model.getWordUntilPosition(position);
-        const range = {
-          startLineNumber: position.lineNumber,
-          endLineNumber: position.lineNumber,
-          startColumn: word.startColumn,
-          endColumn: word.endColumn,
-        };
+        const range = rangeAt(model, position);
         return {
           suggestions: snips.map((s) => ({
             label: s.prefix,
@@ -79,6 +95,28 @@ export function registerSnippets(monaco: typeof MonacoType): void {
             insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
             documentation: s.description,
             detail: "snippet",
+            range,
+          })),
+        };
+      },
+    });
+  }
+
+  // User snippets — read live from the store so edits apply without re-register.
+  for (const lang of USER_SNIPPET_LANGS) {
+    monaco.languages.registerCompletionItemProvider(lang, {
+      provideCompletionItems(model, position) {
+        const range = rangeAt(model, position);
+        const all = useAppStore.getState().userSnippets;
+        const mine = all.filter((s) => s.language === lang || s.language === "all");
+        return {
+          suggestions: mine.map((s) => ({
+            label: s.prefix,
+            kind: monaco.languages.CompletionItemKind.Snippet,
+            insertText: s.body,
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: s.description ?? "user snippet",
+            detail: "user snippet",
             range,
           })),
         };

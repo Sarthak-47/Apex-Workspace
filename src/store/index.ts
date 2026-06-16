@@ -4,6 +4,7 @@ import type { AgentDef } from "@/lib/agents";
 import type { JobId, JobStatus } from "@/lib/jobs";
 import type { McpServerConfig, McpTool } from "@/lib/tauri";
 import { type Workflow, DEFAULT_WORKFLOWS, newWorkflowId } from "@/lib/workflows";
+import type { UserSnippet } from "@/lib/snippets";
 
 export interface JobRuntime {
   status: JobStatus;
@@ -128,6 +129,12 @@ interface AppState {
   // Recently-used command-palette commands (MRU, command ids).
   recentCommands: string[];
   pushRecentCommand: (id: string) => void;
+
+  // User-defined code snippets (layered on top of the built-ins).
+  userSnippets: UserSnippet[];
+  addUserSnippet: (s: Omit<UserSnippet, "id">) => void;
+  updateUserSnippet: (id: string, patch: Partial<UserSnippet>) => void;
+  removeUserSnippet: (id: string) => void;
 
   // Toasts
   toasts: Toast[];
@@ -473,6 +480,12 @@ export const useAppStore = create<AppState>()(
       recentCommands: [],
       pushRecentCommand: (id) => set((s) => ({ recentCommands: [id, ...s.recentCommands.filter((c) => c !== id)].slice(0, 12) })),
 
+      // User snippets
+      userSnippets: [],
+      addUserSnippet: (s) => set((st) => ({ userSnippets: [...st.userSnippets, { ...s, id: newWorkflowId() }] })),
+      updateUserSnippet: (id, patch) => set((st) => ({ userSnippets: st.userSnippets.map((u) => (u.id === id ? { ...u, ...patch } : u)) })),
+      removeUserSnippet: (id) => set((st) => ({ userSnippets: st.userSnippets.filter((u) => u.id !== id) })),
+
       // Toasts
       toasts: [],
       addToast: (message, type = "info") => {
@@ -691,6 +704,7 @@ export const useAppStore = create<AppState>()(
         keymap: s.keymap,
         workflows: s.workflows,
         recentCommands: s.recentCommands,
+        userSnippets: s.userSnippets,
         openFiles: s.openFiles,
         activeFile: s.activeFile,
         leftPanelOpen: s.leftPanelOpen,
