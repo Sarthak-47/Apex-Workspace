@@ -68,6 +68,12 @@ interface AppState {
   revealTarget: { path: string; line: number; column: number } | null;
   openFileAt: (path: string, line: number, column?: number) => void;
   clearRevealTarget: () => void;
+  // Editor navigation history (Go Back / Forward)
+  navHistory: { path: string; line: number; column: number }[];
+  navIndex: number;
+  recordNav: (p: { path: string; line: number; column: number }) => void;
+  navBack: () => { path: string; line: number; column: number } | null;
+  navForward: () => { path: string; line: number; column: number } | null;
   // Split editor (second group, right pane)
   rightPaneFile: string | null;
   setRightPaneFile: (path: string | null) => void;
@@ -344,8 +350,39 @@ export const useAppStore = create<AppState>()(
           set({ openFiles: [...openFiles, path] });
         }
         set({ activeFile: path, revealTarget: { path, line, column: column ?? 1 } });
+        get().recordNav({ path, line, column: column ?? 1 });
       },
       clearRevealTarget: () => set({ revealTarget: null }),
+
+      // Editor navigation history (Go Back / Forward through jumps)
+      navHistory: [],
+      navIndex: -1,
+      recordNav: (p) => set((s) => {
+        const cur = s.navHistory[s.navIndex];
+        if (cur && cur.path === p.path && cur.line === p.line) return {};
+        const hist = s.navHistory.slice(0, s.navIndex + 1);
+        hist.push(p);
+        const capped = hist.slice(-50);
+        return { navHistory: capped, navIndex: capped.length - 1 };
+      }),
+      navBack: () => {
+        const { navHistory, navIndex, openFiles } = get();
+        if (navIndex <= 0) return null;
+        const idx = navIndex - 1;
+        const p = navHistory[idx];
+        if (!openFiles.includes(p.path)) set({ openFiles: [...openFiles, p.path] });
+        set({ activeFile: p.path, revealTarget: { path: p.path, line: p.line, column: p.column }, navIndex: idx });
+        return p;
+      },
+      navForward: () => {
+        const { navHistory, navIndex, openFiles } = get();
+        if (navIndex >= navHistory.length - 1) return null;
+        const idx = navIndex + 1;
+        const p = navHistory[idx];
+        if (!openFiles.includes(p.path)) set({ openFiles: [...openFiles, p.path] });
+        set({ activeFile: p.path, revealTarget: { path: p.path, line: p.line, column: p.column }, navIndex: idx });
+        return p;
+      },
       rightPaneFile: null,
       setRightPaneFile: (path) => set({ rightPaneFile: path }),
       reorderOpenFiles: (from, to) => {

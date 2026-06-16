@@ -16,6 +16,7 @@ const KEYMAP_DEFAULTS: Record<string, string> = Object.fromEntries(APP_COMMANDS.
 const PALETTE_KEYMAP_LINK: Record<string, string> = {
   'c:terminal': 'toggleTerminal', 'c:explorer': 'showExplorer', 'c:search': 'showSearch',
   'c:git': 'showSourceControl', 'c:settings': 'settings', 'c:shortcuts': 'keyboardShortcuts',
+  'c:navback': 'navBack', 'c:navforward': 'navForward',
 };
 // Static chords for commands handled by Monaco / the editor (not rebindable here).
 const PALETTE_STATIC_KB: Record<string, string> = {
@@ -112,6 +113,8 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:zen', title: 'View: Toggle Zen Mode', run: run(() => store.toggleZen()) },
       { id: 'c:split', title: 'View: Split Editor', run: run(() => store.activeFile && store.setRightPaneFile(store.activeFile)) },
       { id: 'c:reopen', title: 'File: Reopen Closed Editor', run: run(() => store.reopenClosedFile()) },
+      { id: 'c:navback', title: 'Go Back', run: run(() => store.navBack()) },
+      { id: 'c:navforward', title: 'Go Forward', run: run(() => store.navForward()) },
       { id: 'c:openfolder', title: 'File: Open Folder…', run: () => { (async () => { const p = await openFolderDialog(); if (p) { store.setWorkspacePath(p); store.setAppPage('code'); } })(); onClose(); } },
       { id: 'c:newfolder', title: 'File: New Folder…', run: () => { (async () => { const p = await createWorkspaceFolder(); if (p) { store.setWorkspacePath(p); store.setAppPage('code'); } })(); onClose(); } },
       { id: 'c:addfolder', title: 'File: Add Folder to Workspace…', run: () => { (async () => { const p = await openFolderDialog(); if (p) { store.addFolderToWorkspace(p); store.setAppPage('code'); store.setLeftPanelView('explorer'); if (!store.leftPanelOpen) store.toggleLeftPanel(); } })(); onClose(); } },

@@ -267,6 +267,8 @@ export default function App() {
       showExplorer:      () => revealView('explorer'),
       showSourceControl: () => revealView('git'),
       showSearch:        () => revealView('search'),
+      navBack:           () => useAppStore.getState().navBack(),
+      navForward:        () => useAppStore.getState().navForward(),
     };
 
     const handler = (e: KeyboardEvent) => {

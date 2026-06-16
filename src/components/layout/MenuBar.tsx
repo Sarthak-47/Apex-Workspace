@@ -158,6 +158,9 @@ export function MenuBar() {
     {
       label: "Go",
       items: () => [
+        { label: "Go Back", key: "Alt+←", run: () => store.navBack() },
+        { label: "Go Forward", key: "Alt+→", run: () => store.navForward() },
+        { sep: true },
         { label: "Go to File…", key: "Ctrl+P", run: () => store.setCommandPaletteOpen(true) },
         { label: "Go to Symbol in Editor…", key: "Ctrl+Shift+O", run: ed("editor.action.quickOutline") },
         { label: "Go to Line/Column…", key: "Ctrl+G", run: ed("editor.action.gotoLine") },

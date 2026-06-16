@@ -24,6 +24,8 @@ export const APP_COMMANDS: KeyCommand[] = [
   { id: "showExplorer",       label: "Show Explorer",                category: "View",    defaultKeys: "Ctrl+Shift+E" },
   { id: "showSourceControl",  label: "Show Source Control",          category: "View",    defaultKeys: "Ctrl+Shift+G" },
   { id: "showSearch",         label: "Search in Files",              category: "View",    defaultKeys: "Ctrl+Shift+F" },
+  { id: "navBack",            label: "Go Back",                      category: "Navigation", defaultKeys: "Alt+ArrowLeft" },
+  { id: "navForward",         label: "Go Forward",                   category: "Navigation", defaultKeys: "Alt+ArrowRight" },
 ];
 
 const MODS = new Set(["Control", "Shift", "Alt", "Meta"]);
