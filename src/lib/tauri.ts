@@ -281,6 +281,7 @@ const MOCK_SOURCE_FILES: Record<string, string> = {
     `import { formatBytes, slugify } from './format';\n` +
     `// TODO: add tests for negative byte counts\n` +
     `// FIXME slugify drops unicode accents\n\n` +
+    `function makeFixture(n: number) {\n  return Array.from({ length: n }, (_, i) => i);\n}\n\n` +
     `describe('formatBytes', () => {\n` +
     `  it('formats zero', () => { expect(formatBytes(0)).toBe('0 B'); });\n` +
     `  it('formats kilobytes', () => { expect(formatBytes(1024)).toBe('1 KB'); });\n` +

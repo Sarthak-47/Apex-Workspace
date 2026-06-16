@@ -5,6 +5,8 @@ import { listVault, type VaultNote, type NoteCategory } from "@/lib/vault";
 import { CategoryIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
 import { readFile } from "@/lib/tauri";
+import { extractSymbols, type CodeSymbol } from "@/lib/symbols";
+import { getLang } from "@/components/editor/MonacoEditor";
 
 // Read two files and open them side-by-side in the diff viewer (read-only compare).
 async function openCompare(a: string, b: string) {
@@ -329,6 +331,14 @@ function DiscardDialog({ path, onDiscard, onCancel }: DiscardDialogProps) {
 
 // ─── Breadcrumb ───────────────────────────────────────────────────────────────
 function Breadcrumb({ path }: { path: string }) {
+  const { cursorLine, openFileAt } = useAppStore();
+  const [symbols, setSymbols] = useState<CodeSymbol[]>([]);
+  useEffect(() => {
+    let cancel = false;
+    readFile(path).then((t) => { if (!cancel) setSymbols(extractSymbols(t, getLang(path))); }).catch(() => { if (!cancel) setSymbols([]); });
+    return () => { cancel = true; };
+  }, [path]);
+  const current = symbols.filter((s) => s.line <= cursorLine).sort((a, b) => b.line - a.line)[0];
   const parts = path.split('/').filter(Boolean);
   return (
     <div style={{
@@ -359,6 +369,15 @@ function Breadcrumb({ path }: { path: string }) {
           )}
         </span>
       ))}
+      {current && (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: '#4A4A65' }}>›</span>
+          <span onClick={() => openFileAt(path, current.line, 1)} title={`${current.kind} · line ${current.line}`}
+            style={{ fontSize: 11, color: 'var(--accent)', cursor: 'pointer' }} className="hover:!opacity-80">
+            {current.name}
+          </span>
+        </span>
+      )}
     </div>
   );
 }
