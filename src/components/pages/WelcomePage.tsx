@@ -18,8 +18,9 @@ function ActionCard({ title, desc, icon, onClick }: { title: string; desc: strin
 }
 
 export function WelcomePage() {
-  const { recentWorkspaces, setWorkspacePath, setAppPage, ollamaOnline, ollamaModels, removeRecentWorkspace, clearRecentWorkspaces } = useAppStore();
+  const { recentWorkspaces, setWorkspacePath, setAppPage, ollamaOnline, ollamaModels, removeRecentWorkspace, clearRecentWorkspaces, setLeftPanelView, leftPanelOpen, toggleLeftPanel } = useAppStore();
 
+  const codeView = (view: 'tests' | 'workflows') => { setAppPage('code'); setLeftPanelView(view); if (!leftPanelOpen) toggleLeftPanel(); };
   const open = async () => { const p = await openFolderDialog(); if (p) { setWorkspacePath(p); setAppPage('code'); } };
   const create = async () => { const p = await createWorkspaceFolder(); if (p) { setWorkspacePath(p); setAppPage('code'); } };
   const switchTo = async (p: string) => { if (await activateWorkspace(p)) { setWorkspacePath(p); setAppPage('code'); } };
@@ -31,7 +32,10 @@ export function WelcomePage() {
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
           <img src="/apex-logo.svg" width={44} height={44} alt="APEX" style={{ objectFit: "contain", mixBlendMode: "lighten" }} />
           <div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: "#E6E6F0", letterSpacing: "0.02em" }}>APEX</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: "#E6E6F0", letterSpacing: "0.02em" }}>APEX</span>
+              <span style={{ fontSize: 11, color: "var(--accent)", border: "1px solid #6366F140", borderRadius: 10, padding: "1px 8px" }}>v0.2.0</span>
+            </div>
             <div style={{ fontSize: 12, color: "#6A6A85" }}>Local-first, AI-native developer workspace</div>
           </div>
         </div>
@@ -52,6 +56,10 @@ export function WelcomePage() {
             icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="7" r="3"/><path d="M4 17a6 6 0 0 1 12 0"/></svg>} />
           <ActionCard title="Models" desc="Recommend & pull local models" onClick={() => setAppPage('models')}
             icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="14" height="12" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/></svg>} />
+          <ActionCard title="Workflows" desc="Saved & parameterized commands" onClick={() => codeView('workflows')}
+            icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 2 5 11h4l-1 7 6-9H9l2-7z"/></svg>} />
+          <ActionCard title="Testing" desc="Discover & run your tests" onClick={() => codeView('tests')}
+            icon={<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2h4M9 2v6L4.5 15A1.5 1.5 0 0 0 6 17.2h8A1.5 1.5 0 0 0 15.5 15L11 8V2"/><line x1="7" y1="12" x2="13" y2="12"/></svg>} />
         </div>
 
         {/* Recent */}
