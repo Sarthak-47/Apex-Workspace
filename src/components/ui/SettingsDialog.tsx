@@ -121,7 +121,7 @@ const LSP_SERVERS: { id: string; label: string; placeholder: string }[] = [
 function EditorTab() {
   const {
     editorTheme, setEditorTheme, lspEnabled, setLspEnabled, lspServerPaths, setLspServerPath,
-    editorFontSize, setEditorFontSize, editorWordWrap, setEditorWordWrap,
+    editorFontSize, setEditorFontSize, editorFontFamily, setEditorFontFamily, editorWordWrap, setEditorWordWrap,
     editorMinimap, setEditorMinimap, editorLineNumbers, setEditorLineNumbers,
     stickyScroll, setStickyScroll, bracketPairGuides, setBracketPairGuides,
     fontLigatures, setFontLigatures, renderWhitespace, setRenderWhitespace,
@@ -156,6 +156,15 @@ function EditorTab() {
         </Field>
         <Field label="Font size">
           <NumberInput value={editorFontSize} min={10} max={24} onChange={setEditorFontSize} />
+        </Field>
+        <Field label="Font family">
+          <Select value={editorFontFamily} onChange={setEditorFontFamily} options={[
+            { value: '"JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace', label: 'JetBrains Mono' },
+            { value: '"Cascadia Code", "Fira Code", "Consolas", monospace', label: 'Cascadia Code' },
+            { value: '"Fira Code", "Consolas", monospace', label: 'Fira Code' },
+            { value: '"Consolas", "Courier New", monospace', label: 'Consolas' },
+            { value: 'monospace', label: 'System Monospace' },
+          ]} />
         </Field>
         <Field label="Minimap"><Toggle value={editorMinimap} onChange={setEditorMinimap} /></Field>
         <Field label="Line numbers"><Toggle value={editorLineNumbers} onChange={setEditorLineNumbers} /></Field>

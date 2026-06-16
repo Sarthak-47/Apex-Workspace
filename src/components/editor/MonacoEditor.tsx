@@ -732,7 +732,7 @@ export function MonacoEditor({ path }: Props) {
     editorLineNumbers,
     stickyScroll, bracketPairGuides, fontLigatures, renderWhitespace, cursorBlinking,
     editorRulers, tabSize, insertSpaces, autoClosingBrackets, autoSurround,
-    bookmarks,
+    bookmarks, editorFontFamily,
   } = useAppStore();
 
   // Editor display prefs now live in the (persisted) store; keep the local
@@ -795,6 +795,7 @@ export function MonacoEditor({ path }: Props) {
       wordWrap: wordWrap ? 'on' : 'off',
       minimap: { enabled: minimap, scale: 1, renderCharacters: false },
       fontSize,
+      fontFamily: editorFontFamily,
       lineHeight: Math.round(fontSize * 1.6),
       lineNumbers: editorLineNumbers ? 'on' : 'off',
       stickyScroll: { enabled: stickyScroll },
@@ -809,7 +810,7 @@ export function MonacoEditor({ path }: Props) {
     });
     // tabSize / insertSpaces are model options, not editor options.
     editorRef.current?.getModel()?.updateOptions({ tabSize, insertSpaces });
-  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides, editorRulers, tabSize, insertSpaces, autoClosingBrackets, autoSurround]);
+  }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides, editorRulers, tabSize, insertSpaces, autoClosingBrackets, autoSurround, editorFontFamily]);
 
   // ── Bookmark glyphs for the active file ────────────────────────────────────
   useEffect(() => {
@@ -1081,7 +1082,7 @@ export function MonacoEditor({ path }: Props) {
             onChange={handleChange}
             options={{
               fontSize,
-              fontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace',
+              fontFamily: editorFontFamily,
               fontLigatures,
               lineHeight: Math.round(fontSize * 1.6),
               padding: { top: 12, bottom: 24 },

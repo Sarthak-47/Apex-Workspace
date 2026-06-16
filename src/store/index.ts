@@ -222,6 +222,8 @@ interface AppState {
   setAccentColor: (c: string) => void;
   editorFontSize: number;
   setEditorFontSize: (v: number) => void;
+  editorFontFamily: string;
+  setEditorFontFamily: (v: string) => void;
   editorWordWrap: boolean;
   setEditorWordWrap: (v: boolean) => void;
   editorMinimap: boolean;
@@ -634,6 +636,8 @@ export const useAppStore = create<AppState>()(
       setAccentColor: (c) => set({ accentColor: c }),
       editorFontSize: 13,
       setEditorFontSize: (v) => set({ editorFontSize: Math.max(10, Math.min(24, v)) }),
+      editorFontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace',
+      setEditorFontFamily: (v) => set({ editorFontFamily: v }),
       editorWordWrap: false,
       setEditorWordWrap: (v) => set({ editorWordWrap: v }),
       editorMinimap: true,
@@ -665,7 +669,8 @@ export const useAppStore = create<AppState>()(
       autoSurround: true,
       setAutoSurround: (v) => set({ autoSurround: v }),
       resetEditorSettings: () => set({
-        editorFontSize: 13, editorWordWrap: false, editorMinimap: true, editorLineNumbers: true,
+        editorFontSize: 13, editorFontFamily: '"JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace',
+        editorWordWrap: false, editorMinimap: true, editorLineNumbers: true,
         stickyScroll: true, bracketPairGuides: true, fontLigatures: true, renderWhitespace: 'selection',
         cursorBlinking: 'smooth', editorRulers: [], tabSize: 2, insertSpaces: true,
         autoClosingBrackets: true, autoSurround: true, trimTrailingWhitespace: false, insertFinalNewline: false,
@@ -812,6 +817,7 @@ export const useAppStore = create<AppState>()(
         editorRulers: s.editorRulers,
         tabSize: s.tabSize,
         insertSpaces: s.insertSpaces,
+        editorFontFamily: s.editorFontFamily,
         autoClosingBrackets: s.autoClosingBrackets,
         autoSurround: s.autoSurround,
         autoSave: s.autoSave,
