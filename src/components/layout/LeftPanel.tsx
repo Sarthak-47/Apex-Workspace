@@ -1149,6 +1149,39 @@ function relTime(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
+function BookmarksSection() {
+  const { bookmarks, openFileAt, toggleBookmark } = useAppStore();
+  const [open, setOpen] = useState(true);
+  const base = (p: string) => p.split(/[\\/]/).pop() ?? p;
+  if (bookmarks.length === 0) return null;
+  const sorted = [...bookmarks].sort((a, b) => (a.path === b.path ? a.line - b.line : a.path.localeCompare(b.path)));
+  return (
+    <div style={{ flexShrink: 0, borderTop: '1px solid #1A1A28', display: 'flex', flexDirection: 'column', maxHeight: 180, overflow: 'hidden' }}>
+      <div onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', cursor: 'pointer', flexShrink: 0 }} className="hover:bg-[#16161F]">
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#6A6A85" strokeWidth="1.4" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.1s' }}><polyline points="3.5,2 6.5,5 3.5,8" /></svg>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#6A6A85', letterSpacing: '0.1em' }}>BOOKMARKS</span>
+        <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto' }}>{bookmarks.length}</span>
+      </div>
+      {open && (
+        <div style={{ overflowY: 'auto', minHeight: 0 }}>
+          {sorted.map((b) => (
+            <div key={`${b.path}:${b.line}`} onClick={() => openFileAt(b.path, b.line, 1)} title={`${b.path}:${b.line}`}
+              className="group hover:bg-[#18181F]" style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '2px 10px 2px 24px', cursor: 'pointer', fontSize: 11 }}>
+              <span style={{ width: 7, height: 7, borderRadius: 2, background: 'var(--accent)', flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, color: '#C7C7D9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{base(b.path)}</span>
+              <span style={{ fontSize: 9.5, color: '#4A4A65', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 }}>{b.line}</span>
+              <button onClick={(e) => { e.stopPropagation(); toggleBookmark(b.path, b.line); }} title="Remove bookmark"
+                className="opacity-0 group-hover:!opacity-100 hover:!text-[#E2776A]" style={{ color: '#6A6A85', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', display: 'flex', flexShrink: 0 }}>
+                <svg width="10" height="10" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9" /><line x1="9" y1="2" x2="2" y2="9" /></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Timeline({ activeFile }: { activeFile: string | null }) {
   const { unsavedFiles, setPendingDiffReview, setPendingFileEdit, addToast } = useAppStore();
   const [open, setOpen] = useState(true);
@@ -1394,6 +1427,9 @@ export function LeftPanel() {
 
           {/* Timeline — local file history for the active file */}
           <Timeline activeFile={activeFile} />
+
+          {/* Bookmarks across files */}
+          <BookmarksSection />
         </>
       )}
     </div>
