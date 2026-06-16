@@ -732,6 +732,7 @@ export function MonacoEditor({ path }: Props) {
     editorLineNumbers,
     stickyScroll, bracketPairGuides, fontLigatures, renderWhitespace, cursorBlinking,
     editorRulers, tabSize, insertSpaces, autoClosingBrackets, autoSurround,
+    bookmarks,
   } = useAppStore();
 
   // Editor display prefs now live in the (persisted) store; keep the local
@@ -742,6 +743,7 @@ export function MonacoEditor({ path }: Props) {
   const setFontSize = (v: number | ((p: number) => number)) => setEditorFontSize(typeof v === 'function' ? v(editorFontSize) : v);
 
   const editorRef       = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null);
+  const bookmarkColRef  = useRef<MonacoType.editor.IEditorDecorationsCollection | null>(null);
   const dirtyRef        = useRef(false);
   const autoSaveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lspSyncTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -808,6 +810,18 @@ export function MonacoEditor({ path }: Props) {
     // tabSize / insertSpaces are model options, not editor options.
     editorRef.current?.getModel()?.updateOptions({ tabSize, insertSpaces });
   }, [wordWrap, minimap, fontSize, editorLineNumbers, stickyScroll, fontLigatures, renderWhitespace, cursorBlinking, bracketPairGuides, editorRulers, tabSize, insertSpaces, autoClosingBrackets, autoSurround]);
+
+  // ── Bookmark glyphs for the active file ────────────────────────────────────
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const decos = bookmarks.filter((b) => b.path === path).map((b) => ({
+      range: { startLineNumber: b.line, startColumn: 1, endLineNumber: b.line, endColumn: 1 },
+      options: { glyphMarginClassName: 'apex-bookmark-glyph', glyphMarginHoverMessage: { value: 'Bookmark' }, isWholeLine: false },
+    }));
+    if (bookmarkColRef.current) bookmarkColRef.current.set(decos);
+    else bookmarkColRef.current = ed.createDecorationsCollection(decos);
+  }, [bookmarks, path]);
 
   // ── Load file content on path change ─────────────────────────────────────
   useEffect(() => {
@@ -918,6 +932,12 @@ export function MonacoEditor({ path }: Props) {
     // Ctrl+G → go to line
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyG, () => {
       editor.getAction('editor.action.gotoLine')?.run();
+    });
+
+    // Ctrl+Alt+K → toggle bookmark on the current line
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyK, () => {
+      const ln = editor.getPosition()?.lineNumber;
+      if (ln) useAppStore.getState().toggleBookmark(path, ln);
     });
 
     // Ctrl+Shift+O → go to symbol (quick outline)
@@ -1059,7 +1079,7 @@ export function MonacoEditor({ path }: Props) {
               scrollBeyondLastLine: false,
               lineNumbers: editorLineNumbers ? 'on' : 'off',
               lineNumbersMinChars: 3,
-              glyphMargin: false,
+              glyphMargin: true,
               folding: true,
               stickyScroll: { enabled: stickyScroll },
               wordWrap: wordWrap ? 'on' : 'off',

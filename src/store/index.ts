@@ -142,6 +142,11 @@ interface AppState {
   updateUserSnippet: (id: string, patch: Partial<UserSnippet>) => void;
   removeUserSnippet: (id: string) => void;
 
+  // Line bookmarks (per file).
+  bookmarks: { path: string; line: number }[];
+  toggleBookmark: (path: string, line: number) => void;
+  clearBookmarks: () => void;
+
   // Toasts
   toasts: Toast[];
   addToast: (message: string, type?: ToastType) => void;
@@ -532,6 +537,14 @@ export const useAppStore = create<AppState>()(
       updateUserSnippet: (id, patch) => set((st) => ({ userSnippets: st.userSnippets.map((u) => (u.id === id ? { ...u, ...patch } : u)) })),
       removeUserSnippet: (id) => set((st) => ({ userSnippets: st.userSnippets.filter((u) => u.id !== id) })),
 
+      // Bookmarks
+      bookmarks: [],
+      toggleBookmark: (path, line) => set((s) => {
+        const exists = s.bookmarks.some((b) => b.path === path && b.line === line);
+        return { bookmarks: exists ? s.bookmarks.filter((b) => !(b.path === path && b.line === line)) : [...s.bookmarks, { path, line }] };
+      }),
+      clearBookmarks: () => set({ bookmarks: [] }),
+
       // Toasts
       toasts: [],
       addToast: (message, type = "info") => {
@@ -763,6 +776,7 @@ export const useAppStore = create<AppState>()(
         workflows: s.workflows,
         recentCommands: s.recentCommands,
         userSnippets: s.userSnippets,
+        bookmarks: s.bookmarks,
         openFiles: s.openFiles,
         activeFile: s.activeFile,
         leftPanelOpen: s.leftPanelOpen,

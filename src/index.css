@@ -205,3 +205,14 @@ body.resizing * { transition: none !important; user-select: none !important; }
 
 .ks-actions { opacity: 0; transition: opacity 0.12s; }
 .ks-row:hover .ks-actions { opacity: 1; }
+
+/* ── Bookmark gutter glyph ─────────────────────────────────────────────── */
+.apex-bookmark-glyph::before {
+  content: '';
+  display: block;
+  width: 8px; height: 8px;
+  margin: 7px auto 0;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--accent) 60%, transparent);
+}

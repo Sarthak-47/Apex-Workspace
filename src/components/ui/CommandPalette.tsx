@@ -29,6 +29,20 @@ function commandBinding(id: string, keymap: Record<string, string>): string {
   if (k) return effectiveKeys(k, keymap, KEYMAP_DEFAULTS[k]);
   return PALETTE_STATIC_KB[id] ?? '';
 }
+
+// Jump to the next (dir=1) or previous (dir=-1) bookmark, wrapping around.
+function gotoBookmark(store: ReturnType<typeof useAppStore.getState>, dir: 1 | -1) {
+  const bms = [...store.bookmarks].sort((a, b) => (a.path === b.path ? a.line - b.line : a.path.localeCompare(b.path)));
+  if (!bms.length) return;
+  const p = store.activeFile ?? '';
+  const ln = store.cursorLine;
+  const after = (b: { path: string; line: number }) => b.path > p || (b.path === p && b.line > ln);
+  const before = (b: { path: string; line: number }) => b.path < p || (b.path === p && b.line < ln);
+  let target;
+  if (dir === 1) target = bms.find(after) ?? bms[0];
+  else { const prevs = bms.filter(before); target = prevs.length ? prevs[prevs.length - 1] : bms[bms.length - 1]; }
+  store.openFileAt(target.path, target.line, 1);
+}
 import { MentionIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
 
@@ -115,6 +129,10 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:reopen', title: 'File: Reopen Closed Editor', run: run(() => store.reopenClosedFile()) },
       { id: 'c:navback', title: 'Go Back', run: run(() => store.navBack()) },
       { id: 'c:navforward', title: 'Go Forward', run: run(() => store.navForward()) },
+      { id: 'b:toggle', title: 'Bookmarks: Toggle on Current Line', run: run(() => { if (store.activeFile) store.toggleBookmark(store.activeFile, store.cursorLine); }) },
+      { id: 'b:next', title: 'Bookmarks: Go to Next', run: run(() => gotoBookmark(store, 1)) },
+      { id: 'b:prev', title: 'Bookmarks: Go to Previous', run: run(() => gotoBookmark(store, -1)) },
+      { id: 'b:clear', title: 'Bookmarks: Clear All', run: run(() => store.clearBookmarks()) },
       { id: 'c:openfolder', title: 'File: Open Folder…', run: () => { (async () => { const p = await openFolderDialog(); if (p) { store.setWorkspacePath(p); store.setAppPage('code'); } })(); onClose(); } },
       { id: 'c:newfolder', title: 'File: New Folder…', run: () => { (async () => { const p = await createWorkspaceFolder(); if (p) { store.setWorkspacePath(p); store.setAppPage('code'); } })(); onClose(); } },
       { id: 'c:addfolder', title: 'File: Add Folder to Workspace…', run: () => { (async () => { const p = await openFolderDialog(); if (p) { store.addFolderToWorkspace(p); store.setAppPage('code'); store.setLeftPanelView('explorer'); if (!store.leftPanelOpen) store.toggleLeftPanel(); } })(); onClose(); } },
