@@ -158,6 +158,10 @@ interface AppState {
   ollamaSelectedModel: string;
   setOllamaSelectedModel: (model: string) => void;
 
+  // Ollama host URL (persisted) — remote Ollama / LM Studio / custom port
+  ollamaBaseUrl: string;
+  setOllamaBaseUrl: (url: string) => void;
+
   // Git branch (not persisted)
   gitBranch: string;
   setGitBranch: (branch: string) => void;
@@ -520,6 +524,8 @@ export const useAppStore = create<AppState>()(
       // Selected model (persisted)
       ollamaSelectedModel: '',
       setOllamaSelectedModel: (model) => set({ ollamaSelectedModel: model }),
+      ollamaBaseUrl: 'http://localhost:11434',
+      setOllamaBaseUrl: (url) => set({ ollamaBaseUrl: url }),
 
       // Git branch (live, not persisted)
       gitBranch: 'main',
@@ -717,6 +723,7 @@ export const useAppStore = create<AppState>()(
         terminalShell: s.terminalShell,
         previewUrl: s.previewUrl,
         ollamaSelectedModel: s.ollamaSelectedModel,
+        ollamaBaseUrl: s.ollamaBaseUrl,
         editorTheme: s.editorTheme,
         accentColor: s.accentColor,
         editorFontSize: s.editorFontSize,

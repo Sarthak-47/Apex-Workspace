@@ -564,7 +564,7 @@ function McpSection() {
 }
 
 function AITab() {
-  const { userAgents, addUserAgent, updateUserAgent, deleteUserAgent, bashAllowAlways } = useAppStore();
+  const { userAgents, addUserAgent, updateUserAgent, deleteUserAgent, bashAllowAlways, ollamaBaseUrl, setOllamaBaseUrl } = useAppStore();
   const setState = useAppStore.setState;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<AgentDef | null>(null);
@@ -587,6 +587,17 @@ function AITab() {
 
   return (
     <div>
+      <Section title="Model Host">
+        <Field label="Ollama host">
+          <input value={ollamaBaseUrl} onChange={(e) => setOllamaBaseUrl(e.target.value)} placeholder="http://localhost:11434"
+            style={{ width: '100%', background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '6px 8px', fontSize: 11, color: '#E2E2EC', outline: 'none', fontFamily: '"JetBrains Mono", monospace' }} />
+        </Field>
+        <p style={{ fontSize: 11, color: '#6A6A85', lineHeight: 1.5, margin: '2px 0 4px' }}>
+          Point APEX at a different local engine — a remote Ollama, a custom port, or an
+          OpenAI-compatible server like LM Studio (<code style={{ fontFamily: '"JetBrains Mono",monospace' }}>http://localhost:1234</code>).
+          Stays on your network; nothing is sent to a cloud service.
+        </p>
+      </Section>
       <Section title="Custom Agents">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {BUILTIN_AGENTS.map(a => (

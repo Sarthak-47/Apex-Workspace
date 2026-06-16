@@ -3,7 +3,15 @@
  * All calls are fire-and-forget safe; never throw to the caller.
  */
 
+import { useAppStore } from '@/store';
+
 export const OLLAMA_BASE = 'http://localhost:11434';
+
+/** The configured Ollama/OpenAI-compatible host (remote Ollama, LM Studio, …). */
+export function base(): string {
+  try { return useAppStore.getState().ollamaBaseUrl?.trim().replace(/\/+$/, '') || OLLAMA_BASE; }
+  catch { return OLLAMA_BASE; }
+}
 
 export interface OllamaModel {
   name: string;
@@ -19,7 +27,7 @@ export interface OllamaStatus {
 /** Poll the Ollama daemon. Resolves within 2 s regardless. */
 export async function checkOllama(): Promise<OllamaStatus> {
   try {
-    const res = await fetch(`${OLLAMA_BASE}/api/tags`, {
+    const res = await fetch(`${base()}/api/tags`, {
       signal: AbortSignal.timeout(2000),
     });
     if (!res.ok) return { online: false, models: [] };
@@ -46,7 +54,7 @@ export async function generateCompletion(
   signal?: AbortSignal,
 ): Promise<string> {
   try {
-    const res = await fetch(`${OLLAMA_BASE}/api/generate`, {
+    const res = await fetch(`${base()}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -75,7 +83,7 @@ export async function pullModel(
   onProgress: (pct: number, status: string) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const res = await fetch(`${OLLAMA_BASE}/api/pull`, {
+  const res = await fetch(`${base()}/api/pull`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, stream: true }),
@@ -114,7 +122,7 @@ export async function embed(
   signal?: AbortSignal,
 ): Promise<number[]> {
   try {
-    const res = await fetch(`${OLLAMA_BASE}/api/embeddings`, {
+    const res = await fetch(`${base()}/api/embeddings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, prompt: text }),
@@ -138,7 +146,7 @@ export async function* streamChat(
   messages: ChatMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<string, void, unknown> {
-  const res = await fetch(`${OLLAMA_BASE}/api/chat`, {
+  const res = await fetch(`${base()}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, messages, stream: true }),
