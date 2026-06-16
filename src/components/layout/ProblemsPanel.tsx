@@ -1,5 +1,10 @@
+import { useState } from "react";
 import { useAppStore } from "@/store";
 import { useMarkers } from "@/lib/useMarkers";
+
+function sevKey(severity: number): 'error' | 'warning' | 'info' {
+  return severity === 8 ? 'error' : severity === 4 ? 'warning' : 'info';
+}
 
 function SeverityIcon({ severity }: { severity: number }) {
   if (severity === 8) {
@@ -30,22 +35,36 @@ function SeverityIcon({ severity }: { severity: number }) {
 export function ProblemsPanel() {
   const { problemsOpen, setProblemsOpen, activeFile, openFileAt } = useAppStore();
   const { markers, errors, warnings } = useMarkers();
+  const [query, setQuery] = useState("");
+  const [enabled, setEnabled] = useState({ error: true, warning: true, info: true });
 
   if (!problemsOpen) return null;
 
   const fileName = activeFile ? activeFile.split(/[\\/]/).pop() : null;
-  const sorted = [...markers].sort((a, b) => b.severity - a.severity || a.startLineNumber - b.startLineNumber);
+  const q = query.trim().toLowerCase();
+  const sorted = [...markers]
+    .filter((m) => enabled[sevKey(m.severity)] && (!q || m.message.toLowerCase().includes(q)))
+    .sort((a, b) => b.severity - a.severity || a.startLineNumber - b.startLineNumber);
+
+  const SevToggle = ({ sev, count }: { sev: 'error' | 'warning' | 'info'; count: number }) => (
+    <button onClick={() => setEnabled((e) => ({ ...e, [sev]: !e[sev] }))} title={`Toggle ${sev}s`}
+      style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, background: "none", border: "none", cursor: "pointer", padding: 0, opacity: enabled[sev] ? 1 : 0.4, color: "#9A9AB5" }}>
+      <SeverityIcon severity={sev === 'error' ? 8 : sev === 'warning' ? 4 : 2} /> {count}
+    </button>
+  );
 
   return (
     <div style={{ position: "fixed", left: 0, right: 0, bottom: 26, height: 220, zIndex: 50, background: "#0B0B12", borderTop: "1px solid #252535", boxShadow: "0 -8px 24px rgba(0,0,0,0.4)", display: "flex", flexDirection: "column" }}>
       {/* Header */}
       <div style={{ height: 30, display: "flex", alignItems: "center", padding: "0 10px", gap: 10, borderBottom: "1px solid #1A1A28", flexShrink: 0 }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: "#C7C7D9", letterSpacing: "0.04em" }}>PROBLEMS</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#9A9AB5" }}>
-          <SeverityIcon severity={8} /> {errors}
-          <span style={{ width: 6 }} />
-          <SeverityIcon severity={4} /> {warnings}
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <SevToggle sev="error" count={errors} />
+          <SevToggle sev="warning" count={warnings} />
+          <SevToggle sev="info" count={markers.filter((m) => sevKey(m.severity) === 'info').length} />
         </span>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter problems…"
+          style={{ width: 160, height: 22, background: "#13131B", border: "1px solid #252535", borderRadius: 5, padding: "0 8px", fontSize: 11, color: "#E2E2EC", outline: "none" }} />
         <div style={{ flex: 1 }} />
         <button onClick={() => setProblemsOpen(false)} title="Close panel"
           style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", color: "#6A6A85" }}
