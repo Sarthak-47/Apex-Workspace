@@ -9,6 +9,13 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 very large / may be intentio
 ---
 
 ## Recently added ✅
+- ✅ **Navigation history** — Go Back / Forward (Alt+←/→, rebindable) through jump locations, in the Go menu + palette
+- ✅ **Line bookmarks** — toggle (Ctrl+Alt+K), accent gutter glyph, next/prev/clear commands, and a BOOKMARKS panel in the Explorer
+- ✅ **Problems panel** — text filter + clickable Error/Warning/Info severity toggles
+- ✅ **User snippets** — Settings → Snippets tab + live completion provider across ~19 langs
+- ✅ **Configurable model host** — remote Ollama / LM Studio (Phase 0)
+- ✅ **Diff viewer** toggles — ignore whitespace, inline/side-by-side
+- ✅ **Reset editor settings to defaults**; auto-close brackets/quotes + auto-surround; command-palette **keybinding hints**
 - ✅ **Editor display + behavior settings** (2026-06-11): sticky scroll, bracket/indent guides, font ligatures, render whitespace, cursor blinking, **editor rulers**, **real tab size + insert-spaces** (was a dead setting), trim-trailing-whitespace-on-save, insert-final-newline-on-save — all persisted, live-applied, in Settings + command-palette toggles
 - ✅ **Editor command set** — palette commands for fold/unfold, transform case (upper/lower/title), sort lines, join lines, duplicate, delete line, indent/outdent, organize imports, **convert indentation spaces↔tabs**, reindent (run via editorBridge on the active editor)
 - ✅ **Line endings** — status-bar LF/CRLF indicator toggles the model EOL; palette "Change End of Line to LF/CRLF"
