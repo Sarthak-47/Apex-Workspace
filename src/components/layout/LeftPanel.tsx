@@ -15,6 +15,7 @@ import { CategoryIcon } from "@/components/ui/Icons";
 import { FileGlyph } from "@/lib/fileIcons";
 import { TestExplorer } from "@/components/layout/TestExplorer";
 import { Workflows } from "@/components/layout/Workflows";
+import { extractTodos, TODO_COLOR, type Todo } from "@/lib/todos";
 
 // ─── File type icon ────────────────────────────────────────────────────────────
 
@@ -1149,6 +1150,41 @@ function relTime(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
+function TodosSection({ activeFile }: { activeFile: string | null }) {
+  const { openFileAt, unsavedFiles } = useAppStore();
+  const [open, setOpen] = useState(true);
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const saved = !unsavedFiles.includes(activeFile ?? '');
+  useEffect(() => {
+    if (!activeFile) { setTodos([]); return; }
+    let cancel = false;
+    readFile(activeFile).then((t) => { if (!cancel) setTodos(extractTodos(t)); }).catch(() => { if (!cancel) setTodos([]); });
+    return () => { cancel = true; };
+  }, [activeFile, saved]);
+  if (!activeFile || todos.length === 0) return null;
+  return (
+    <div style={{ flexShrink: 0, borderTop: '1px solid #1A1A28', display: 'flex', flexDirection: 'column', maxHeight: 180, overflow: 'hidden' }}>
+      <div onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 10px', cursor: 'pointer', flexShrink: 0 }} className="hover:bg-[#16161F]">
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="#6A6A85" strokeWidth="1.4" style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.1s' }}><polyline points="3.5,2 6.5,5 3.5,8" /></svg>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#6A6A85', letterSpacing: '0.1em' }}>TODOS</span>
+        <span style={{ fontSize: 10, color: '#4A4A65', marginLeft: 'auto' }}>{todos.length}</span>
+      </div>
+      {open && (
+        <div style={{ overflowY: 'auto', minHeight: 0 }}>
+          {todos.map((t, i) => (
+            <div key={i} onClick={() => openFileAt(activeFile, t.line, 1)} title={`${t.kind}: ${t.text}`}
+              className="hover:bg-[#18181F]" style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '2px 10px 2px 24px', cursor: 'pointer', fontSize: 11 }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: TODO_COLOR[t.kind], border: `1px solid ${TODO_COLOR[t.kind]}55`, borderRadius: 3, padding: '0 4px', flexShrink: 0, fontFamily: 'JetBrains Mono, monospace' }}>{t.kind}</span>
+              <span style={{ flex: 1, minWidth: 0, color: '#C7C7D9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.text || '—'}</span>
+              <span style={{ fontSize: 9.5, color: '#4A4A65', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 }}>{t.line}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BookmarksSection() {
   const { bookmarks, openFileAt, toggleBookmark } = useAppStore();
   const [open, setOpen] = useState(true);
@@ -1427,6 +1463,9 @@ export function LeftPanel() {
 
           {/* Timeline — local file history for the active file */}
           <Timeline activeFile={activeFile} />
+
+          {/* TODOs in the active file */}
+          <TodosSection activeFile={activeFile} />
 
           {/* Bookmarks across files */}
           <BookmarksSection />

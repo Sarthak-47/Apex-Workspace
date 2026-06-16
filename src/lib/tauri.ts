@@ -278,7 +278,9 @@ export interface DirEntry {
 const MOCK_SOURCE_FILES: Record<string, string> = {
   '/demo-workspace/src/lib/format.test.ts':
     `import { describe, it, expect } from 'vitest';\n` +
-    `import { formatBytes, slugify } from './format';\n\n` +
+    `import { formatBytes, slugify } from './format';\n` +
+    `// TODO: add tests for negative byte counts\n` +
+    `// FIXME slugify drops unicode accents\n\n` +
     `describe('formatBytes', () => {\n` +
     `  it('formats zero', () => { expect(formatBytes(0)).toBe('0 B'); });\n` +
     `  it('formats kilobytes', () => { expect(formatBytes(1024)).toBe('1 KB'); });\n` +
