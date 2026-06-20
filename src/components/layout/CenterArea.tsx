@@ -33,7 +33,7 @@ interface TabBarProps {
 function TabBar({ onRequestClose }: TabBarProps) {
   const {
     openFiles, activeFile, unsavedFiles, setActiveFile, rightPaneFile, setRightPaneFile,
-    reorderOpenFiles, closeOtherFiles, closeFilesToRight, closeAllFiles,
+    reorderOpenFiles, closeOtherFiles, closeFilesToRight, closeFilesToLeft, closeAllFiles,
     pinnedFiles, togglePin, compareSelection, setCompareSelection,
   } = useAppStore();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -187,6 +187,7 @@ function TabBar({ onRequestClose }: TabBarProps) {
           {([
             ['Close', () => onRequestClose(menu.path)],
             ['Close Others', () => closeOtherFiles(menu.path)],
+            ['Close to the Left', () => closeFilesToLeft(menu.path)],
             ['Close to the Right', () => closeFilesToRight(menu.path)],
             ['Close All', () => closeAllFiles()],
             ['—', null],
