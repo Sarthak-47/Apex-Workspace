@@ -136,6 +136,9 @@ interface AppState {
   recentCommands: string[];
   pushRecentCommand: (id: string) => void;
 
+  // Recently-opened files (MRU, for Quick Open ordering).
+  recentFiles: string[];
+
   // User-defined code snippets (layered on top of the built-ins).
   userSnippets: UserSnippet[];
   addUserSnippet: (s: Omit<UserSnippet, "id">) => void;
@@ -342,7 +345,10 @@ export const useAppStore = create<AppState>()(
 
       // Active file
       activeFile: null,
-      setActiveFile: (path) => set({ activeFile: path }),
+      setActiveFile: (path) => set((s) => ({
+        activeFile: path,
+        recentFiles: path ? [path, ...s.recentFiles.filter((f) => f !== path)].slice(0, 30) : s.recentFiles,
+      })),
 
       // Open files
       openFiles: [],
@@ -351,7 +357,7 @@ export const useAppStore = create<AppState>()(
         if (!openFiles.includes(path)) {
           set({ openFiles: [...openFiles, path] });
         }
-        set({ activeFile: path });
+        get().setActiveFile(path);
       },
       // Open a file and reveal a specific line (used by search results, go-to-symbol).
       revealTarget: null,
@@ -360,7 +366,11 @@ export const useAppStore = create<AppState>()(
         if (!openFiles.includes(path)) {
           set({ openFiles: [...openFiles, path] });
         }
-        set({ activeFile: path, revealTarget: { path, line, column: column ?? 1 } });
+        set((s) => ({
+          activeFile: path,
+          revealTarget: { path, line, column: column ?? 1 },
+          recentFiles: [path, ...s.recentFiles.filter((f) => f !== path)].slice(0, 30),
+        }));
         get().recordNav({ path, line, column: column ?? 1 });
       },
       clearRevealTarget: () => set({ revealTarget: null }),
@@ -535,6 +545,7 @@ export const useAppStore = create<AppState>()(
       // Recently-used commands (MRU)
       recentCommands: [],
       pushRecentCommand: (id) => set((s) => ({ recentCommands: [id, ...s.recentCommands.filter((c) => c !== id)].slice(0, 12) })),
+      recentFiles: [],
 
       // User snippets
       userSnippets: [],
@@ -786,6 +797,7 @@ export const useAppStore = create<AppState>()(
         keymap: s.keymap,
         workflows: s.workflows,
         recentCommands: s.recentCommands,
+        recentFiles: s.recentFiles,
         userSnippets: s.userSnippets,
         bookmarks: s.bookmarks,
         openFiles: s.openFiles,

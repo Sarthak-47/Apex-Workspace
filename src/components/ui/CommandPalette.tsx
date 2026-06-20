@@ -207,9 +207,17 @@ export function CommandPalette({ onClose }: Props) {
     if (commandMode) return out;
 
     if (enabled.Files) {
-      const f = (q ? files.filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)) : files)
-        .slice(0, q ? 15 : 25);
-      for (const e of f) out.push({ source: 'Files', id: 'f:' + e.path, title: e.name, detail: relPath(e.path), ext: e.ext, action: () => { openFile(e.path); onClose(); } });
+      let f = q ? files.filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)) : [...files];
+      // No query → show recently-opened files first (Quick Open MRU).
+      if (!q && store.recentFiles.length) {
+        const rank = new Map(store.recentFiles.map((p, i) => [p, i]));
+        f.sort((a, b) => (rank.get(a.path) ?? 999) - (rank.get(b.path) ?? 999));
+      }
+      f = f.slice(0, q ? 15 : 25);
+      for (const e of f) {
+        const recent = !q && store.recentFiles.includes(e.path);
+        out.push({ source: 'Files', id: 'f:' + e.path, title: e.name, detail: recent ? 'recently opened' : relPath(e.path), ext: e.ext, action: () => { openFile(e.path); onClose(); } });
+      }
     }
     if (enabled.Knowledge && q) {
       const n = notes.filter(n => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)).slice(0, 10);
