@@ -8,7 +8,7 @@ import { THEME_OPTIONS } from "@/components/editor/MonacoEditor";
 import { ensureProjectMemory } from "@/lib/workspace";
 import { openFolderDialog, createWorkspaceFolder } from "@/lib/tauri";
 import { workflowParams } from "@/lib/workflows";
-import { runEditorAction, setEol } from "@/lib/editorBridge";
+import { runEditorAction, setEol, getActiveEditor } from "@/lib/editorBridge";
 import { APP_COMMANDS, effectiveKeys } from "@/lib/keymap";
 
 // Default chord per rebindable command, and links from palette ids to them.
@@ -132,6 +132,7 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:closeright', title: 'View: Close Editors to the Right', run: run(() => { if (store.activeFile) store.closeFilesToRight(store.activeFile); }) },
       { id: 'c:closeall', title: 'View: Close All Editors', run: run(() => store.closeAllFiles()) },
       { id: 'c:revert', title: 'File: Revert File', run: () => { (async () => { if (store.activeFile) { try { const c = await readFile(store.activeFile); store.setPendingFileEdit({ path: store.activeFile, content: c }); info('Reverted file from disk'); } catch { /* unreadable */ } } })(); onClose(); } },
+      { id: 'c:cmpsaved', title: 'File: Compare Active File with Saved', run: () => { (async () => { if (store.activeFile) { try { const disk = await readFile(store.activeFile); const live = getActiveEditor()?.getModel()?.getValue() ?? disk; store.setPendingDiffReview({ path: store.activeFile, original: disk, proposed: live, mode: 'compare', originalLabel: 'Saved', modifiedLabel: 'Current' }); } catch { /* unreadable */ } } })(); onClose(); } },
       { id: 'c:navback', title: 'Go Back', run: run(() => store.navBack()) },
       { id: 'c:navforward', title: 'Go Forward', run: run(() => store.navForward()) },
       { id: 'b:toggle', title: 'Bookmarks: Toggle on Current Line', run: run(() => { if (store.activeFile) store.toggleBookmark(store.activeFile, store.cursorLine); }) },
