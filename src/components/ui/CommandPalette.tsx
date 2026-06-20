@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useAppStore, useToast } from "@/store";
-import { listAllFiles, gitLog, type DirEntry, type GitCommit } from "@/lib/tauri";
+import { listAllFiles, gitLog, readFile, type DirEntry, type GitCommit } from "@/lib/tauri";
 import { listVault, type VaultNote } from "@/lib/vault";
 import { loadTasks, type ApexTask } from "@/lib/tasks";
 import { loadWorkspaceSymbols, type WorkspaceSymbol } from "@/lib/symbols";
@@ -131,6 +131,7 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:closeleft', title: 'View: Close Editors to the Left', run: run(() => { if (store.activeFile) store.closeFilesToLeft(store.activeFile); }) },
       { id: 'c:closeright', title: 'View: Close Editors to the Right', run: run(() => { if (store.activeFile) store.closeFilesToRight(store.activeFile); }) },
       { id: 'c:closeall', title: 'View: Close All Editors', run: run(() => store.closeAllFiles()) },
+      { id: 'c:revert', title: 'File: Revert File', run: () => { (async () => { if (store.activeFile) { try { const c = await readFile(store.activeFile); store.setPendingFileEdit({ path: store.activeFile, content: c }); info('Reverted file from disk'); } catch { /* unreadable */ } } })(); onClose(); } },
       { id: 'c:navback', title: 'Go Back', run: run(() => store.navBack()) },
       { id: 'c:navforward', title: 'Go Forward', run: run(() => store.navForward()) },
       { id: 'b:toggle', title: 'Bookmarks: Toggle on Current Line', run: run(() => { if (store.activeFile) store.toggleBookmark(store.activeFile, store.cursorLine); }) },
