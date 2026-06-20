@@ -5,7 +5,7 @@ import { AgentIcon } from "@/components/ui/Icons";
 import { PageShell } from "./PageShell";
 
 export function AgentsPage() {
-  const { userAgents, addUserAgent, updateUserAgent, deleteUserAgent, selectedAgentId, setSelectedAgentId } = useAppStore();
+  const { userAgents, addUserAgent, updateUserAgent, deleteUserAgent, selectedAgentId, setSelectedAgentId, setAppPage } = useAppStore();
   const all = [...BUILTIN_AGENTS, ...userAgents];
   const [editId, setEditId] = useState<string | null>(null);
   const editing = userAgents.find((a) => a.id === editId) ?? null;
@@ -29,7 +29,10 @@ export function AgentsPage() {
   };
 
   const actions = (
-    <button onClick={createAgent} style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>+ New Agent</button>
+    <div style={{ display: 'flex', gap: 8 }}>
+      <button onClick={() => setAppPage('mission-control')} style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', background: '#13131B', border: '1px solid #252535', color: '#9A9AB5' }}>Mission Control ▸</button>
+      <button onClick={createAgent} style={{ height: 28, padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer', background: 'var(--accent)', border: 'none', color: '#fff' }}>+ New Agent</button>
+    </div>
   );
 
   return (

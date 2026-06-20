@@ -38,6 +38,11 @@ const Icons = {
       <rect x="4" y="6" width="10" height="8" rx="2"/><line x1="9" y1="3" x2="9" y2="6"/><circle cx="9" cy="2.5" r="0.8"/><circle cx="7" cy="10" r="0.9" fill="currentColor"/><circle cx="11" cy="10" r="0.9" fill="currentColor"/>
     </svg>
   ),
+  missionControl: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="9" r="2"/><circle cx="9" cy="9" r="6.5"/><line x1="9" y1="2.5" x2="9" y2="4.5"/><line x1="9" y1="13.5" x2="9" y2="15.5"/><line x1="2.5" y1="9" x2="4.5" y2="9"/><line x1="13.5" y1="9" x2="15.5" y2="9"/>
+    </svg>
+  ),
   knowledge: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 4a1 1 0 0 1 1-1h4.5a2 2 0 0 1 2 2v9a1.5 1.5 0 0 0-1.5-1.5H4a1 1 0 0 1-1-1V4Z"/><path d="M15 4a1 1 0 0 0-1-1H9.5a2 2 0 0 0-2 2v9a1.5 1.5 0 0 1 1.5-1.5H14a1 1 0 0 0 1-1V4Z"/>
@@ -125,6 +130,7 @@ export function LeftNav() {
       <NavIcon icon={Icons.gitBranch} active={appPage === 'source-control'} title="Source Control"      onClick={() => setAppPage('source-control')} />
       <NavIcon icon={Icons.preview}   active={appPage === 'preview'}        title="Web Preview"         onClick={() => setAppPage('preview')} />
       <NavIcon icon={Icons.agents}    active={appPage === 'agents'}         title="AI Agents"           onClick={() => setAppPage('agents')} />
+      <NavIcon icon={Icons.missionControl} active={appPage === 'mission-control'} title="Mission Control"  onClick={() => setAppPage('mission-control')} />
       <NavIcon icon={Icons.knowledge} active={appPage === 'knowledge'}      title="Knowledge"           onClick={() => setAppPage('knowledge')} />
       <NavIcon icon={Icons.models}    active={appPage === 'models'}         title="Models"              onClick={() => setAppPage('models')} />
 

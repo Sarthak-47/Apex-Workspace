@@ -5,6 +5,7 @@ import type { JobId, JobStatus } from "@/lib/jobs";
 import type { McpServerConfig, McpTool } from "@/lib/tauri";
 import { type Workflow, DEFAULT_WORKFLOWS, newWorkflowId } from "@/lib/workflows";
 import type { UserSnippet } from "@/lib/snippets";
+import type { AgentRun, RunStatus } from "@/lib/agentRunner";
 
 export interface JobRuntime {
   status: JobStatus;
@@ -25,7 +26,7 @@ export const DEFAULT_JOB: JobRuntime = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type AppMode = "CODE" | "KNOWLEDGE" | "COMMS";
-export type AppPage = "code" | "source-control" | "preview" | "agents" | "knowledge" | "models" | "settings" | "welcome";
+export type AppPage = "code" | "source-control" | "preview" | "agents" | "mission-control" | "knowledge" | "models" | "settings" | "welcome";
 export type ToastType = "info" | "success" | "error" | "warning";
 
 export interface Toast {
@@ -292,6 +293,14 @@ interface AppState {
   addUserAgent: (agent: AgentDef) => void;
   updateUserAgent: (id: string, patch: Partial<AgentDef>) => void;
   deleteUserAgent: (id: string) => void;
+
+  // Agent Manager — background agent runs (Mission Control)
+  agentRuns: AgentRun[];
+  addAgentRun: (run: AgentRun) => void;
+  appendAgentRunOutput: (id: string, chunk: string) => void;
+  finishAgentRun: (id: string, status: RunStatus, error?: string) => void;
+  removeAgentRun: (id: string) => void;
+  clearAgentRuns: () => void;
 
   // Bash "Allow Always" command-prefix whitelist (persisted)
   bashAllowAlways: string[];
@@ -727,6 +736,14 @@ export const useAppStore = create<AppState>()(
       // Custom agents
       selectedAgentId: 'coder',
       setSelectedAgentId: (id) => set({ selectedAgentId: id }),
+
+      // Agent Manager runs
+      agentRuns: [],
+      addAgentRun: (run) => set((s) => ({ agentRuns: [run, ...s.agentRuns].slice(0, 50) })),
+      appendAgentRunOutput: (id, chunk) => set((s) => ({ agentRuns: s.agentRuns.map((r) => (r.id === id ? { ...r, output: r.output + chunk } : r)) })),
+      finishAgentRun: (id, status, error) => set((s) => ({ agentRuns: s.agentRuns.map((r) => (r.id === id ? { ...r, status, error, finishedAt: Date.now() } : r)) })),
+      removeAgentRun: (id) => set((s) => ({ agentRuns: s.agentRuns.filter((r) => r.id !== id) })),
+      clearAgentRuns: () => set((s) => ({ agentRuns: s.agentRuns.filter((r) => r.status === 'running') })),
       userAgents: [],
       addUserAgent: (agent) => set((s) => ({ userAgents: [...s.userAgents, agent] })),
       updateUserAgent: (id, patch) =>
@@ -854,6 +871,7 @@ export const useAppStore = create<AppState>()(
         recentWorkspaces: s.recentWorkspaces,
         selectedAgentId: s.selectedAgentId,
         userAgents: s.userAgents,
+        agentRuns: s.agentRuns.filter((r) => r.status !== 'running').slice(0, 20),
         bashAllowAlways: s.bashAllowAlways,
         autocompleteEnabled: s.autocompleteEnabled,
         embedModel: s.embedModel,
