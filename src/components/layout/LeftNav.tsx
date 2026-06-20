@@ -74,7 +74,7 @@ const Icons = {
   ),
 };
 
-function NavIcon({ icon, active, title, onClick }: { icon: React.ReactNode; active?: boolean; title: string; onClick?: () => void }) {
+function NavIcon({ icon, active, title, onClick, badge }: { icon: React.ReactNode; active?: boolean; title: string; onClick?: () => void; badge?: number }) {
   return (
     <button
       onClick={onClick}
@@ -91,6 +91,9 @@ function NavIcon({ icon, active, title, onClick }: { icon: React.ReactNode; acti
       className={!active ? 'hover:!bg-[#18181F] hover:!text-[#E2E2EC]' : ''}
     >
       {icon}
+      {badge ? (
+        <span style={{ position: 'absolute', top: 4, right: 4, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 7, background: 'var(--accent)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>{badge}</span>
+      ) : null}
     </button>
   );
 }
@@ -105,8 +108,9 @@ export function LeftNav() {
     leftPanelView, setLeftPanelView,
     intelPanelOpen, toggleIntelPanel,
     terminalOpen, toggleTerminal,
-    appPage, setAppPage,
+    appPage, setAppPage, agentRuns,
   } = useAppStore();
+  const runningAgents = agentRuns.filter((r) => r.status === 'running').length;
 
   const onCode = appPage === 'code';
 
@@ -130,7 +134,7 @@ export function LeftNav() {
       <NavIcon icon={Icons.gitBranch} active={appPage === 'source-control'} title="Source Control"      onClick={() => setAppPage('source-control')} />
       <NavIcon icon={Icons.preview}   active={appPage === 'preview'}        title="Web Preview"         onClick={() => setAppPage('preview')} />
       <NavIcon icon={Icons.agents}    active={appPage === 'agents'}         title="AI Agents"           onClick={() => setAppPage('agents')} />
-      <NavIcon icon={Icons.missionControl} active={appPage === 'mission-control'} title="Mission Control"  onClick={() => setAppPage('mission-control')} />
+      <NavIcon icon={Icons.missionControl} active={appPage === 'mission-control'} title="Mission Control"  onClick={() => setAppPage('mission-control')} badge={runningAgents} />
       <NavIcon icon={Icons.knowledge} active={appPage === 'knowledge'}      title="Knowledge"           onClick={() => setAppPage('knowledge')} />
       <NavIcon icon={Icons.models}    active={appPage === 'models'}         title="Models"              onClick={() => setAppPage('models')} />
 
