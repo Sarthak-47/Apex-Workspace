@@ -45,20 +45,31 @@ export function launchAgentRun(agentId: string, prompt: string): string {
   const ctrl = new AbortController();
   controllers.set(id, ctrl);
 
+  // Abort a run that makes no progress (model unreachable / not loaded) so it
+  // doesn't stay "running" forever. Reset on each streamed token.
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const NO_PROGRESS_MS = 45_000;
+  const resetTimer = () => { clearTimeout(timer); timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, NO_PROGRESS_MS); };
+
   (async () => {
+    resetTimer();
     try {
       const messages = [
         { role: "system" as const, content: agent.systemPrompt },
         { role: "user" as const, content: prompt },
       ];
       for await (const chunk of streamChat(model, messages, ctrl.signal)) {
+        resetTimer();
         useAppStore.getState().appendAgentRunOutput(id, chunk);
       }
       useAppStore.getState().finishAgentRun(id, "done");
     } catch (e) {
-      if (ctrl.signal.aborted) useAppStore.getState().finishAgentRun(id, "cancelled");
+      if (timedOut) useAppStore.getState().finishAgentRun(id, "error", "Timed out waiting for the model — is Ollama running and the model loaded?");
+      else if (ctrl.signal.aborted) useAppStore.getState().finishAgentRun(id, "cancelled");
       else useAppStore.getState().finishAgentRun(id, "error", e instanceof Error ? e.message : String(e));
     } finally {
+      clearTimeout(timer);
       controllers.delete(id);
     }
   })();
