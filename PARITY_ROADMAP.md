@@ -71,13 +71,13 @@ Outcome: APEX *feels like* Warp.
 
 ## Phase 2 — Agent Manager → Antigravity parity (highest differentiation)
 
-- ◐ **Mission-control surface** — ✅ **shipped (v1)**: the Mission Control page launches
-  agent tasks that stream in the **background**, multiple **concurrently**, tracked as runs
-  with status (running/done/error/cancelled), streamed output, cancel/remove, and a
-  no-progress timeout (`agentRunner.ts` + store `agentRuns`). v1 is reasoning-only.
-  ⬜ still todo: an inbox/notifications and richer activity timeline.
-- ⬜ **Artifacts** — agents emit verifiable outputs (task lists, diffs, screenshots, short
-  walkthrough recordings) instead of just chat.
+- ✅ **Mission-control surface** — the Mission Control page launches agent tasks that stream
+  in the **background**, multiple **concurrently**, tracked as runs with status, streamed
+  output, cancel / re-run / copy, no-progress timeout, **completion toasts**, a live
+  running-count **nav badge**, **include-active-file context**, and one-click **Review /
+  Explain Current File** (`agentRunner.ts` + store `agentRuns`). v1 is reasoning-only.
+- ◐ **Artifacts** — ✅ fenced **code blocks** in run output surface as copyable artifact
+  chips. ⬜ richer artifacts (diffs/screenshots/recordings) + apply-to-file todo.
 - ⬜ **Agent browser control** — let an agent drive the existing Web Preview to verify its
   own work and capture screenshots.
 - ◐ **Trust / approval model** — tighten the per-action review flow (allowlist, dry-run,
