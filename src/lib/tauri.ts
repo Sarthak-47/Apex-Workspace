@@ -315,6 +315,8 @@ const MOCK_SOURCE_FILES: Record<string, string> = {
     `  it('lowercases and dashes', () => { expect(slugify('Hello World')).toBe('hello-world'); });\n` +
     `  it('strips punctuation', () => { expect(slugify('A, B & C')).toBe('a-b-c'); });\n` +
     `});\n`,
+  '/demo-workspace/README.md':
+    `# APEX Demo\n\nA quick **markdown** sample.\n\n## Install\n\nRun the dev server:\n\n\`\`\`bash\nnpm install\nnpm run dev\n\`\`\`\n\n## Usage\n\nSee the docs.\n`,
   '/demo-workspace/tests/test_utils.py':
     `import pytest\n` +
     `from utils import clamp, is_even\n\n` +

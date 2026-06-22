@@ -216,3 +216,15 @@ body.resizing * { transition: none !important; user-select: none !important; }
   background: var(--accent);
   box-shadow: 0 0 4px color-mix(in srgb, var(--accent) 60%, transparent);
 }
+
+/* ── Markdown code-block copy button ───────────────────────────────────── */
+.apex-md-preview .apex-pre { position: relative; }
+.apex-md-preview .apex-copy-btn {
+  position: absolute; top: 6px; right: 6px;
+  font-size: 10px; color: #9A9AB5;
+  background: #13131B; border: 1px solid #252535; border-radius: 5px;
+  padding: 2px 8px; cursor: pointer; opacity: 0; transition: opacity 0.12s;
+  font-family: inherit;
+}
+.apex-md-preview .apex-pre:hover .apex-copy-btn { opacity: 1; }
+.apex-md-preview .apex-copy-btn:hover { color: var(--accent); }

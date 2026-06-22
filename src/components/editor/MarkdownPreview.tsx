@@ -39,7 +39,13 @@ export function MarkdownPreview({ path, content, onNavigate }: Props) {
     // marked v14: disable raw HTML passthrough is not built-in; our own content is local,
     // but we still guard against <script> injection from note text.
     const raw = marked.parse(withLinks, { async: false, gfm: true, breaks: true }) as string;
-    return raw.replace(/<script[\s\S]*?<\/script>/gi, '');
+    const slug = (s: string) => s.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+    return raw
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      // anchor ids for headings (simple text headings)
+      .replace(/<(h[1-4])>([^<]+)<\/\1>/g, (_m, tag, text) => `<${tag} id="${slug(text)}">${text}</${tag}>`)
+      // copy button as the first child of every <pre> (handled via event delegation)
+      .replace(/<pre>/g, '<pre class="apex-pre"><button type="button" class="apex-copy-btn">Copy</button>');
   }, [body]);
 
   // Compute backlinks for this note across the vault
@@ -58,9 +64,19 @@ export function MarkdownPreview({ path, content, onNavigate }: Props) {
     return () => { cancelled = true; };
   }, [workspacePath, path, content]);
 
-  // Click handler for wikilinks
+  // Click handler — wikilinks + code-block copy buttons (event delegation).
   const handleClick = async (e: React.MouseEvent) => {
-    const el = (e.target as HTMLElement).closest('[data-wikilink]') as HTMLElement | null;
+    const target = e.target as HTMLElement;
+    const copyBtn = target.closest('.apex-copy-btn') as HTMLElement | null;
+    if (copyBtn) {
+      e.preventDefault();
+      const pre = copyBtn.parentElement;
+      const code = pre?.querySelector('code')?.textContent ?? '';
+      navigator.clipboard?.writeText(code).catch(() => {});
+      copyBtn.textContent = 'Copied'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1200);
+      return;
+    }
+    const el = target.closest('[data-wikilink]') as HTMLElement | null;
     if (!el || !workspacePath) return;
     e.preventDefault();
     const title = el.getAttribute('data-wikilink') ?? '';
