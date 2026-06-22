@@ -27,11 +27,15 @@ Every other AI coding tool starts every session from zero. It doesn't know why y
 
 ## Features
 
-**Core IDE** — Monaco editor (7 themes, Vim mode, inline AI autocomplete, live Markdown preview), VS Code-style **menu bar** + **command palette**, **rebindable keyboard shortcuts**, Seti-style **file-icon theme**, real PTY terminal (multi-tab, splits, shell profiles), file explorer with **multi-root workspaces**, **Test Explorer** (vitest/jest/pytest/go/cargo), LSP language intelligence, web preview pane, fully themeable.
+**Core IDE** — Monaco editor (7 themes, Vim mode, inline AI autocomplete, live Markdown preview, deep editor settings — font/family, rulers, sticky scroll, guides, save behaviors…), VS Code-style **menu bar** + **command palette** (with keybinding hints, recent files & commands), **rebindable keyboard shortcuts**, Seti-style **file-icon theme**, **bookmarks**, **TODO/FIXME panel**, **navigation history**, breadcrumbs with current symbol, real PTY terminal (multi-tab, splits, shell profiles) + a **Workflow Library** of saved/parameterized commands, file explorer with **multi-root workspaces**, **Test Explorer** (vitest/jest/pytest/go/cargo), **user snippets**, LSP language intelligence, web preview pane, fully themeable.
 
 **Source control** — Git panel with stage/commit/push/pull, per-hunk staging, inline blame, branch picker, commit graph, **merge-conflict resolution** (inline CodeLens), **arbitrary file-to-file diff**, full **stash UI** (apply/pop/drop), and a **GitHub Pull Request UI** (list/create/checkout via `gh`).
 
-**AI agent** — chat with local models, Plan mode, 5 built-in agents (Coder / Reviewer / Explainer / Debugger / Test Writer) plus custom agents, file read/write/edit/search tools with diff-gated approval, approval-gated bash, `@file` / `@folder` / `@symbol` / `@person` mentions.
+**AI agent** — chat with local models, Plan mode, 5 built-in agents (Coder / Reviewer / Explainer / Debugger / Test Writer) plus custom agents (per-agent model + tools), file read/write/edit/search tools with diff-gated approval, approval-gated bash, `@file` / `@folder` / `@symbol` / `@person` mentions.
+
+**Mission Control** — launch agent tasks that stream in the **background**; multiple run **concurrently** with live status, streamed output, cancel / re-run / copy, and a running-count badge. (Reasoning-only for now — file edits & shell stay in chat with approval.)
+
+**Hybrid models** — local Ollama by default; an optional, off-by-default **cloud lane** (OpenRouter / OpenAI / Groq / Together / any OpenAI-compatible API) for chat and agent runs. API keys live in the **OS keyring**, never on disk; an amber status-bar indicator shows whenever a request would leave your machine.
 
 **Living memory** — automatic codebase indexing (Ollama embeddings + local vector search), auto-generated `WORKSPACE.md`, semantic context injection into chat.
 
@@ -47,8 +51,8 @@ Grab the latest Windows build from the [**Releases**](https://github.com/Sarthak
 
 | Installer | Notes |
 |---|---|
-| [`APEX_0.2.0_x64-setup.exe`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | NSIS installer (recommended) |
-| [`APEX_0.2.0_x64_en-US.msi`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | MSI for managed/enterprise installs |
+| [`APEX_0.3.0_x64-setup.exe`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | NSIS installer (recommended) |
+| [`APEX_0.3.0_x64_en-US.msi`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | MSI for managed/enterprise installs |
 
 The app is unsigned, so Windows SmartScreen may warn on first launch — choose **More info → Run anyway**. APEX still needs [Ollama](https://ollama.com) running locally (see Prerequisites below).
 
