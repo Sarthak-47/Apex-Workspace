@@ -207,6 +207,30 @@ export async function ghPrCheckout(workspace: string, number: number): Promise<v
   return invoke('gh_pr_checkout', { workspace, number });
 }
 
+// ─── Secret store (OS keyring on desktop; session-only in the browser) ────────
+// Secrets are never written to localStorage. The web build keeps them in
+// sessionStorage (cleared when the tab closes) purely for preview convenience.
+export async function setSecret(name: string, value: string): Promise<void> {
+  if (!isTauri()) { try { sessionStorage.setItem('apex-secret:' + name, value); } catch {} return; }
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('set_secret', { name, value });
+}
+export async function getSecret(name: string): Promise<string | null> {
+  if (!isTauri()) { try { return sessionStorage.getItem('apex-secret:' + name); } catch { return null; } }
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return await invoke<string | null>('get_secret', { name }); } catch { return null; }
+}
+export async function deleteSecret(name: string): Promise<void> {
+  if (!isTauri()) { try { sessionStorage.removeItem('apex-secret:' + name); } catch {} return; }
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke('delete_secret', { name });
+}
+export async function hasSecret(name: string): Promise<boolean> {
+  if (!isTauri()) { try { return !!sessionStorage.getItem('apex-secret:' + name); } catch { return false; } }
+  const { invoke } = await import('@tauri-apps/api/core');
+  try { return await invoke<boolean>('has_secret', { name }); } catch { return false; }
+}
+
 export async function gitListBranches(workspace: string): Promise<string[]> {
   if (!isTauri()) return [];
   const { invoke } = await import('@tauri-apps/api/core');

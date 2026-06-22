@@ -4,8 +4,11 @@
  */
 
 import { useAppStore } from '@/store';
+import { getSecret } from '@/lib/tauri';
 
 export const OLLAMA_BASE = 'http://localhost:11434';
+
+export const CLOUD_KEY_NAME = 'cloud-api-key';
 
 /** The configured Ollama/OpenAI-compatible host (remote Ollama, LM Studio, …). */
 export function base(): string {
@@ -141,11 +144,66 @@ export async function embed(
  * Yields each content fragment as it arrives.
  * Caller must handle AbortError when the signal fires.
  */
+/** Stream a chat completion from an OpenAI-compatible endpoint (cloud BYO-key
+ *  providers like OpenRouter/OpenAI, or Ollama's /v1 endpoint). */
+export async function* streamChatOpenAI(
+  baseUrl: string,
+  apiKey: string | null,
+  model: string,
+  messages: ChatMessage[],
+  signal?: AbortSignal,
+): AsyncGenerator<string, void, unknown> {
+  const url = baseUrl.replace(/\/+$/, '') + '/chat/completions';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
+    body: JSON.stringify({ model, messages, stream: true }),
+    signal,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Provider ${res.status}${text ? ': ' + text.slice(0, 140) : ''}`);
+  }
+  if (!res.body) throw new Error('Response body is null');
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t.startsWith('data:')) continue;
+        const data = t.slice(5).trim();
+        if (data === '[DONE]') return;
+        try {
+          const j = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] };
+          const delta = j.choices?.[0]?.delta?.content;
+          if (delta) yield delta;
+        } catch { /* ignore keep-alive / malformed */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export async function* streamChat(
   model: string,
   messages: ChatMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<string, void, unknown> {
+  // Optional cloud provider lane (BYO-key). Off by default — local stays default.
+  const s = useAppStore.getState();
+  if (s.cloudEnabled && s.cloudBaseUrl) {
+    const key = await getSecret(CLOUD_KEY_NAME);
+    yield* streamChatOpenAI(s.cloudBaseUrl, key, s.cloudModel || model, messages, signal);
+    return;
+  }
   const res = await fetch(`${base()}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

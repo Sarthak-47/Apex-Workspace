@@ -5,7 +5,8 @@ import { BUILTIN_AGENTS, ALL_TOOLS, type AgentDef, type ToolName } from "@/lib/a
 import { AgentIcon } from "@/components/ui/Icons";
 import { gmailStatus, gmailStartAuth, gmailSync, gmailDisconnect, onGmailConnected, type GmailStatus,
   calendarStatus, calendarSync, firefliesStatus, firefliesSetKey, firefliesSync, firefliesDisconnect, type FirefliesStatus,
-  mcpStart, mcpStop, type McpServerConfig, type McpTool } from "@/lib/tauri";
+  mcpStart, mcpStop, setSecret, hasSecret, deleteSecret, type McpServerConfig, type McpTool } from "@/lib/tauri";
+import { CLOUD_KEY_NAME } from "@/lib/ollama";
 
 type Tab = 'general' | 'editor' | 'snippets' | 'terminal' | 'ai' | 'connections' | 'themes' | 'about';
 
@@ -581,6 +582,60 @@ function McpSection() {
   );
 }
 
+const CLOUD_PRESETS = [
+  { value: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api/v1' },
+  { value: 'openai', label: 'OpenAI', url: 'https://api.openai.com/v1' },
+  { value: 'groq', label: 'Groq', url: 'https://api.groq.com/openai/v1' },
+  { value: 'together', label: 'Together', url: 'https://api.together.xyz/v1' },
+  { value: 'custom', label: 'Custom (OpenAI-compatible)', url: '' },
+];
+
+function CloudProviderSection() {
+  const { cloudEnabled, setCloudEnabled, cloudProvider, cloudBaseUrl, cloudModel, setCloudConfig } = useAppStore();
+  const [key, setKey] = useState('');
+  const [keySet, setKeySet] = useState(false);
+  useEffect(() => { hasSecret(CLOUD_KEY_NAME).then(setKeySet); }, []);
+
+  const saveKey = async () => { if (!key.trim()) return; await setSecret(CLOUD_KEY_NAME, key.trim()); setKey(''); setKeySet(true); };
+  const removeKey = async () => { await deleteSecret(CLOUD_KEY_NAME); setKeySet(false); };
+  const pickPreset = (v: string) => { const p = CLOUD_PRESETS.find((x) => x.value === v); setCloudConfig({ cloudProvider: v, ...(p?.url ? { cloudBaseUrl: p.url } : {}) }); };
+
+  const inp: React.CSSProperties = { width: '100%', background: '#0A0A0F', border: '1px solid #252535', borderRadius: 5, padding: '6px 8px', fontSize: 11, color: '#E2E2EC', outline: 'none', fontFamily: '"JetBrains Mono", monospace' };
+
+  return (
+    <Section title="Cloud Provider (optional)">
+      <Field label="Use cloud models"><Toggle value={cloudEnabled} onChange={setCloudEnabled} /></Field>
+      {cloudEnabled && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: '#F59E0B', background: '#1F1606', border: '1px solid #3A2A0A', borderRadius: 6, padding: '7px 9px', lineHeight: 1.5 }}>
+            ⚠ With this on, your prompts and code context are sent to the selected provider — they leave your machine. Local Ollama stays the default when this is off.
+          </div>
+          <Field label="Provider"><Select value={cloudProvider} options={CLOUD_PRESETS} onChange={pickPreset} /></Field>
+          <Field label="Base URL"><input value={cloudBaseUrl} onChange={(e) => setCloudConfig({ cloudBaseUrl: e.target.value })} placeholder="https://…/v1" style={inp} /></Field>
+          <Field label="Model"><input value={cloudModel} onChange={(e) => setCloudConfig({ cloudModel: e.target.value })} placeholder="e.g. anthropic/claude-3.5-sonnet" style={inp} /></Field>
+          <Field label="API key">
+            {keySet ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, color: '#22C55E' }}>•••••••• saved to OS keyring</span>
+                <button onClick={removeKey} style={{ fontSize: 10.5, color: '#9A9AB5', background: 'none', border: '1px solid #252535', borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }} className="hover:!text-[#E2776A]">Remove</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="paste your API key" autoComplete="off" style={inp} />
+                <button onClick={saveKey} disabled={!key.trim()} style={{ fontSize: 11, color: key.trim() ? 'var(--accent)' : '#4A4A65', background: '#13131B', border: '1px solid #6366F140', borderRadius: 5, padding: '0 11px', cursor: key.trim() ? 'pointer' : 'default', flexShrink: 0 }}>Save</button>
+              </div>
+            )}
+          </Field>
+          <p style={{ fontSize: 10.5, color: '#5A5A75', lineHeight: 1.5, margin: 0 }}>
+            The key is stored in your OS keyring (Keychain / Credential Manager), never in plaintext on disk.
+            Works with any OpenAI-compatible API. Used by chat and Mission Control agent runs.
+          </p>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 function AITab() {
   const { userAgents, addUserAgent, updateUserAgent, deleteUserAgent, bashAllowAlways, ollamaBaseUrl, setOllamaBaseUrl } = useAppStore();
   const setState = useAppStore.setState;
@@ -616,6 +671,7 @@ function AITab() {
           Stays on your network; nothing is sent to a cloud service.
         </p>
       </Section>
+      <CloudProviderSection />
       <Section title="Custom Agents">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {BUILTIN_AGENTS.map(a => (

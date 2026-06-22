@@ -4,6 +4,7 @@ mod bash;
 mod watcher;
 mod gmail;
 mod fireflies;
+mod secrets;
 mod mcp;
 mod lsp;
 mod hardware;
@@ -346,6 +347,10 @@ pub fn run() {
             git::gh_pr_create,
             git::gh_pr_checkout,
             git::gh_available,
+            secrets::set_secret,
+            secrets::get_secret,
+            secrets::delete_secret,
+            secrets::has_secret,
             // Bash (approval-gated)
             bash::run_bash,
             bash::kill_bash,

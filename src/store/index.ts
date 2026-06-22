@@ -179,6 +179,15 @@ interface AppState {
   ollamaBaseUrl: string;
   setOllamaBaseUrl: (url: string) => void;
 
+  // Optional cloud provider lane (BYO-key). Config is persisted; the API key
+  // lives only in the OS keyring (never in the store / localStorage).
+  cloudEnabled: boolean;
+  setCloudEnabled: (v: boolean) => void;
+  cloudProvider: string;
+  cloudBaseUrl: string;
+  cloudModel: string;
+  setCloudConfig: (patch: Partial<{ cloudProvider: string; cloudBaseUrl: string; cloudModel: string }>) => void;
+
   // Git branch (not persisted)
   gitBranch: string;
   setGitBranch: (branch: string) => void;
@@ -620,6 +629,12 @@ export const useAppStore = create<AppState>()(
       setOllamaSelectedModel: (model) => set({ ollamaSelectedModel: model }),
       ollamaBaseUrl: 'http://localhost:11434',
       setOllamaBaseUrl: (url) => set({ ollamaBaseUrl: url }),
+      cloudEnabled: false,
+      setCloudEnabled: (v) => set({ cloudEnabled: v }),
+      cloudProvider: 'openrouter',
+      cloudBaseUrl: 'https://openrouter.ai/api/v1',
+      cloudModel: '',
+      setCloudConfig: (patch) => set(patch),
 
       // Git branch (live, not persisted)
       gitBranch: 'main',
@@ -844,6 +859,10 @@ export const useAppStore = create<AppState>()(
         previewUrl: s.previewUrl,
         ollamaSelectedModel: s.ollamaSelectedModel,
         ollamaBaseUrl: s.ollamaBaseUrl,
+        cloudEnabled: s.cloudEnabled,
+        cloudProvider: s.cloudProvider,
+        cloudBaseUrl: s.cloudBaseUrl,
+        cloudModel: s.cloudModel,
         editorTheme: s.editorTheme,
         accentColor: s.accentColor,
         editorFontSize: s.editorFontSize,
