@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "@/store";
 import { BUILTIN_AGENTS } from "@/lib/agents";
 import { launchAgentRun, cancelAgentRun, type RunStatus } from "@/lib/agentRunner";
+import { readFile } from "@/lib/tauri";
 import { AgentIcon } from "@/components/ui/Icons";
 import { PageShell } from "./PageShell";
 
@@ -20,15 +21,22 @@ function relTime(ms: number): string {
 }
 
 export function MissionControlPage() {
-  const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline } = useAppStore();
+  const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline, activeFile } = useAppStore();
   const allAgents = [...BUILTIN_AGENTS, ...userAgents];
   const [agentId, setAgentId] = useState(allAgents[0]?.id ?? "coder");
   const [prompt, setPrompt] = useState("");
+  const [includeFile, setIncludeFile] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const activeName = activeFile ? activeFile.split(/[\\/]/).pop() : null;
 
-  const launch = () => {
+  const launch = async () => {
     if (!prompt.trim()) return;
-    launchAgentRun(agentId, prompt.trim());
+    let p = prompt.trim();
+    if (includeFile && activeFile) {
+      const content = await readFile(activeFile).catch(() => "");
+      if (content) p = `File \`${activeFile}\`:\n\n\`\`\`\n${content}\n\`\`\`\n\n${p}`;
+    }
+    launchAgentRun(agentId, p);
     setPrompt("");
   };
   const toggle = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -49,6 +57,12 @@ export function MissionControlPage() {
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the task for this agent…"
             onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) launch(); }}
             rows={6} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }} />
+          {activeName && (
+            <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, color: "#8888A8", cursor: "pointer" }}>
+              <input type="checkbox" checked={includeFile} onChange={(e) => setIncludeFile(e.target.checked)} />
+              Include active file <code style={{ fontFamily: '"JetBrains Mono",monospace', color: "#9A9AB5" }}>{activeName}</code> as context
+            </label>
+          )}
           <button onClick={launch} disabled={!prompt.trim()}
             style={{ height: 32, borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: prompt.trim() ? "pointer" : "default", background: prompt.trim() ? "var(--accent)" : "#1A1A28", border: "none", color: prompt.trim() ? "#fff" : "#4A4A65" }}>
             Launch agent ▸
