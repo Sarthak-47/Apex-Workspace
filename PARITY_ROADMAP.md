@@ -37,15 +37,17 @@ pattern** — but agent competence is capped by the model behind it.
 
 Resolution: keep local-first, but make APEX **hybrid by design**.
 
-- ◐ **Local default, optional BYO-key lane** — ✅ configurable model host (`ollamaBaseUrl`)
-  so any local/self-hosted OpenAI-compatible engine works (remote Ollama, custom port,
-  LM Studio). ⬜ still todo: an opt-in cloud provider lane (Anthropic / Google / OpenRouter)
-  for heavy agent runs. (Rowboat does this via the Vercel AI SDK with 5 providers.)
-- ⬜ Per-agent / per-task model selection (cheap-local vs. frontier-cloud), with a clear
-  privacy indicator when a request leaves the machine.
+- ✅ **Local default, optional BYO-key lane** — configurable model host (`ollamaBaseUrl`)
+  + an **OpenAI-compatible cloud lane** (OpenRouter / OpenAI / Groq / Together / custom),
+  off by default. `streamChat` is provider-aware so chat AND Mission Control agent runs use
+  the configured provider. API key in the **OS keyring** (`secrets.rs`), never localStorage;
+  amber status-bar privacy indicator when cloud is active.
+- ✅ Clear **privacy indicator** when a request leaves the machine (status bar turns amber
+  with the cloud model name).
+- ◐ Per-agent / per-task model selection (global cloud toggle done; per-agent override todo).
 - ⬜ Prompt-caching + run logging for cloud providers (cost + visibility).
 
-This unblocks Phases 1–3 punching above the local model ceiling.
+Phase 0 is **done enough to unblock Phases 1–3** punching above the local model ceiling.
 
 ---
 
