@@ -94,6 +94,14 @@ export function AgentsPage() {
                   onChange={(e) => updateUserAgent(editing.id, { temperature: parseFloat(e.target.value) })}
                   style={{ width: 240, accentColor: 'var(--accent)' }} />
               </Field>
+              <Field label="Model (optional)">
+                <input value={editing.model ?? ''} onChange={(e) => updateUserAgent(editing.id, { model: e.target.value || undefined })}
+                  placeholder="leave blank to use the selected model" style={{ ...inp, fontFamily: 'JetBrains Mono, monospace' }} />
+                <div style={{ fontSize: 10.5, color: '#5A5A75', marginTop: 4, lineHeight: 1.5 }}>
+                  Override this agent's model — a local Ollama tag (e.g. <code style={{ fontFamily: 'JetBrains Mono,monospace' }}>qwen2.5-coder:7b</code>)
+                  or, with the cloud lane on, a provider model (e.g. <code style={{ fontFamily: 'JetBrains Mono,monospace' }}>anthropic/claude-3.5-sonnet</code>).
+                </div>
+              </Field>
               <button onClick={() => { deleteUserAgent(editing.id); setEditId(null); }}
                 style={{ marginTop: 12, height: 30, padding: '0 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: 'transparent', border: '1px solid #C4422D60', color: '#E2776A' }}>
                 Delete agent
