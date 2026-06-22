@@ -115,7 +115,7 @@ export function StatusBar() {
     vimMode, indexProgress, autocompleteEnabled,
     setCookbookOpen, setCompareOpen, toggleProblems,
     workspacePath, tabSize, insertSpaces, setInsertSpaces,
-    selChars, selLines,
+    selChars, selLines, cloudEnabled, cloudModel, setSettingsOpen,
   } = useAppStore();
   const { errors, warnings } = useMarkers();
   const [, forceEol] = useState(0);
@@ -271,18 +271,27 @@ export function StatusBar() {
         </>
       )}
 
-      {/* Ollama status — click to open the Model Cookbook */}
-      <SbItem onClick={() => setCookbookOpen(true)} title="Model Cookbook — recommended models for your hardware">
-        <div style={{
-          width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-          background: ollamaOnline ? '#22C55E' : '#4A4A65',
-          boxShadow: ollamaOnline ? '0 0 5px #22C55E88' : 'none',
-          transition: 'all 0.4s',
-        }} />
-        <span style={{ opacity: ollamaOnline ? 1 : 0.6 }}>
-          {ollamaOnline ? (ollamaModels[0]?.split(':')[0] ?? 'Ollama') : 'Ollama offline'}
-        </span>
-      </SbItem>
+      {/* Model indicator — cloud (data leaves machine) vs local Ollama */}
+      {cloudEnabled ? (
+        <SbItem onClick={() => setSettingsOpen(true)} title="Cloud provider active — prompts leave your machine. Click to configure.">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#F59E0B" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <path d="M4 11h6a2.5 2.5 0 0 0 .3-4.98A3.5 3.5 0 0 0 3.6 6.2 2.4 2.4 0 0 0 4 11Z"/>
+          </svg>
+          <span style={{ color: '#F59E0B' }}>{cloudModel ? cloudModel.split('/').pop() : 'Cloud'}</span>
+        </SbItem>
+      ) : (
+        <SbItem onClick={() => setCookbookOpen(true)} title="Model Cookbook — recommended models for your hardware">
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+            background: ollamaOnline ? '#22C55E' : '#4A4A65',
+            boxShadow: ollamaOnline ? '0 0 5px #22C55E88' : 'none',
+            transition: 'all 0.4s',
+          }} />
+          <span style={{ opacity: ollamaOnline ? 1 : 0.6 }}>
+            {ollamaOnline ? (ollamaModels[0]?.split(':')[0] ?? 'Ollama') : 'Ollama offline'}
+          </span>
+        </SbItem>
+      )}
 
       <Divider />
 
