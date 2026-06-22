@@ -20,6 +20,15 @@ function relTime(ms: number): string {
   return `${Math.floor(s / 3600)}h ago`;
 }
 
+// Fenced code blocks in an agent's output become copyable "artifacts".
+function extractCodeBlocks(output: string): { lang: string; code: string }[] {
+  const out: { lang: string; code: string }[] = [];
+  const re = /```(\w*)\n([\s\S]*?)```/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(output))) { const code = m[2].replace(/\n$/, ""); if (code.trim()) out.push({ lang: m[1] || "text", code }); }
+  return out;
+}
+
 export function MissionControlPage() {
   const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline, activeFile } = useAppStore();
   const allAgents = [...BUILTIN_AGENTS, ...userAgents];
@@ -120,6 +129,22 @@ export function MissionControlPage() {
                         {(r.output.length > 240 || r.error) && <div style={{ fontSize: 10, color: "var(--accent)", marginTop: 6 }}>{isOpen ? "Show less" : "Show more"}</div>}
                       </div>
                     )}
+                    {(() => {
+                      const blocks = r.error ? [] : extractCodeBlocks(r.output);
+                      if (blocks.length === 0) return null;
+                      return (
+                        <div style={{ borderTop: "1px solid #16161F", padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.07em", color: "#5A5A75" }}>ARTIFACTS</div>
+                          {blocks.map((b, bi) => (
+                            <div key={bi} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#9A9AB5" }}>
+                              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="var(--accent)" strokeWidth="1.3" style={{ flexShrink: 0 }}><polyline points="4,3 1.5,7 4,11"/><polyline points="10,3 12.5,7 10,11"/></svg>
+                              <span style={{ flex: 1, fontFamily: '"JetBrains Mono",monospace', fontSize: 10.5 }}>{b.lang} · {b.code.split("\n").length} line{b.code.split("\n").length === 1 ? "" : "s"}</span>
+                              <button onClick={() => navigator.clipboard?.writeText(b.code).catch(() => {})} style={{ fontSize: 10, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "2px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Copy</button>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
