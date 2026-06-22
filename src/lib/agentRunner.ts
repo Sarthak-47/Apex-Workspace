@@ -64,10 +64,11 @@ export function launchAgentRun(agentId: string, prompt: string): string {
         useAppStore.getState().appendAgentRunOutput(id, chunk);
       }
       useAppStore.getState().finishAgentRun(id, "done");
+      useAppStore.getState().addToast(`Agent "${agent.name}" finished`, "success");
     } catch (e) {
-      if (timedOut) useAppStore.getState().finishAgentRun(id, "error", "Timed out waiting for the model — is Ollama running and the model loaded?");
+      if (timedOut) { useAppStore.getState().finishAgentRun(id, "error", "Timed out waiting for the model — is Ollama running and the model loaded?"); useAppStore.getState().addToast(`Agent "${agent.name}" timed out`, "error"); }
       else if (ctrl.signal.aborted) useAppStore.getState().finishAgentRun(id, "cancelled");
-      else useAppStore.getState().finishAgentRun(id, "error", e instanceof Error ? e.message : String(e));
+      else { useAppStore.getState().finishAgentRun(id, "error", e instanceof Error ? e.message : String(e)); useAppStore.getState().addToast(`Agent "${agent.name}" failed`, "error"); }
     } finally {
       clearTimeout(timer);
       controllers.delete(id);
