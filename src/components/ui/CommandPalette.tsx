@@ -9,6 +9,7 @@ import { ensureProjectMemory } from "@/lib/workspace";
 import { openFolderDialog, createWorkspaceFolder } from "@/lib/tauri";
 import { workflowParams } from "@/lib/workflows";
 import { runEditorAction, setEol, getActiveEditor } from "@/lib/editorBridge";
+import { launchAgentRun } from "@/lib/agentRunner";
 import { APP_COMMANDS, effectiveKeys } from "@/lib/keymap";
 
 // Default chord per rebindable command, and links from palette ids to them.
@@ -93,6 +94,17 @@ export function CommandPalette({ onClose }: Props) {
   const commands = useMemo<AppCommand[]>(() => {
     const run = (fn: () => void) => () => { fn(); onClose(); };
     const edRun = (id: string) => () => { onClose(); runEditorAction(id); };
+    const runOnFile = (agentId: string, instruction: string) => {
+      const f = store.activeFile;
+      if (!f) { info('Open a file first'); return; }
+      (async () => {
+        try {
+          const c = await readFile(f);
+          launchAgentRun(agentId, `${instruction}\n\nFile \`${f}\`:\n\n\`\`\`\n${c}\n\`\`\``);
+          store.setAppPage('mission-control');
+        } catch { info('Could not read the file'); }
+      })();
+    };
     return [
       // ── Editor actions (run on the active editor) ──
       { id: 'e:foldall', title: 'Editor: Fold All', run: edRun('editor.foldAll') },
@@ -163,6 +175,8 @@ export function CommandPalette({ onClose }: Props) {
       { id: 'c:memory', title: 'AI: Edit Project Memory (APEX.md)', run: () => { (async () => { const ws = store.workspacePath; if (ws) { try { const p = await ensureProjectMemory(ws); store.openFile(p); store.setAppPage('code'); } catch { /* ignore */ } } })(); onClose(); } },
       { id: 'c:missioncontrol', title: 'Agents: Mission Control', run: run(() => store.setAppPage('mission-control')) },
       { id: 'c:agents', title: 'Agents: Manage Agents', run: run(() => store.setAppPage('agents')) },
+      { id: 'a:review', title: 'Agents: Review Current File', run: () => { runOnFile('reviewer', 'Review this file for correctness, security, performance, and clarity. Cite line numbers.'); onClose(); } },
+      { id: 'a:explain', title: 'Agents: Explain Current File', run: () => { runOnFile('explainer', 'Explain what this file does, building from fundamentals with concrete examples.'); onClose(); } },
       { id: 'c:cookbook', title: 'Models: Open Cookbook', run: run(() => store.setCookbookOpen(true)) },
       { id: 'c:compare', title: 'Models: Blind Compare', run: run(() => store.setCompareOpen(true)) },
       ...THEME_OPTIONS.map((t) => ({ id: 'theme:' + t.value, title: `Color Theme: ${t.label}`, run: run(() => store.setEditorTheme(t.value)) })),
