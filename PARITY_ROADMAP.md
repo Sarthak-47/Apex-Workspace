@@ -89,8 +89,11 @@ Outcome: APEX *feels like* Warp.
   end in preview. ⬜ richer artifacts (diffs/screenshots/recordings) still todo.
 - ⬜ **Agent browser control** — let an agent drive the existing Web Preview to verify its
   own work and capture screenshots.
-- ◐ **Trust / approval model** — tighten the per-action review flow (allowlist, dry-run,
-  diff-before-apply) into a first-class agent trust surface.
+- ◐ **Trust / approval model** — ✅ the terminal AI bar now **guards destructive commands**
+  (rm -rf, git reset --hard / push --force, dd/mkfs, shutdown, fork bomb, DROP TABLE, raw
+  device writes) behind a two-step **Review → Run anyway** confirm with an amber warning that
+  names the risk (heuristic detector, unit-checked across 16 cases). ⬜ still todo: per-command
+  allowlist, dry-run, and a unified first-class trust surface across all agent actions.
 
 Outcome: APEX stops being "VS Code + AI panel" and becomes **agent-first**.
 
