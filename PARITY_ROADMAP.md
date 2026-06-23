@@ -12,7 +12,7 @@ Legend: ✅ done · ◐ partial · ⬜ todo · 🔴 large / deferred · ❌ out 
 
 ---
 
-## Where we are (2026-06-11 / commit 958a4cf)
+## Where we are (2026-06-23 / commit fbe82f1)
 
 The **editor + git + IDE half is essentially complete** — at parity with VS Code and Terax
 minus a few deliberately-skipped pieces.
@@ -44,7 +44,9 @@ Resolution: keep local-first, but make APEX **hybrid by design**.
   amber status-bar privacy indicator when cloud is active.
 - ✅ Clear **privacy indicator** when a request leaves the machine (status bar turns amber
   with the cloud model name).
-- ◐ Per-agent / per-task model selection (global cloud toggle done; per-agent override todo).
+- ✅ Per-agent / per-task model selection — Mission Control's launch form takes an optional
+  model override that pins the model for a single run (falls back to the agent's model, then
+  the selected Ollama model).
 - ⬜ Prompt-caching + run logging for cloud providers (cost + visibility).
 
 Phase 0 is **done enough to unblock Phases 1–3** punching above the local model ceiling.
@@ -55,15 +57,19 @@ Phase 0 is **done enough to unblock Phases 1–3** punching above the local mode
 
 - ⬜ **Block-based terminal** — group each command + its output into a collapsible,
   copyable, re-runnable block (jump between blocks, copy block, re-run).
-- ⬜ **Agent mode in the terminal** — natural-language → proposed command → approve/run,
-  reusing the existing tool-approval flow.
+- ✅ **Agent mode in the terminal** — the terminal AI bar's **Ask** tab turns a
+  natural-language request into a single proposed command, shown for approval (Run / Discard)
+  before it executes — never auto-run. Robust parsing strips fences / prompt markers / extra
+  lines (`suggestCommand`). Verified: bar renders, parse cases pass, build green.
 - ✅ **Workflow library (Warp Drive equiv.)** — Workflows activity-bar view: saved,
   searchable, **parameterized** commands (`{{param}}` → inline input prompts) run in the
   terminal; create/edit/delete, tag chips, 9 seeded dev commands, command-palette "Run
   Workflow: …" entries. Persisted in the store (`workflows.ts`). Verified: param
   substitution (`git checkout -b feature/awesome`), create, search, palette.
-- ◐ **AI command explain/fix** — explain a failed command / suggest a fix inline (builds on
-  the AI panel).
+- ✅ **AI command explain** — the AI bar's **Explain** tab streams a plain-English
+  explanation of any pasted command, flagging destructive/irreversible operations. Read-only;
+  never runs anything (`explainCommand`). Verified: tab toggle + placeholder switch in
+  preview, build green. (Auto-detecting a *failed* command + one-click fix builds on this.)
 
 Outcome: APEX *feels like* Warp.
 
@@ -77,7 +83,10 @@ Outcome: APEX *feels like* Warp.
   running-count **nav badge**, **include-active-file context**, and one-click **Review /
   Explain Current File** (`agentRunner.ts` + store `agentRuns`). v1 is reasoning-only.
 - ◐ **Artifacts** — ✅ fenced **code blocks** in run output surface as copyable artifact
-  chips. ⬜ richer artifacts (diffs/screenshots/recordings) + apply-to-file todo.
+  chips, each with **Apply to file** → switches to the editor and opens the existing
+  diff-review modal staging the artifact against the active file; the user reviews and
+  accepts before anything is written (reuses the diff-gated approval flow). Verified end to
+  end in preview. ⬜ richer artifacts (diffs/screenshots/recordings) still todo.
 - ⬜ **Agent browser control** — let an agent drive the existing Web Preview to verify its
   own work and capture screenshots.
 - ◐ **Trust / approval model** — tighten the per-action review flow (allowlist, dry-run,
