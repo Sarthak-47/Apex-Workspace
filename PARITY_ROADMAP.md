@@ -66,10 +66,12 @@ Phase 0 is **done enough to unblock Phases 1–3** punching above the local mode
   terminal; create/edit/delete, tag chips, 9 seeded dev commands, command-palette "Run
   Workflow: …" entries. Persisted in the store (`workflows.ts`). Verified: param
   substitution (`git checkout -b feature/awesome`), create, search, palette.
-- ✅ **AI command explain** — the AI bar's **Explain** tab streams a plain-English
-  explanation of any pasted command, flagging destructive/irreversible operations. Read-only;
-  never runs anything (`explainCommand`). Verified: tab toggle + placeholder switch in
-  preview, build green. (Auto-detecting a *failed* command + one-click fix builds on this.)
+- ✅ **AI command explain / fix** — the AI bar has **Ask / Explain / Fix** tabs. *Explain*
+  streams a plain-English explanation flagging destructive ops (`explainCommand`, read-only).
+  *Fix* takes a failing command + its error output and proposes one corrected command
+  (`fixCommand`), gated by the same destructive guard before running. Verified in preview;
+  parsing shares the unit-checked `parseSingleCommand`. (Auto-capturing the *last failed*
+  command needs desktop shell integration — still todo.)
 
 Outcome: APEX *feels like* Warp.
 
@@ -82,11 +84,13 @@ Outcome: APEX *feels like* Warp.
   output, cancel / re-run / copy, no-progress timeout, **completion toasts**, a live
   running-count **nav badge**, **include-active-file context**, and one-click **Review /
   Explain Current File** (`agentRunner.ts` + store `agentRuns`). v1 is reasoning-only.
-- ◐ **Artifacts** — ✅ fenced **code blocks** in run output surface as copyable artifact
-  chips, each with **Apply to file** → switches to the editor and opens the existing
-  diff-review modal staging the artifact against the active file; the user reviews and
-  accepts before anything is written (reuses the diff-gated approval flow). Verified end to
-  end in preview. ⬜ richer artifacts (diffs/screenshots/recordings) still todo.
+- ◐ **Artifacts** — ✅ fenced **code blocks** in run output surface as artifact chips with
+  Copy + **Apply** through the diff-review modal (reuses the diff-gated approval flow —
+  reviewed before anything is written). **Filename-aware**: when a block names a target file
+  (fence info ```` ```ts src/foo.ts ```` or a leading path comment), the chip shows that path
+  and Apply opens and targets it; otherwise it applies to the active file. Finished runs also
+  get **Continue in chat** (prefills the AI panel with the run's prompt + output to iterate).
+  All verified end to end in preview. ⬜ richer artifacts (diffs/screenshots/recordings) todo.
 - ⬜ **Agent browser control** — let an agent drive the existing Web Preview to verify its
   own work and capture screenshots.
 - ◐ **Trust / approval model** — ✅ the terminal AI bar now **guards destructive commands**
