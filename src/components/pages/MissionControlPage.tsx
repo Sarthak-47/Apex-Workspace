@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAppStore } from "@/store";
 import { BUILTIN_AGENTS } from "@/lib/agents";
 import { launchAgentRun, cancelAgentRun, type RunStatus } from "@/lib/agentRunner";
@@ -60,7 +60,19 @@ export function MissionControlPage() {
   const [modelOverride, setModelOverride] = useState("");
   const [includeFile, setIncludeFile] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const promptRef = useRef<HTMLTextAreaElement>(null);
   const activeName = activeFile ? activeFile.split(/[\\/]/).pop() : null;
+
+  // Load a past run back into the launcher to tweak before relaunching.
+  const editAndReRun = (r: { agentId: string; prompt: string; model: string }) => {
+    setAgentId(r.agentId);
+    setPrompt(r.prompt);
+    setModelOverride(r.model);
+    requestAnimationFrame(() => {
+      const el = promptRef.current;
+      if (el) { el.focus(); const n = el.value.length; el.setSelectionRange(n, n); el.scrollIntoView({ block: "nearest" }); }
+    });
+  };
 
   const launch = async () => {
     if (!prompt.trim()) return;
@@ -110,7 +122,7 @@ export function MissionControlPage() {
             {allAgents.map((a) => <option key={a.id} value={a.id} style={{ background: "#13131B" }}>{a.name}{a.builtin ? "" : " (custom)"}</option>)}
           </select>
           <input value={modelOverride} onChange={(e) => setModelOverride(e.target.value)} placeholder="Model (optional — overrides the agent's)" style={{ ...inp, fontFamily: '"JetBrains Mono",monospace', fontSize: 11 }} />
-          <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the task for this agent…"
+          <textarea ref={promptRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the task for this agent…"
             onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) launch(); }}
             rows={6} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }} />
           {activeName && (
@@ -163,7 +175,8 @@ export function MissionControlPage() {
                       {r.status === "running"
                         ? <button onClick={() => cancelAgentRun(r.id)} style={{ fontSize: 10.5, color: "#8888A8", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }} className="hover:!text-[#E2776A]">Cancel</button>
                         : <>
-                            <button onClick={() => launchAgentRun(r.agentId, r.prompt)} title="Re-run" style={{ fontSize: 10.5, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "3px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Re-run</button>
+                            <button onClick={() => launchAgentRun(r.agentId, r.prompt)} title="Re-run with the same prompt" style={{ fontSize: 10.5, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "3px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Re-run</button>
+                            <button onClick={() => editAndReRun(r)} title="Load into the launcher to edit and relaunch" style={{ fontSize: 10.5, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "3px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Edit</button>
                             {r.output && r.status === "done" && <button onClick={() => continueInChat(r)} title="Continue this in the AI chat" style={{ fontSize: 10.5, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "3px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Continue in chat</button>}
                             {r.output && <button onClick={() => navigator.clipboard?.writeText(r.output).catch(() => {})} title="Copy output" style={{ color: "#6A6A85", background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0 }} className="hover:!text-[#E2E2EC]"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M2.5 9.5V2.5h7"/></svg></button>}
                             <button onClick={() => removeAgentRun(r.id)} title="Remove" style={{ color: "#6A6A85", background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0 }} className="hover:!text-[#E2776A]"><svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg></button>
