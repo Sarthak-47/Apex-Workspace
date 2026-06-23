@@ -1361,6 +1361,7 @@ export function IntelPanel() {
     bashAllowAlways, addBashAllowAlways,
     contextInjectionEnabled, embedModel,
     mode,
+    pendingChatInput, setPendingChatInput,
   } = useAppStore();
   const { info } = useToast();
 
@@ -1385,6 +1386,17 @@ export function IntelPanel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convKey]);
+
+  // Consume a one-shot chat prefill (e.g. "Continue in chat" from a run).
+  useEffect(() => {
+    if (pendingChatInput == null) return;
+    setInput(pendingChatInput);
+    setPendingChatInput(null);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) { el.focus(); const n = el.value.length; el.setSelectionRange(n, n); }
+    });
+  }, [pendingChatInput, setPendingChatInput]);
 
   // Bash approval gating
   const [pendingBash, setPendingBash] = useState<{ command: string } | null>(null);

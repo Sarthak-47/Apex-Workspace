@@ -53,7 +53,7 @@ function extractCodeBlocks(output: string): { lang: string; code: string; path?:
 }
 
 export function MissionControlPage() {
-  const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline, activeFile, setPendingDiffReview, setAppPage, addToast, openFile } = useAppStore();
+  const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline, activeFile, setPendingDiffReview, setAppPage, addToast, openFile, setIntelTab, setPendingChatInput, intelPanelOpen, toggleIntelPanel } = useAppStore();
   const allAgents = [...BUILTIN_AGENTS, ...userAgents];
   const [agentId, setAgentId] = useState(allAgents[0]?.id ?? "coder");
   const [prompt, setPrompt] = useState("");
@@ -84,6 +84,16 @@ export function MissionControlPage() {
     if (targetPath) openFile(targetPath);
     setAppPage("code");
     setPendingDiffReview({ path, original, proposed: code, mode: "review", originalLabel: "Current", modifiedLabel: "Agent artifact" });
+  };
+
+  // Hand a finished run off to the main AI chat to iterate further. Switches to
+  // the editor, opens the AI panel on the chat tab, and prefills the input.
+  const continueInChat = (r: { prompt: string; output: string; agentName: string }) => {
+    const prefill = `Earlier task for ${r.agentName}:\n${r.prompt}\n\nIts response:\n${r.output}\n\nFollow-up: `;
+    setAppPage("code");
+    if (!intelPanelOpen) toggleIntelPanel();
+    setIntelTab("chat");
+    setPendingChatInput(prefill);
   };
 
   const running = agentRuns.filter((r) => r.status === "running").length;
@@ -154,6 +164,7 @@ export function MissionControlPage() {
                         ? <button onClick={() => cancelAgentRun(r.id)} style={{ fontSize: 10.5, color: "#8888A8", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }} className="hover:!text-[#E2776A]">Cancel</button>
                         : <>
                             <button onClick={() => launchAgentRun(r.agentId, r.prompt)} title="Re-run" style={{ fontSize: 10.5, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "3px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Re-run</button>
+                            {r.output && r.status === "done" && <button onClick={() => continueInChat(r)} title="Continue this in the AI chat" style={{ fontSize: 10.5, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "3px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Continue in chat</button>}
                             {r.output && <button onClick={() => navigator.clipboard?.writeText(r.output).catch(() => {})} title="Copy output" style={{ color: "#6A6A85", background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0 }} className="hover:!text-[#E2E2EC]"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="4" y="4" width="8" height="8" rx="1.5"/><path d="M2.5 9.5V2.5h7"/></svg></button>}
                             <button onClick={() => removeAgentRun(r.id)} title="Remove" style={{ color: "#6A6A85", background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex", flexShrink: 0 }} className="hover:!text-[#E2776A]"><svg width="13" height="13" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg></button>
                           </>}

@@ -161,6 +161,9 @@ interface AppState {
   // Intel panel active tab
   intelTab: "chat" | "knowledge" | "context" | "tasks" | "preview";
   setIntelTab: (tab: "chat" | "knowledge" | "context" | "tasks" | "preview") => void;
+  // One-shot prefill for the AI chat input (e.g. "Continue in chat" from a run).
+  pendingChatInput: string | null;
+  setPendingChatInput: (text: string | null) => void;
 
   // Vim mode
   vimMode: boolean;
@@ -614,6 +617,8 @@ export const useAppStore = create<AppState>()(
       // Intel tab
       intelTab: "chat" as "chat" | "knowledge" | "context" | "tasks" | "preview",
       setIntelTab: (tab) => set({ intelTab: tab }),
+      pendingChatInput: null,
+      setPendingChatInput: (text) => set({ pendingChatInput: text }),
 
       // Vim mode
       vimMode: false,
