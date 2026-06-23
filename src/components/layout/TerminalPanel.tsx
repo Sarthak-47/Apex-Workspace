@@ -7,6 +7,29 @@ import { useAppStore } from "@/store";
 import { isTauri } from "@/lib/tauri";
 import { suggestCommand, explainCommand } from "@/lib/ollama";
 
+// Flag obviously destructive / irreversible commands so the AI bar can demand a
+// second confirmation before running them. Heuristic, not a security boundary —
+// the real guard is that nothing runs without the user clicking Run.
+function destructiveReason(cmd: string): string | null {
+  const c = cmd.trim().toLowerCase();
+  // rm with BOTH a recursive and a force flag, in any order / separate tokens.
+  if (/\brm\b/.test(c)
+      && /(^|\s)-{1,2}[a-z]*r[a-z]*\b|--recursive/.test(c)
+      && /(^|\s)-{1,2}[a-z]*f[a-z]*\b|--force/.test(c)) return "recursive force-delete (rm -rf)";
+  const checks: [RegExp, string][] = [
+    [/\brmdir\s+\/s|\brd\s+\/s/, "recursive directory delete"],
+    [/\bgit\s+(reset\s+--hard|clean\s+-[a-z]*f|push\s+.*--force|push\s+.*-f\b)/, "destructive git operation"],
+    [/\b(mkfs|dd)\b/, "disk-level write (dd / mkfs)"],
+    [/\b(shutdown|reboot|halt)\b/, "system power command"],
+    [/\bchmod\s+-r\b|\bchown\s+-r\b/, "recursive permission change"],
+    [/:\(\)\s*\{.*\|.*&\s*\}\s*;/, "fork bomb"],
+    [/>\s*\/dev\/sd[a-z]/, "raw device overwrite"],
+    [/\bdrop\s+(table|database)\b/, "SQL drop"],
+  ];
+  for (const [re, why] of checks) if (re.test(c)) return why;
+  return null;
+}
+
 // ─── AI command bar — Ask (NL → command → approve/run) or Explain a command ────
 function AiCommandBar({ onClose }: { onClose: () => void }) {
   const { ollamaSelectedModel, ollamaModels, runInTerminal, addToast } = useAppStore();
@@ -15,9 +38,10 @@ function AiCommandBar({ onClose }: { onClose: () => void }) {
   const [proposed, setProposed] = useState<string | null>(null);
   const [explanation, setExplanation] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirmDanger, setConfirmDanger] = useState(false);
   const model = ollamaSelectedModel || ollamaModels[0] || 'qwen2.5-coder:7b';
 
-  const reset = () => { setProposed(null); setExplanation(''); };
+  const reset = () => { setProposed(null); setExplanation(''); setConfirmDanger(false); };
 
   const ask = async () => {
     if (!request.trim() || busy) return;
@@ -34,7 +58,12 @@ function AiCommandBar({ onClose }: { onClose: () => void }) {
     } catch (e) { addToast(`${mode === 'ask' ? 'Suggestion' : 'Explanation'} failed — ${e}`, 'error'); }
     finally { setBusy(false); }
   };
-  const run = () => { if (proposed) { runInTerminal(proposed); reset(); setRequest(''); } };
+  const danger = proposed ? destructiveReason(proposed) : null;
+  const run = () => {
+    if (!proposed) return;
+    if (danger && !confirmDanger) { setConfirmDanger(true); return; }
+    runInTerminal(proposed); reset(); setRequest('');
+  };
   const switchMode = (m: 'ask' | 'explain') => { setMode(m); reset(); };
 
   const inp: React.CSSProperties = { flex: 1, height: 26, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 6, padding: '0 9px', fontSize: 12, color: '#E2E2EC', outline: 'none' };
@@ -52,10 +81,18 @@ function AiCommandBar({ onClose }: { onClose: () => void }) {
         </button>
       </div>
       {proposed && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 6, padding: '6px 9px' }}>
-          <code style={{ flex: 1, fontFamily: '"JetBrains Mono",monospace', fontSize: 12, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{proposed}</code>
-          <button onClick={() => setProposed(null)} style={{ fontSize: 10.5, color: '#8888A8', background: 'none', border: '1px solid #252535', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}>Discard</button>
-          <button onClick={run} title="Run in terminal" style={{ fontSize: 10.5, fontWeight: 600, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 5, padding: '3px 11px', cursor: 'pointer', flexShrink: 0 }}>Run ▸</button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#0A0A0F', border: `1px solid ${danger ? '#5A2A2A' : '#252535'}`, borderRadius: 6, padding: '6px 9px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <code style={{ flex: 1, fontFamily: '"JetBrains Mono",monospace', fontSize: 12, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{proposed}</code>
+            <button onClick={() => setProposed(null)} style={{ fontSize: 10.5, color: '#8888A8', background: 'none', border: '1px solid #252535', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}>Discard</button>
+            <button onClick={run} title={danger ? 'Confirm before running a destructive command' : 'Run in terminal'} style={{ fontSize: 10.5, fontWeight: 600, color: '#fff', background: danger ? (confirmDanger ? '#DC2626' : '#B45309') : 'var(--accent)', border: 'none', borderRadius: 5, padding: '3px 11px', cursor: 'pointer', flexShrink: 0 }}>{danger ? (confirmDanger ? 'Run anyway ▸' : 'Review ▸') : 'Run ▸'}</button>
+          </div>
+          {danger && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, color: '#E2A06A', lineHeight: 1.4 }}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M8 1.5 15 14H1L8 1.5Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.6" r="0.6" fill="currentColor"/></svg>
+              Looks destructive — {danger}.{confirmDanger ? ' Click "Run anyway" to proceed.' : ''}
+            </div>
+          )}
         </div>
       )}
       {explanation && (
