@@ -5,7 +5,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { useAppStore } from "@/store";
 import { isTauri } from "@/lib/tauri";
-import { suggestCommand, explainCommand } from "@/lib/ollama";
+import { suggestCommand, explainCommand, fixCommand } from "@/lib/ollama";
 
 // Flag obviously destructive / irreversible commands so the AI bar can demand a
 // second confirmation before running them. Heuristic, not a security boundary —
@@ -30,11 +30,20 @@ function destructiveReason(cmd: string): string | null {
   return null;
 }
 
-// ─── AI command bar — Ask (NL → command → approve/run) or Explain a command ────
+// ─── AI command bar — Ask (NL → command), Explain a command, or Fix a failure ──
+type AiMode = 'ask' | 'explain' | 'fix';
+const MODE_LABEL: Record<AiMode, string> = { ask: 'Suggest', explain: 'Explain', fix: 'Fix' };
+const MODE_PLACEHOLDER: Record<AiMode, string> = {
+  ask: 'Describe what you want to do (e.g. list files by size)…',
+  explain: 'Paste a command to explain (e.g. rm -rf node_modules)…',
+  fix: 'Paste the command that failed…',
+};
+
 function AiCommandBar({ onClose }: { onClose: () => void }) {
   const { ollamaSelectedModel, ollamaModels, runInTerminal, addToast } = useAppStore();
-  const [mode, setMode] = useState<'ask' | 'explain'>('ask');
+  const [mode, setMode] = useState<AiMode>('ask');
   const [request, setRequest] = useState('');
+  const [errorText, setErrorText] = useState('');
   const [proposed, setProposed] = useState<string | null>(null);
   const [explanation, setExplanation] = useState('');
   const [busy, setBusy] = useState(false);
@@ -50,21 +59,24 @@ function AiCommandBar({ onClose }: { onClose: () => void }) {
       if (mode === 'ask') {
         const cmd = await suggestCommand(request.trim(), model);
         if (cmd) setProposed(cmd); else addToast('No command suggested', 'error');
+      } else if (mode === 'fix') {
+        const cmd = await fixCommand(request.trim(), errorText.trim(), model);
+        if (cmd) setProposed(cmd); else addToast('No fix suggested', 'error');
       } else {
         let acc = '';
         for await (const chunk of explainCommand(request.trim(), model)) { acc += chunk; setExplanation(acc); }
         if (!acc.trim()) addToast('No explanation returned', 'error');
       }
-    } catch (e) { addToast(`${mode === 'ask' ? 'Suggestion' : 'Explanation'} failed — ${e}`, 'error'); }
+    } catch (e) { addToast(`${MODE_LABEL[mode]} failed — ${e}`, 'error'); }
     finally { setBusy(false); }
   };
   const danger = proposed ? destructiveReason(proposed) : null;
   const run = () => {
     if (!proposed) return;
     if (danger && !confirmDanger) { setConfirmDanger(true); return; }
-    runInTerminal(proposed); reset(); setRequest('');
+    runInTerminal(proposed); reset(); setRequest(''); setErrorText('');
   };
-  const switchMode = (m: 'ask' | 'explain') => { setMode(m); reset(); };
+  const switchMode = (m: AiMode) => { setMode(m); reset(); };
 
   const inp: React.CSSProperties = { flex: 1, height: 26, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 6, padding: '0 9px', fontSize: 12, color: '#E2E2EC', outline: 'none' };
   const tab = (active: boolean): React.CSSProperties => ({ height: 22, padding: '0 9px', borderRadius: 5, fontSize: 10.5, cursor: 'pointer', background: active ? '#1A1A3A' : 'none', border: active ? '1px solid #6366F140' : '1px solid #252535', color: active ? 'var(--accent)' : '#8888A8', flexShrink: 0 });
@@ -73,13 +85,19 @@ function AiCommandBar({ onClose }: { onClose: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <button onClick={() => switchMode('ask')} style={tab(mode === 'ask')}>Ask</button>
         <button onClick={() => switchMode('explain')} style={tab(mode === 'explain')}>Explain</button>
+        <button onClick={() => switchMode('fix')} style={tab(mode === 'fix')}>Fix</button>
         <input autoFocus value={request} onChange={e => setRequest(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') ask(); if (e.key === 'Escape') onClose(); }}
-          placeholder={mode === 'ask' ? 'Describe what you want to do (e.g. list files by size)…' : 'Paste a command to explain (e.g. rm -rf node_modules)…'} style={inp} />
-        <button onClick={ask} disabled={busy || !request.trim()} style={{ height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11, cursor: busy || !request.trim() ? 'default' : 'pointer', background: '#13131B', border: '1px solid #6366F140', color: busy ? '#4A4A65' : 'var(--accent)', flexShrink: 0 }}>{busy ? '…' : mode === 'ask' ? 'Suggest' : 'Explain'}</button>
+          placeholder={MODE_PLACEHOLDER[mode]} style={inp} />
+        <button onClick={ask} disabled={busy || !request.trim()} style={{ height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11, cursor: busy || !request.trim() ? 'default' : 'pointer', background: '#13131B', border: '1px solid #6366F140', color: busy ? '#4A4A65' : 'var(--accent)', flexShrink: 0 }}>{busy ? '…' : MODE_LABEL[mode]}</button>
         <button onClick={onClose} title="Close" style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: '#6A6A85', flexShrink: 0 }} className="hover:!text-[#E2E2EC]">
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9"/><line x1="9" y1="2" x2="2" y2="9"/></svg>
         </button>
       </div>
+      {mode === 'fix' && (
+        <textarea value={errorText} onChange={e => setErrorText(e.target.value)} rows={2}
+          placeholder="Paste the error output (optional — helps a lot)…"
+          style={{ ...inp, flex: 'unset', height: 'auto', padding: '6px 9px', fontFamily: '"JetBrains Mono",monospace', fontSize: 11, lineHeight: 1.5, resize: 'vertical' }} />
+      )}
       {proposed && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#0A0A0F', border: `1px solid ${danger ? '#5A2A2A' : '#252535'}`, borderRadius: 6, padding: '6px 9px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

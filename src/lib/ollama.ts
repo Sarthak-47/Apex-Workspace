@@ -192,6 +192,15 @@ export async function* streamChatOpenAI(
   }
 }
 
+/** Pull a single runnable command line out of a model reply — strips code
+ *  fences, a leading `$` prompt marker, and any trailing extra lines. */
+export function parseSingleCommand(out: string): string {
+  let s = out.trim();
+  const fence = s.match(/```[\w]*\n?([\s\S]*?)```/);
+  if (fence) s = fence[1];
+  return s.replace(/^\s*\$\s*/, '').trim().split('\n')[0].trim();
+}
+
 /** Turn a natural-language request into a single shell command (no execution). */
 export async function suggestCommand(request: string, model: string, signal?: AbortSignal): Promise<string> {
   const sys = `You translate a natural-language request into ONE shell command.
@@ -201,11 +210,23 @@ If unsure, output the closest single command. One line only.`;
   for await (const chunk of streamChat(model, [{ role: 'system', content: sys }, { role: 'user', content: request }], signal)) {
     out += chunk;
   }
-  // Strip fences / prompt markers / extra lines — keep the first command line.
-  let s = out.trim();
-  const fence = s.match(/```[\w]*\n?([\s\S]*?)```/);
-  if (fence) s = fence[1];
-  return s.replace(/^\s*\$\s*/, '').trim().split('\n')[0].trim();
+  return parseSingleCommand(out);
+}
+
+/** Given a command that failed (and optionally its error output), propose a
+ *  single corrected command. Output only — never executed. */
+export async function fixCommand(command: string, error: string, model: string, signal?: AbortSignal): Promise<string> {
+  const sys = `A shell command failed. Output ONE corrected command that fixes the problem.
+Output ONLY the command — no explanation, no markdown, no backticks, no leading $.
+Keep the user's intent; fix typos, wrong flags, missing args, or wrong tool. One line only.`;
+  const user = error.trim()
+    ? `Command:\n${command}\n\nError:\n${error}`
+    : `Command:\n${command}`;
+  let out = '';
+  for await (const chunk of streamChat(model, [{ role: 'system', content: sys }, { role: 'user', content: user }], signal)) {
+    out += chunk;
+  }
+  return parseSingleCommand(out);
 }
 
 /** Explain what a shell command does, in plain English. Streams the
