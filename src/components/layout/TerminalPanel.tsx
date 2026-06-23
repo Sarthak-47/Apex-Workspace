@@ -5,6 +5,49 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { useAppStore } from "@/store";
 import { isTauri } from "@/lib/tauri";
+import { suggestCommand } from "@/lib/ollama";
+
+// ─── AI command bar — natural language → proposed shell command → approve/run ──
+function AiCommandBar({ onClose }: { onClose: () => void }) {
+  const { ollamaSelectedModel, ollamaModels, runInTerminal, addToast } = useAppStore();
+  const [request, setRequest] = useState('');
+  const [proposed, setProposed] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const ask = async () => {
+    if (!request.trim() || busy) return;
+    setBusy(true); setProposed(null);
+    try {
+      const model = ollamaSelectedModel || ollamaModels[0] || 'qwen2.5-coder:7b';
+      const cmd = await suggestCommand(request.trim(), model);
+      if (cmd) setProposed(cmd); else addToast('No command suggested', 'error');
+    } catch (e) { addToast(`Suggestion failed — ${e}`, 'error'); }
+    finally { setBusy(false); }
+  };
+  const run = () => { if (proposed) { runInTerminal(proposed); setProposed(null); setRequest(''); } };
+
+  const inp: React.CSSProperties = { flex: 1, height: 26, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 6, padding: '0 9px', fontSize: 12, color: '#E2E2EC', outline: 'none' };
+  return (
+    <div style={{ borderBottom: '1px solid #1A1A28', background: '#0C0C13', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 11, color: 'var(--accent)', flexShrink: 0 }}>✨ Ask</span>
+        <input autoFocus value={request} onChange={e => setRequest(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') ask(); if (e.key === 'Escape') onClose(); }}
+          placeholder="Describe what you want to do (e.g. list files by size)…" style={inp} />
+        <button onClick={ask} disabled={busy || !request.trim()} style={{ height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11, cursor: busy || !request.trim() ? 'default' : 'pointer', background: '#13131B', border: '1px solid #6366F140', color: busy ? '#4A4A65' : 'var(--accent)', flexShrink: 0 }}>{busy ? '…' : 'Suggest'}</button>
+        <button onClick={onClose} title="Close" style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: '#6A6A85', flexShrink: 0 }} className="hover:!text-[#E2E2EC]">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9"/><line x1="9" y1="2" x2="2" y2="9"/></svg>
+        </button>
+      </div>
+      {proposed && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 6, padding: '6px 9px' }}>
+          <code style={{ flex: 1, fontFamily: '"JetBrains Mono",monospace', fontSize: 12, color: '#E2E2EC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{proposed}</code>
+          <button onClick={() => setProposed(null)} style={{ fontSize: 10.5, color: '#8888A8', background: 'none', border: '1px solid #252535', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}>Discard</button>
+          <button onClick={run} title="Run in terminal" style={{ fontSize: 10.5, fontWeight: 600, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 5, padding: '3px 11px', cursor: 'pointer', flexShrink: 0 }}>Run ▸</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── xterm theme ──────────────────────────────────────────────────────────────
 const APEX_THEME = {
@@ -341,6 +384,7 @@ export function TerminalPanel() {
 
   const [tabs, setTabs]         = useState<TermTab[]>([{ id: 'tab-0', label: isTauri() ? 'shell' : 'mock', panes: 1 }]);
   const [activeTabId, setActive] = useState('tab-0');
+  const [aiBarOpen, setAiBarOpen] = useState(false);
   const counter = useRef(1);
 
   const addTab = useCallback(() => {
@@ -441,6 +485,13 @@ export function TerminalPanel() {
 
         <div style={{ flex: 1 }} />
 
+        {/* AI command bar toggle */}
+        <button onClick={() => setAiBarOpen(o => !o)} title="Ask AI for a command (natural language → shell)"
+          style={{ height: 24, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4, borderRadius: 4, background: aiBarOpen ? '#1A1A3A' : 'none', border: aiBarOpen ? '1px solid #6366F140' : '1px solid transparent', cursor: 'pointer', color: aiBarOpen ? 'var(--accent)' : '#4A4A65', flexShrink: 0, fontSize: 11 }}
+          className={!aiBarOpen ? 'hover:!text-[#E2E2EC] hover:!bg-[#18181F] transition-colors' : ''}>
+          ✨ Ask
+        </button>
+
         {/* Split terminal */}
         <button onClick={splitActive} title="Split terminal (side by side)"
           style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4, background: 'none', border: 'none', cursor: 'pointer', color: '#4A4A65', flexShrink: 0 }}
@@ -459,6 +510,9 @@ export function TerminalPanel() {
           </svg>
         </button>
       </div>
+
+      {/* ── AI command bar ─────────────────────────────────────────────────── */}
+      {aiBarOpen && <AiCommandBar onClose={() => setAiBarOpen(false)} />}
 
       {/* ── Terminal panes (all mounted, show/hide with CSS) ───────────────── */}
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>

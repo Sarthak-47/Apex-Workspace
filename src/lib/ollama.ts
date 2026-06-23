@@ -192,6 +192,22 @@ export async function* streamChatOpenAI(
   }
 }
 
+/** Turn a natural-language request into a single shell command (no execution). */
+export async function suggestCommand(request: string, model: string, signal?: AbortSignal): Promise<string> {
+  const sys = `You translate a natural-language request into ONE shell command.
+Output ONLY the command — no explanation, no markdown, no backticks, no leading $.
+If unsure, output the closest single command. One line only.`;
+  let out = '';
+  for await (const chunk of streamChat(model, [{ role: 'system', content: sys }, { role: 'user', content: request }], signal)) {
+    out += chunk;
+  }
+  // Strip fences / prompt markers / extra lines — keep the first command line.
+  let s = out.trim();
+  const fence = s.match(/```[\w]*\n?([\s\S]*?)```/);
+  if (fence) s = fence[1];
+  return s.replace(/^\s*\$\s*/, '').trim().split('\n')[0].trim();
+}
+
 export async function* streamChat(
   model: string,
   messages: ChatMessage[],
