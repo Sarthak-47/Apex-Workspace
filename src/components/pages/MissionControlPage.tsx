@@ -30,7 +30,7 @@ function extractCodeBlocks(output: string): { lang: string; code: string }[] {
 }
 
 export function MissionControlPage() {
-  const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline, activeFile } = useAppStore();
+  const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline, activeFile, setPendingDiffReview, setAppPage, addToast } = useAppStore();
   const allAgents = [...BUILTIN_AGENTS, ...userAgents];
   const [agentId, setAgentId] = useState(allAgents[0]?.id ?? "coder");
   const [prompt, setPrompt] = useState("");
@@ -50,6 +50,15 @@ export function MissionControlPage() {
     setPrompt("");
   };
   const toggle = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // Apply an artifact to the active file via the diff-review approval modal.
+  // Switches back to the editor so the staged edit lands when accepted.
+  const applyArtifact = async (code: string) => {
+    if (!activeFile) { addToast("Open a file in the editor to apply an artifact", "error"); return; }
+    const original = await readFile(activeFile).catch(() => "");
+    setAppPage("code");
+    setPendingDiffReview({ path: activeFile, original, proposed: code, mode: "review", originalLabel: "Current", modifiedLabel: "Agent artifact" });
+  };
 
   const running = agentRuns.filter((r) => r.status === "running").length;
   const inp: React.CSSProperties = { width: "100%", background: "#0A0A0F", border: "1px solid #252535", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "#E2E2EC", outline: "none" };
@@ -141,6 +150,7 @@ export function MissionControlPage() {
                             <div key={bi} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#9A9AB5" }}>
                               <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="var(--accent)" strokeWidth="1.3" style={{ flexShrink: 0 }}><polyline points="4,3 1.5,7 4,11"/><polyline points="10,3 12.5,7 10,11"/></svg>
                               <span style={{ flex: 1, fontFamily: '"JetBrains Mono",monospace', fontSize: 10.5 }}>{b.lang} · {b.code.split("\n").length} line{b.code.split("\n").length === 1 ? "" : "s"}</span>
+                              {activeFile && <button onClick={() => applyArtifact(b.code)} title={`Apply to ${activeName} (review first)`} style={{ fontSize: 10, color: "var(--accent)", background: "#1A1A3A", border: "1px solid #6366F130", borderRadius: 5, padding: "2px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!bg-[#252550]">Apply to file</button>}
                               <button onClick={() => navigator.clipboard?.writeText(b.code).catch(() => {})} style={{ fontSize: 10, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "2px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Copy</button>
                             </div>
                           ))}
