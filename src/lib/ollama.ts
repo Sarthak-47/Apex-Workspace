@@ -208,6 +208,15 @@ If unsure, output the closest single command. One line only.`;
   return s.replace(/^\s*\$\s*/, '').trim().split('\n')[0].trim();
 }
 
+/** Explain what a shell command does, in plain English. Streams the
+ *  explanation so callers can render it as it arrives. Never executes anything. */
+export async function* explainCommand(command: string, model: string, signal?: AbortSignal): AsyncGenerator<string, void, unknown> {
+  const sys = `You explain shell commands in plain English, concisely.
+Describe what the command does and flag anything destructive or irreversible.
+No code fences. A few short sentences or bullet lines — no preamble.`;
+  yield* streamChat(model, [{ role: 'system', content: sys }, { role: 'user', content: command }], signal);
+}
+
 export async function* streamChat(
   model: string,
   messages: ChatMessage[],

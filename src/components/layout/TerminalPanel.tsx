@@ -5,35 +5,48 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { useAppStore } from "@/store";
 import { isTauri } from "@/lib/tauri";
-import { suggestCommand } from "@/lib/ollama";
+import { suggestCommand, explainCommand } from "@/lib/ollama";
 
-// ─── AI command bar — natural language → proposed shell command → approve/run ──
+// ─── AI command bar — Ask (NL → command → approve/run) or Explain a command ────
 function AiCommandBar({ onClose }: { onClose: () => void }) {
   const { ollamaSelectedModel, ollamaModels, runInTerminal, addToast } = useAppStore();
+  const [mode, setMode] = useState<'ask' | 'explain'>('ask');
   const [request, setRequest] = useState('');
   const [proposed, setProposed] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState('');
   const [busy, setBusy] = useState(false);
+  const model = ollamaSelectedModel || ollamaModels[0] || 'qwen2.5-coder:7b';
+
+  const reset = () => { setProposed(null); setExplanation(''); };
 
   const ask = async () => {
     if (!request.trim() || busy) return;
-    setBusy(true); setProposed(null);
+    setBusy(true); reset();
     try {
-      const model = ollamaSelectedModel || ollamaModels[0] || 'qwen2.5-coder:7b';
-      const cmd = await suggestCommand(request.trim(), model);
-      if (cmd) setProposed(cmd); else addToast('No command suggested', 'error');
-    } catch (e) { addToast(`Suggestion failed — ${e}`, 'error'); }
+      if (mode === 'ask') {
+        const cmd = await suggestCommand(request.trim(), model);
+        if (cmd) setProposed(cmd); else addToast('No command suggested', 'error');
+      } else {
+        let acc = '';
+        for await (const chunk of explainCommand(request.trim(), model)) { acc += chunk; setExplanation(acc); }
+        if (!acc.trim()) addToast('No explanation returned', 'error');
+      }
+    } catch (e) { addToast(`${mode === 'ask' ? 'Suggestion' : 'Explanation'} failed — ${e}`, 'error'); }
     finally { setBusy(false); }
   };
-  const run = () => { if (proposed) { runInTerminal(proposed); setProposed(null); setRequest(''); } };
+  const run = () => { if (proposed) { runInTerminal(proposed); reset(); setRequest(''); } };
+  const switchMode = (m: 'ask' | 'explain') => { setMode(m); reset(); };
 
   const inp: React.CSSProperties = { flex: 1, height: 26, background: '#0A0A0F', border: '1px solid #252535', borderRadius: 6, padding: '0 9px', fontSize: 12, color: '#E2E2EC', outline: 'none' };
+  const tab = (active: boolean): React.CSSProperties => ({ height: 22, padding: '0 9px', borderRadius: 5, fontSize: 10.5, cursor: 'pointer', background: active ? '#1A1A3A' : 'none', border: active ? '1px solid #6366F140' : '1px solid #252535', color: active ? 'var(--accent)' : '#8888A8', flexShrink: 0 });
   return (
     <div style={{ borderBottom: '1px solid #1A1A28', background: '#0C0C13', padding: '7px 10px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 11, color: 'var(--accent)', flexShrink: 0 }}>✨ Ask</span>
+        <button onClick={() => switchMode('ask')} style={tab(mode === 'ask')}>Ask</button>
+        <button onClick={() => switchMode('explain')} style={tab(mode === 'explain')}>Explain</button>
         <input autoFocus value={request} onChange={e => setRequest(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') ask(); if (e.key === 'Escape') onClose(); }}
-          placeholder="Describe what you want to do (e.g. list files by size)…" style={inp} />
-        <button onClick={ask} disabled={busy || !request.trim()} style={{ height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11, cursor: busy || !request.trim() ? 'default' : 'pointer', background: '#13131B', border: '1px solid #6366F140', color: busy ? '#4A4A65' : 'var(--accent)', flexShrink: 0 }}>{busy ? '…' : 'Suggest'}</button>
+          placeholder={mode === 'ask' ? 'Describe what you want to do (e.g. list files by size)…' : 'Paste a command to explain (e.g. rm -rf node_modules)…'} style={inp} />
+        <button onClick={ask} disabled={busy || !request.trim()} style={{ height: 26, padding: '0 11px', borderRadius: 6, fontSize: 11, cursor: busy || !request.trim() ? 'default' : 'pointer', background: '#13131B', border: '1px solid #6366F140', color: busy ? '#4A4A65' : 'var(--accent)', flexShrink: 0 }}>{busy ? '…' : mode === 'ask' ? 'Suggest' : 'Explain'}</button>
         <button onClick={onClose} title="Close" style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: '#6A6A85', flexShrink: 0 }} className="hover:!text-[#E2E2EC]">
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><line x1="2" y1="2" x2="9" y2="9"/><line x1="9" y1="2" x2="2" y2="9"/></svg>
         </button>
@@ -44,6 +57,9 @@ function AiCommandBar({ onClose }: { onClose: () => void }) {
           <button onClick={() => setProposed(null)} style={{ fontSize: 10.5, color: '#8888A8', background: 'none', border: '1px solid #252535', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}>Discard</button>
           <button onClick={run} title="Run in terminal" style={{ fontSize: 10.5, fontWeight: 600, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 5, padding: '3px 11px', cursor: 'pointer', flexShrink: 0 }}>Run ▸</button>
         </div>
+      )}
+      {explanation && (
+        <div style={{ background: '#0A0A0F', border: '1px solid #252535', borderRadius: 6, padding: '7px 10px', fontSize: 11.5, lineHeight: 1.6, color: '#B8B8CC', whiteSpace: 'pre-wrap', maxHeight: 160, overflowY: 'auto' }}>{explanation}</div>
       )}
     </div>
   );
