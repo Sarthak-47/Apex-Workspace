@@ -33,7 +33,9 @@ Every other AI coding tool starts every session from zero. It doesn't know why y
 
 **AI agent** — chat with local models, Plan mode, 5 built-in agents (Coder / Reviewer / Explainer / Debugger / Test Writer) plus custom agents (per-agent model + tools), file read/write/edit/search tools with diff-gated approval, approval-gated bash, `@file` / `@folder` / `@symbol` / `@person` mentions.
 
-**Mission Control** — launch agent tasks that stream in the **background**; multiple run **concurrently** with live status, streamed output, cancel / re-run / copy, and a running-count badge. (Reasoning-only for now — file edits & shell stay in chat with approval.)
+**Mission Control** — launch agent tasks that stream in the **background**; multiple run **concurrently** with live status, streamed output, cancel / re-run / copy, an optional **per-run model override**, and a running-count badge. Code blocks in an agent's output surface as **artifacts** with one-click **Apply to file** (staged through the diff-review modal — you approve before anything is written).
+
+**Terminal AI** — an **Ask / Explain** bar in the integrated terminal: describe a task in natural language and get a single proposed command to approve and run (never auto-executed), or paste any command for a plain-English **explanation** that flags destructive operations. All local.
 
 **Hybrid models** — local Ollama by default; an optional, off-by-default **cloud lane** (OpenRouter / OpenAI / Groq / Together / any OpenAI-compatible API) for chat and agent runs. API keys live in the **OS keyring**, never on disk; an amber status-bar indicator shows whenever a request would leave your machine.
 
