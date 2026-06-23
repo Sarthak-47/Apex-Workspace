@@ -34,6 +34,7 @@ export function MissionControlPage() {
   const allAgents = [...BUILTIN_AGENTS, ...userAgents];
   const [agentId, setAgentId] = useState(allAgents[0]?.id ?? "coder");
   const [prompt, setPrompt] = useState("");
+  const [modelOverride, setModelOverride] = useState("");
   const [includeFile, setIncludeFile] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const activeName = activeFile ? activeFile.split(/[\\/]/).pop() : null;
@@ -45,7 +46,7 @@ export function MissionControlPage() {
       const content = await readFile(activeFile).catch(() => "");
       if (content) p = `File \`${activeFile}\`:\n\n\`\`\`\n${content}\n\`\`\`\n\n${p}`;
     }
-    launchAgentRun(agentId, p);
+    launchAgentRun(agentId, p, modelOverride);
     setPrompt("");
   };
   const toggle = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -63,6 +64,7 @@ export function MissionControlPage() {
           <select value={agentId} onChange={(e) => setAgentId(e.target.value)} style={inp}>
             {allAgents.map((a) => <option key={a.id} value={a.id} style={{ background: "#13131B" }}>{a.name}{a.builtin ? "" : " (custom)"}</option>)}
           </select>
+          <input value={modelOverride} onChange={(e) => setModelOverride(e.target.value)} placeholder="Model (optional — overrides the agent's)" style={{ ...inp, fontFamily: '"JetBrains Mono",monospace', fontSize: 11 }} />
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the task for this agent…"
             onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) launch(); }}
             rows={6} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }} />

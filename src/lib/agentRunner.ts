@@ -30,11 +30,12 @@ function newId(): string {
   try { return crypto.randomUUID(); } catch { return `run_${Date.now()}_${Math.random().toString(36).slice(2)}`; }
 }
 
-/** Launch an agent task in the background. Returns the run id. */
-export function launchAgentRun(agentId: string, prompt: string): string {
+/** Launch an agent task in the background. Returns the run id.
+ *  `modelOverride` pins the model for this one run (per-task selection). */
+export function launchAgentRun(agentId: string, prompt: string, modelOverride?: string): string {
   const store = useAppStore.getState();
   const agent = getAgentById(agentId, store.userAgents);
-  const model = agent.model || store.ollamaSelectedModel || "qwen2.5-coder:7b";
+  const model = (modelOverride && modelOverride.trim()) || agent.model || store.ollamaSelectedModel || "qwen2.5-coder:7b";
   const id = newId();
 
   store.addAgentRun({
