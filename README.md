@@ -51,8 +51,8 @@ Grab the latest Windows build from the [**Releases**](https://github.com/Sarthak
 
 | Installer | Notes |
 |---|---|
-| [`APEX_0.3.0_x64-setup.exe`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | NSIS installer (recommended) |
-| [`APEX_0.3.0_x64_en-US.msi`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | MSI for managed/enterprise installs |
+| [`APEX_0.3.1_x64-setup.exe`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | NSIS installer (recommended) |
+| [`APEX_0.3.1_x64_en-US.msi`](https://github.com/Sarthak-47/Apex-Workspace/releases/latest) | MSI for managed/enterprise installs |
 
 The app is unsigned, so Windows SmartScreen may warn on first launch — choose **More info → Run anyway**. APEX still needs [Ollama](https://ollama.com) running locally (see Prerequisites below).
 
