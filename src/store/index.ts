@@ -164,6 +164,11 @@ interface AppState {
   // One-shot prefill for the AI chat input (e.g. "Continue in chat" from a run).
   pendingChatInput: string | null;
   setPendingChatInput: (text: string | null) => void;
+  // Terminal AI bar (Ask/Explain/Fix). null = closed. Driven by the toggle and
+  // the command palette so it can be opened directly in a given mode.
+  terminalAiBar: "ask" | "explain" | "fix" | null;
+  openTerminalAi: (mode: "ask" | "explain" | "fix") => void;
+  closeTerminalAi: () => void;
 
   // Vim mode
   vimMode: boolean;
@@ -619,6 +624,9 @@ export const useAppStore = create<AppState>()(
       setIntelTab: (tab) => set({ intelTab: tab }),
       pendingChatInput: null,
       setPendingChatInput: (text) => set({ pendingChatInput: text }),
+      terminalAiBar: null,
+      openTerminalAi: (mode) => set({ terminalAiBar: mode, terminalOpen: true, appPage: "code" }),
+      closeTerminalAi: () => set({ terminalAiBar: null }),
 
       // Vim mode
       vimMode: false,

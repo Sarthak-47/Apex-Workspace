@@ -39,9 +39,9 @@ const MODE_PLACEHOLDER: Record<AiMode, string> = {
   fix: 'Paste the command that failed…',
 };
 
-function AiCommandBar({ onClose }: { onClose: () => void }) {
+function AiCommandBar({ onClose, initialMode = 'ask' }: { onClose: () => void; initialMode?: AiMode }) {
   const { ollamaSelectedModel, ollamaModels, runInTerminal, addToast } = useAppStore();
-  const [mode, setMode] = useState<AiMode>('ask');
+  const [mode, setMode] = useState<AiMode>(initialMode);
   const [request, setRequest] = useState('');
   const [errorText, setErrorText] = useState('');
   const [proposed, setProposed] = useState<string | null>(null);
@@ -451,11 +451,11 @@ interface TermTab { id: string; label: string; panes: number }
 // ─── TerminalPanel ────────────────────────────────────────────────────────────
 
 export function TerminalPanel() {
-  const { terminalOpen, toggleTerminal, terminalHeight, setTerminalHeight, workspacePath } = useAppStore();
+  const { terminalOpen, toggleTerminal, terminalHeight, setTerminalHeight, workspacePath, terminalAiBar, openTerminalAi, closeTerminalAi } = useAppStore();
+  const aiBarOpen = terminalAiBar !== null;
 
   const [tabs, setTabs]         = useState<TermTab[]>([{ id: 'tab-0', label: isTauri() ? 'shell' : 'mock', panes: 1 }]);
   const [activeTabId, setActive] = useState('tab-0');
-  const [aiBarOpen, setAiBarOpen] = useState(false);
   const counter = useRef(1);
 
   const addTab = useCallback(() => {
@@ -557,7 +557,7 @@ export function TerminalPanel() {
         <div style={{ flex: 1 }} />
 
         {/* AI command bar toggle */}
-        <button onClick={() => setAiBarOpen(o => !o)} title="Ask AI for a command (natural language → shell)"
+        <button onClick={() => aiBarOpen ? closeTerminalAi() : openTerminalAi('ask')} title="Ask AI for a command (natural language → shell)"
           style={{ height: 24, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4, borderRadius: 4, background: aiBarOpen ? '#1A1A3A' : 'none', border: aiBarOpen ? '1px solid #6366F140' : '1px solid transparent', cursor: 'pointer', color: aiBarOpen ? 'var(--accent)' : '#4A4A65', flexShrink: 0, fontSize: 11 }}
           className={!aiBarOpen ? 'hover:!text-[#E2E2EC] hover:!bg-[#18181F] transition-colors' : ''}>
           ✨ Ask
@@ -583,7 +583,7 @@ export function TerminalPanel() {
       </div>
 
       {/* ── AI command bar ─────────────────────────────────────────────────── */}
-      {aiBarOpen && <AiCommandBar onClose={() => setAiBarOpen(false)} />}
+      {terminalAiBar && <AiCommandBar key={terminalAiBar} initialMode={terminalAiBar} onClose={closeTerminalAi} />}
 
       {/* ── Terminal panes (all mounted, show/hide with CSS) ───────────────── */}
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
