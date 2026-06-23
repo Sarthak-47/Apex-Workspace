@@ -20,17 +20,40 @@ function relTime(ms: number): string {
   return `${Math.floor(s / 3600)}h ago`;
 }
 
+// A path-like token: has an extension, no spaces, optional dirs. e.g. src/foo.ts
+const PATH_RE = /^[\w./@-]+\/[\w.-]+\.\w+$|^[\w.-]+\.\w+$/;
+
+// Detect a target file path for an artifact, from the fence info string
+// (```ts src/foo.ts  /  ```ts:src/foo.ts) or a leading path comment in the code
+// (// src/foo.ts  /  # path  /  <!-- path -->).
+export function detectArtifactPath(info: string, code: string): string | undefined {
+  const infoTokens = info.trim().split(/[\s:]+/).filter(Boolean);
+  for (const tok of infoTokens) if (PATH_RE.test(tok)) return tok;
+  const first = code.split("\n")[0].trim();
+  const cm = first.match(/^(?:\/\/|#|;|--)\s*(.+?)\s*$|^<!--\s*(.+?)\s*-->$|^\/\*\s*(.+?)\s*\*\/$/);
+  const cand = cm && (cm[1] || cm[2] || cm[3]);
+  if (cand && PATH_RE.test(cand.trim())) return cand.trim();
+  return undefined;
+}
+
 // Fenced code blocks in an agent's output become copyable "artifacts".
-function extractCodeBlocks(output: string): { lang: string; code: string }[] {
-  const out: { lang: string; code: string }[] = [];
-  const re = /```(\w*)\n([\s\S]*?)```/g;
+function extractCodeBlocks(output: string): { lang: string; code: string; path?: string }[] {
+  const out: { lang: string; code: string; path?: string }[] = [];
+  const re = /```([^\n]*)\n([\s\S]*?)```/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(output))) { const code = m[2].replace(/\n$/, ""); if (code.trim()) out.push({ lang: m[1] || "text", code }); }
+  while ((m = re.exec(output))) {
+    const info = m[1] || "";
+    const code = m[2].replace(/\n$/, "");
+    if (!code.trim()) continue;
+    const tok0 = info.trim().split(/[\s:]+/)[0] || "";
+    const lang = tok0 && !PATH_RE.test(tok0) ? tok0 : "text";
+    out.push({ lang, code, path: detectArtifactPath(info, code) });
+  }
   return out;
 }
 
 export function MissionControlPage() {
-  const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline, activeFile, setPendingDiffReview, setAppPage, addToast } = useAppStore();
+  const { agentRuns, userAgents, removeAgentRun, clearAgentRuns, ollamaOnline, activeFile, setPendingDiffReview, setAppPage, addToast, openFile } = useAppStore();
   const allAgents = [...BUILTIN_AGENTS, ...userAgents];
   const [agentId, setAgentId] = useState(allAgents[0]?.id ?? "coder");
   const [prompt, setPrompt] = useState("");
@@ -51,13 +74,16 @@ export function MissionControlPage() {
   };
   const toggle = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  // Apply an artifact to the active file via the diff-review approval modal.
-  // Switches back to the editor so the staged edit lands when accepted.
-  const applyArtifact = async (code: string) => {
-    if (!activeFile) { addToast("Open a file in the editor to apply an artifact", "error"); return; }
-    const original = await readFile(activeFile).catch(() => "");
+  // Apply an artifact through the diff-review approval modal. Targets the
+  // artifact's detected file path when present (opening it first), otherwise the
+  // active file. Switches to the editor so the staged edit lands when accepted.
+  const applyArtifact = async (code: string, targetPath?: string) => {
+    const path = targetPath || activeFile;
+    if (!path) { addToast("Open a file in the editor to apply an artifact", "error"); return; }
+    const original = await readFile(path).catch(() => "");
+    if (targetPath) openFile(targetPath);
     setAppPage("code");
-    setPendingDiffReview({ path: activeFile, original, proposed: code, mode: "review", originalLabel: "Current", modifiedLabel: "Agent artifact" });
+    setPendingDiffReview({ path, original, proposed: code, mode: "review", originalLabel: "Current", modifiedLabel: "Agent artifact" });
   };
 
   const running = agentRuns.filter((r) => r.status === "running").length;
@@ -149,8 +175,12 @@ export function MissionControlPage() {
                           {blocks.map((b, bi) => (
                             <div key={bi} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#9A9AB5" }}>
                               <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="var(--accent)" strokeWidth="1.3" style={{ flexShrink: 0 }}><polyline points="4,3 1.5,7 4,11"/><polyline points="10,3 12.5,7 10,11"/></svg>
-                              <span style={{ flex: 1, fontFamily: '"JetBrains Mono",monospace', fontSize: 10.5 }}>{b.lang} · {b.code.split("\n").length} line{b.code.split("\n").length === 1 ? "" : "s"}</span>
-                              {activeFile && <button onClick={() => applyArtifact(b.code)} title={`Apply to ${activeName} (review first)`} style={{ fontSize: 10, color: "var(--accent)", background: "#1A1A3A", border: "1px solid #6366F130", borderRadius: 5, padding: "2px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!bg-[#252550]">Apply to file</button>}
+                              <span style={{ flex: 1, fontFamily: '"JetBrains Mono",monospace', fontSize: 10.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {b.path
+                                  ? <><span style={{ color: "var(--accent)" }}>{b.path}</span> · {b.code.split("\n").length} line{b.code.split("\n").length === 1 ? "" : "s"}</>
+                                  : <>{b.lang} · {b.code.split("\n").length} line{b.code.split("\n").length === 1 ? "" : "s"}</>}
+                              </span>
+                              {(b.path || activeFile) && <button onClick={() => applyArtifact(b.code, b.path)} title={b.path ? `Apply to ${b.path} (review first)` : `Apply to ${activeName} (review first)`} style={{ fontSize: 10, color: "var(--accent)", background: "#1A1A3A", border: "1px solid #6366F130", borderRadius: 5, padding: "2px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!bg-[#252550]">{b.path ? "Apply" : "Apply to file"}</button>}
                               <button onClick={() => navigator.clipboard?.writeText(b.code).catch(() => {})} style={{ fontSize: 10, color: "#9A9AB5", background: "none", border: "1px solid #252535", borderRadius: 5, padding: "2px 8px", cursor: "pointer", flexShrink: 0 }} className="hover:!text-[var(--accent)]">Copy</button>
                             </div>
                           ))}
